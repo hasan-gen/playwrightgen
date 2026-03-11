@@ -1,6 +1,14 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
+import { Redis } from "@upstash/redis";
+
+const DAILY_FREE_LIMIT = 5;
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
 
 const systemPrompts = {
   text: `You are a senior SDET and Playwright expert.
@@ -98,8 +106,43 @@ Rules:
 - Do not include explanations`,
 };
 
+function getClientIp(req: Request): string {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp.trim();
+  }
+
+  return "unknown";
+}
+
+function getDailyUsageKey(ip: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  return `playwrightgen:usage:${ip}:${today}`;
+}
+
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    const usageKey = getDailyUsageKey(ip);
+
+    const currentCount = ((await redis.get<number>(usageKey)) ?? 0) as number;
+
+    if (currentCount >= DAILY_FREE_LIMIT) {
+      return NextResponse.json(
+        {
+          error:
+            "Free limit reached (5 generations per day). Upgrade to Pro for unlimited generation.",
+          remaining: 0,
+        },
+        { status: 429 }
+      );
+    }
+
     const { mode, prompt, url, styleMode, outputType } = await req.json();
     let pageContext = "";
 
@@ -185,7 +228,18 @@ ${inputs.join("\n")}
 
     const result = completion.choices[0]?.message?.content || "";
 
-    return NextResponse.json({ result });
+    const newCount = await redis.incr(usageKey);
+
+    if (newCount === 1) {
+      await redis.expire(usageKey, 60 * 60 * 24);
+    }
+
+    const remaining = Math.max(0, DAILY_FREE_LIMIT - newCount);
+
+    return NextResponse.json({
+      result,
+      remaining,
+    });
   } catch (error) {
     console.error("OpenAI API error:", error);
 

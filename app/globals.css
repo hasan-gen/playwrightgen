@@ -5,6 +5,7 @@
   --foreground: #171717;
 }
 
+/* ignore Tailwind @theme rule*/
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

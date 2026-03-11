@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Mode = "text" | "html" | "api" | "component";
 type StyleMode = "fast" | "clean" | "production";
@@ -18,7 +18,8 @@ export default function GeneratorPage() {
     const [outputType, setOutputType] = useState<OutputType>("playwright");
     const [generationType, setGenerationType] = useState<"prompt" | "url">("prompt");
     const [analysisSummary, setAnalysisSummary] = useState("");
-    const [remainingGenerations, setRemainingGenerations] = useState(5);
+    const [remainingGenerations, setRemainingGenerations] = useState<number>(5);
+    const [hasSyncedUsage, setHasSyncedUsage] = useState(false);
     const [isPro] = useState(false);
 
     const getTitle = () => {
@@ -39,33 +40,33 @@ export default function GeneratorPage() {
 
         if (mode === "html") {
             return `<form>
-  <input placeholder="Enter email" />
-  <input placeholder="Enter password" type="password" />
-  <button type="submit">Login</button>
+<input placeholder="Enter email" />
+<input placeholder="Enter password" type="password" />
+<button type="submit">Login</button>
 </form>`;
         }
 
         if (mode === "component") {
             return outputType === "unit"
                 ? `export function LoginForm() {
-  return (
-    <form>
-      <label htmlFor="email">Email</label>
-      <input id="email" placeholder="Enter email" />
-      <label htmlFor="password">Password</label>
-      <input id="password" type="password" placeholder="Enter password" />
-      <button type="submit">Login</button>
-    </form>
-  );
+return (
+<form>
+<label htmlFor="email">Email</label>
+<input id="email" placeholder="Enter email" />
+<label htmlFor="password">Password</label>
+<input id="password" type="password" placeholder="Enter password" />
+<button type="submit">Login</button>
+</form>
+);
 }`
                 : `export function LoginForm() {
-  return (
-    <form>
-      <input placeholder="Enter email" />
-      <input placeholder="Enter password" type="password" />
-      <button type="submit">Login</button>
-    </form>
-  );
+return (
+<form>
+<input placeholder="Enter email" />
+<input placeholder="Enter password" type="password" />
+<button type="submit">Login</button>
+</form>
+);
 }`;
         }
 
@@ -100,22 +101,6 @@ export default function GeneratorPage() {
     };
 
     const handleGenerate = async () => {
-        const today = new Date().toDateString();
-        const usageKey = "playwrightgen_usage";
-        const usageData = JSON.parse(localStorage.getItem(usageKey) || "{}");
-
-        if (usageData.date !== today) {
-            usageData.date = today;
-            usageData.count = 0;
-        }
-
-        if (usageData.count >= 5) {
-            setGeneratedCode(
-                "Free limit reached (5 generations per day). Upgrade to Pro for unlimited generation."
-            );
-            return;
-        }
-
         if (!prompt.trim()) {
             setGeneratedCode("Please enter a prompt first.");
             return;
@@ -146,13 +131,21 @@ export default function GeneratorPage() {
 
             if (!response.ok) {
                 setGeneratedCode(data.error || "Something went wrong.");
+
+                if (typeof data.remaining === "number") {
+                    setRemainingGenerations(data.remaining);
+                    setHasSyncedUsage(true);
+                }
+
                 return;
             }
 
             setGeneratedCode(data.result);
-            usageData.count += 1;
-            localStorage.setItem(usageKey, JSON.stringify(usageData));
-            updateRemainingGenerations();
+
+            if (typeof data.remaining === "number") {
+                setRemainingGenerations(data.remaining);
+                setHasSyncedUsage(true);
+            }
         } catch (error) {
             console.error("Generate error:", error);
             setGeneratedCode("Failed to generate code.");
@@ -208,10 +201,21 @@ export default function GeneratorPage() {
 
             if (!response.ok) {
                 setGeneratedCode(data.error || "Something went wrong.");
+
+                if (typeof data.remaining === "number") {
+                    setRemainingGenerations(data.remaining);
+                    setHasSyncedUsage(true);
+                }
+
                 return;
             }
 
             setGeneratedCode(data.result);
+
+            if (typeof data.remaining === "number") {
+                setRemainingGenerations(data.remaining);
+                setHasSyncedUsage(true);
+            }
         } catch (error) {
             console.error("Analyze URL error:", error);
             setGeneratedCode("Failed to analyze URL.");
@@ -258,6 +262,7 @@ export default function GeneratorPage() {
         setUrl("");
         setGenerationType("prompt");
         setAnalysisSummary("");
+
         if (newMode !== "component") {
             setOutputType("playwright");
         }
@@ -311,27 +316,27 @@ export default function GeneratorPage() {
                     {
                         label: "Form Unit Test",
                         value: `export function LoginForm() {
-  return (
-    <form>
-      <label htmlFor="email">Email</label>
-      <input id="email" placeholder="Enter email" />
-      <label htmlFor="password">Password</label>
-      <input id="password" type="password" placeholder="Enter password" />
-      <button type="submit">Login</button>
-    </form>
-  );
+return (
+<form>
+<label htmlFor="email">Email</label>
+<input id="email" placeholder="Enter email" />
+<label htmlFor="password">Password</label>
+<input id="password" type="password" placeholder="Enter password" />
+<button type="submit">Login</button>
+</form>
+);
 }`,
                     },
                     {
                         label: "Modal Unit Test",
                         value: `export function DeleteModal() {
-  return (
-    <div>
-      <h2>Delete item</h2>
-      <button>Cancel</button>
-      <button>Confirm Delete</button>
-    </div>
-  );
+return (
+<div>
+<h2>Delete item</h2>
+<button>Cancel</button>
+<button>Confirm Delete</button>
+</div>
+);
 }`,
                     },
                 ]
@@ -339,24 +344,24 @@ export default function GeneratorPage() {
                     {
                         label: "Login Component",
                         value: `export function LoginForm() {
-  return (
-    <form>
-      <input placeholder="Enter email" />
-      <input type="password" placeholder="Enter password" />
-      <button type="submit">Login</button>
-    </form>
-  );
+return (
+<form>
+<input placeholder="Enter email" />
+<input type="password" placeholder="Enter password" />
+<button type="submit">Login</button>
+</form>
+);
 }`,
                     },
                     {
                         label: "Search Component",
                         value: `export function SearchBar() {
-  return (
-    <div>
-      <input placeholder="Search products" />
-      <button>Search</button>
-    </div>
-  );
+return (
+<div>
+<input placeholder="Search products" />
+<button>Search</button>
+</div>
+);
 }`,
                     },
                 ];
@@ -364,24 +369,6 @@ export default function GeneratorPage() {
 
         return [];
     };
-
-    const updateRemainingGenerations = () => {
-        const today = new Date().toDateString();
-        const usageKey = "playwrightgen_usage";
-        const usageData = JSON.parse(localStorage.getItem(usageKey) || "{}");
-
-        if (usageData.date !== today) {
-            setRemainingGenerations(5);
-            return;
-        }
-
-        const remaining = Math.max(0, 5 - (usageData.count || 0));
-        setRemainingGenerations(remaining);
-    };
-
-    useEffect(() => {
-        updateRemainingGenerations();
-    }, []);
 
     return (
         <main className="min-h-screen px-6 py-10">
@@ -402,16 +389,19 @@ export default function GeneratorPage() {
 
                     <div className="flex flex-wrap items-center gap-3">
                         <span className="text-sm text-gray-500">
-                            Free plan: {remainingGenerations} of 5 generations left today
+                            {hasSyncedUsage
+                                ? `Free plan: ${remainingGenerations} of 5 generations left today`
+                                : "Free plan: 5 generations per day"}
                         </span>
-                      <Link
-  href="/pricing"
-  className="inline-flex items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
->
-  <span className="text-sm font-medium text-black [a:hover_&]:text-white">
-    Upgrade to Pro
-  </span>
-</Link>
+
+                        <Link
+                            href="/pricing"
+                            className="inline-flex items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
+                        >
+                            <span className="text-sm font-medium text-black [a:hover_&]:text-white">
+                                Upgrade to Pro
+                            </span>
+                        </Link>
                     </div>
                 </div>
 
@@ -419,8 +409,8 @@ export default function GeneratorPage() {
                     <button
                         onClick={() => handleModeChange("text")}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "text"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
                         Prompt
@@ -429,8 +419,8 @@ export default function GeneratorPage() {
                     <button
                         onClick={() => handleModeChange("component")}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "component"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
                         Component
@@ -439,8 +429,8 @@ export default function GeneratorPage() {
                     <button
                         onClick={() => handleModeChange("html")}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "html"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
                         HTML
@@ -449,8 +439,8 @@ export default function GeneratorPage() {
                     <button
                         onClick={() => handleModeChange("api")}
                         className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "api"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
                         API
@@ -467,8 +457,8 @@ export default function GeneratorPage() {
                                     <button
                                         onClick={() => setOutputType("playwright")}
                                         className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
-                                            ? "bg-black text-white"
-                                            : "border border-gray-300 text-gray-700"
+                                                ? "bg-black text-white"
+                                                : "border border-gray-300 text-gray-700"
                                             }`}
                                     >
                                         Playwright Test
@@ -477,8 +467,8 @@ export default function GeneratorPage() {
                                     <button
                                         onClick={() => setOutputType("unit")}
                                         className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
-                                            ? "bg-black text-white"
-                                            : "border border-gray-300 text-gray-700"
+                                                ? "bg-black text-white"
+                                                : "border border-gray-300 text-gray-700"
                                             }`}
                                     >
                                         Unit Test
@@ -528,8 +518,8 @@ export default function GeneratorPage() {
                                 <button
                                     onClick={() => setStyleMode("fast")}
                                     className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
-                                        ? "bg-black text-white"
-                                        : "border border-gray-300 bg-white text-gray-700"
+                                            ? "bg-black text-white"
+                                            : "border border-gray-300 bg-white text-gray-700"
                                         }`}
                                 >
                                     Fast
@@ -538,8 +528,8 @@ export default function GeneratorPage() {
                                 <button
                                     onClick={() => setStyleMode("clean")}
                                     className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
-                                        ? "bg-black text-white"
-                                        : "border border-gray-300 bg-white text-gray-700"
+                                            ? "bg-black text-white"
+                                            : "border border-gray-300 bg-white text-gray-700"
                                         }`}
                                 >
                                     Clean
@@ -548,8 +538,8 @@ export default function GeneratorPage() {
                                 <button
                                     onClick={() => setStyleMode("production")}
                                     className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
-                                        ? "bg-black text-white"
-                                        : "border border-gray-300 bg-white text-gray-700"
+                                            ? "bg-black text-white"
+                                            : "border border-gray-300 bg-white text-gray-700"
                                         }`}
                                 >
                                     Production
@@ -587,9 +577,7 @@ export default function GeneratorPage() {
                         <div className="mb-4 flex items-start justify-between gap-4">
                             <div>
                                 <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
-                                <h2 className="text-xl font-semibold text-black">
-                                    {getOutputTitle()}
-                                </h2>
+                                <h2 className="text-xl font-semibold text-black">{getOutputTitle()}</h2>
                             </div>
 
                             <div className="flex gap-2">
