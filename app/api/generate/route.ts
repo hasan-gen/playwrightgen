@@ -243,8 +243,10 @@ ${inputs.join("\n")}
   } catch (error) {
     console.error("OpenAI API error:", error);
 
+    const message = 
+     error instanceof Error ? error.message : "Unknown server error";
     return NextResponse.json(
-      { error: "Failed to generate code." },
+      { error: message },
       { status: 500 }
     );
   }
