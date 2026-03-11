@@ -1,34 +1,32 @@
 # PlaywrightGen
 
-AI-powered Playwright test generation platform for QA engineers, SDETs, and developers.
+AI-powered Playwright test generation platform for developers, automation engineers, and SDETs.
 
-PlaywrightGen helps teams generate production-ready Playwright tests from plain English descriptions, HTML snippets, API descriptions, or real page URLs.
-
----
+PlaywrightGen helps teams generate production-ready Playwright tests from prompts, components, HTML snippets, API descriptions, and page URLs.
 
 ## Features
 
-- Generate Playwright tests from natural language
-- Convert HTML or JSX into Playwright selectors
-- Generate API tests for endpoints
-- Analyze page URLs to infer realistic test flows
-- Multiple code styles: Fast, Clean, Senior SDET
+- Prompt → Playwright test generation
+- Component → Playwright test generation
+- Component → unit test generation
+- HTML / JSX → Playwright test generation
+- API test generation
+- URL analysis for more realistic browser flows
+- Multiple output styles: Fast, Clean, Production
+- Free / Pro product structure
+- Copy code and download output
 - Built with Next.js + OpenAI
-
----
 
 ## Example Use Cases
 
-**QA Engineers**
-- Turn manual test cases into Playwright automation quickly
-
-**Senior SDETs**
-- Generate stable selectors and maintainable test flows
-
 **Developers**
-- Prototype UI or API tests faster during development
+- Generate tests faster while building modern web applications
 
----
+**Automation Engineers**
+- Turn manual test ideas into automated Playwright coverage faster
+
+**SDETs**
+- Create stable locators, reusable flows, and production-ready test suites
 
 ## Tech Stack
 
@@ -37,8 +35,7 @@ PlaywrightGen helps teams generate production-ready Playwright tests from plain 
 - OpenAI API
 - TailwindCSS
 - Playwright
-
----
+- Cheerio
 
 ## Getting Started
 

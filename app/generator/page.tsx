@@ -1,8 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
-import Link from "next/link";
 
-type Mode = "text" | "html" | "api";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+type Mode = "text" | "html" | "api" | "component";
+type StyleMode = "fast" | "clean" | "production";
+type OutputType = "playwright" | "unit";
 
 export default function GeneratorPage() {
     const [mode, setMode] = useState<Mode>("text");
@@ -11,7 +14,8 @@ export default function GeneratorPage() {
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(false);
     const [url, setUrl] = useState("");
-    const [styleMode, setStyleMode] = useState("clean");
+    const [styleMode, setStyleMode] = useState<StyleMode>("clean");
+    const [outputType, setOutputType] = useState<OutputType>("playwright");
     const [generationType, setGenerationType] = useState<"prompt" | "url">("prompt");
     const [analysisSummary, setAnalysisSummary] = useState("");
     const [remainingGenerations, setRemainingGenerations] = useState(5);
@@ -20,6 +24,11 @@ export default function GeneratorPage() {
     const getTitle = () => {
         if (mode === "text") return "Describe your test";
         if (mode === "html") return "Paste HTML or JSX";
+        if (mode === "component") {
+            return outputType === "unit"
+                ? "Paste a component for a unit test"
+                : "Paste a component for a Playwright test";
+        }
         return "Describe your API test";
     };
 
@@ -29,12 +38,38 @@ export default function GeneratorPage() {
         }
 
         if (mode === "html") {
-            return `<input id="email" placeholder="Enter email" />
-<input id="password" placeholder="Enter password" />
-<button type="submit">Login</button>`;
+            return `<form>
+  <input placeholder="Enter email" />
+  <input placeholder="Enter password" type="password" />
+  <button type="submit">Login</button>
+</form>`;
         }
 
-        return "Create a Playwright API test for POST /login with email and password. Expect status 200 and token in response.";
+        if (mode === "component") {
+            return outputType === "unit"
+                ? `export function LoginForm() {
+  return (
+    <form>
+      <label htmlFor="email">Email</label>
+      <input id="email" placeholder="Enter email" />
+      <label htmlFor="password">Password</label>
+      <input id="password" type="password" placeholder="Enter password" />
+      <button type="submit">Login</button>
+    </form>
+  );
+}`
+                : `export function LoginForm() {
+  return (
+    <form>
+      <input placeholder="Enter email" />
+      <input placeholder="Enter password" type="password" />
+      <button type="submit">Login</button>
+    </form>
+  );
+}`;
+        }
+
+        return "Create a Playwright API test for POST /login with email and password. Expect status 200 and a token in response.";
     };
 
     const getOutputTitle = () => {
@@ -42,19 +77,31 @@ export default function GeneratorPage() {
             return "URL-Based Playwright Test";
         }
 
+        if (mode === "component" && outputType === "unit") {
+            return "Generated Component Unit Test";
+        }
+
+        if (mode === "component") {
+            return "Generated Component Playwright Test";
+        }
+
         if (mode === "text") return "Generated Playwright Test";
         if (mode === "html") return "Generated Playwright Test from HTML";
         return "Generated Playwright API Test";
     };
+
     const getModeLabel = () => {
-        if (mode === "text") return "Text Mode";
+        if (mode === "text") return "Prompt Mode";
         if (mode === "html") return "HTML Mode";
+        if (mode === "component") {
+            return outputType === "unit" ? "Component Unit Test Mode" : "Component Mode";
+        }
         return "API Mode";
     };
+
     const handleGenerate = async () => {
         const today = new Date().toDateString();
         const usageKey = "playwrightgen_usage";
-
         const usageData = JSON.parse(localStorage.getItem(usageKey) || "{}");
 
         if (usageData.date !== today) {
@@ -64,10 +111,11 @@ export default function GeneratorPage() {
 
         if (usageData.count >= 5) {
             setGeneratedCode(
-                "Free limit reached (5 tests per day). Upgrade to Pro for unlimited generation."
+                "Free limit reached (5 generations per day). Upgrade to Pro for unlimited generation."
             );
             return;
         }
+
         if (!prompt.trim()) {
             setGeneratedCode("Please enter a prompt first.");
             return;
@@ -90,6 +138,7 @@ export default function GeneratorPage() {
                     prompt,
                     url,
                     styleMode,
+                    outputType,
                 }),
             });
 
@@ -103,6 +152,7 @@ export default function GeneratorPage() {
             setGeneratedCode(data.result);
             usageData.count += 1;
             localStorage.setItem(usageKey, JSON.stringify(usageData));
+            updateRemainingGenerations();
         } catch (error) {
             console.error("Generate error:", error);
             setGeneratedCode("Failed to generate code.");
@@ -118,6 +168,7 @@ export default function GeneratorPage() {
             );
             return;
         }
+
         if (!url.trim()) {
             setGeneratedCode("Please enter a URL first.");
             return;
@@ -149,6 +200,7 @@ export default function GeneratorPage() {
                     prompt: analysisPrompt,
                     url,
                     styleMode,
+                    outputType,
                 }),
             });
 
@@ -186,15 +238,16 @@ export default function GeneratorPage() {
     const handleDownload = () => {
         if (!generatedCode) return;
 
+        const extension = outputType === "unit" ? "test.tsx" : "spec.ts";
         const blob = new Blob([generatedCode], { type: "text/typescript" });
-        const url = window.URL.createObjectURL(blob);
+        const downloadUrl = window.URL.createObjectURL(blob);
 
         const link = document.createElement("a");
-        link.href = url;
-        link.download = "playwright-test.spec.ts";
+        link.href = downloadUrl;
+        link.download = `playwrightgen-output.${extension}`;
         link.click();
 
-        window.URL.revokeObjectURL(url);
+        window.URL.revokeObjectURL(downloadUrl);
     };
 
     const handleModeChange = (newMode: Mode) => {
@@ -205,6 +258,9 @@ export default function GeneratorPage() {
         setUrl("");
         setGenerationType("prompt");
         setAnalysisSummary("");
+        if (newMode !== "component") {
+            setOutputType("playwright");
+        }
     };
 
     const handleTemplateSelect = (template: string) => {
@@ -212,6 +268,7 @@ export default function GeneratorPage() {
         setGeneratedCode("");
         setCopied(false);
     };
+
     const getTemplates = () => {
         if (mode === "text") {
             return [
@@ -248,12 +305,69 @@ export default function GeneratorPage() {
             ];
         }
 
+        if (mode === "component") {
+            return outputType === "unit"
+                ? [
+                    {
+                        label: "Form Unit Test",
+                        value: `export function LoginForm() {
+  return (
+    <form>
+      <label htmlFor="email">Email</label>
+      <input id="email" placeholder="Enter email" />
+      <label htmlFor="password">Password</label>
+      <input id="password" type="password" placeholder="Enter password" />
+      <button type="submit">Login</button>
+    </form>
+  );
+}`,
+                    },
+                    {
+                        label: "Modal Unit Test",
+                        value: `export function DeleteModal() {
+  return (
+    <div>
+      <h2>Delete item</h2>
+      <button>Cancel</button>
+      <button>Confirm Delete</button>
+    </div>
+  );
+}`,
+                    },
+                ]
+                : [
+                    {
+                        label: "Login Component",
+                        value: `export function LoginForm() {
+  return (
+    <form>
+      <input placeholder="Enter email" />
+      <input type="password" placeholder="Enter password" />
+      <button type="submit">Login</button>
+    </form>
+  );
+}`,
+                    },
+                    {
+                        label: "Search Component",
+                        value: `export function SearchBar() {
+  return (
+    <div>
+      <input placeholder="Search products" />
+      <button>Search</button>
+    </div>
+  );
+}`,
+                    },
+                ];
+        }
+
         return [];
     };
+
     const updateRemainingGenerations = () => {
         const today = new Date().toDateString();
         const usageKey = "playwrightgen_usage";
-
         const usageData = JSON.parse(localStorage.getItem(usageKey) || "{}");
 
         if (usageData.date !== today) {
@@ -264,53 +378,69 @@ export default function GeneratorPage() {
         const remaining = Math.max(0, 5 - (usageData.count || 0));
         setRemainingGenerations(remaining);
     };
+
     useEffect(() => {
         updateRemainingGenerations();
     }, []);
 
     return (
-        <main className="min-h-screen bg-white px-6 py-10">
+        <main className="min-h-screen px-6 py-10">
             <div className="mx-auto max-w-7xl">
-                <h1 className="mb-2 text-4xl font-bold tracking-tight">
-                    AI Playwright Test Generator
-                </h1>
+                <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                    <div>
+                        <h1 className="text-4xl font-bold tracking-tight text-black">
+                            PlaywrightGen Generator
+                        </h1>
+                        <p className="mt-2 max-w-3xl text-gray-600">
+                            Generate Playwright tests from prompts, components, HTML snippets,
+                            APIs, or page URLs.
+                        </p>
+                        <p className="mt-2 text-sm text-gray-500">
+                            Built for developers, automation engineers, and SDETs.
+                        </p>
+                    </div>
 
-                <p className="mb-2 text-gray-600">
-                    Generate production-ready Playwright tests from plain English, HTML, or API descriptions.
-                </p>
-                <div className="mb-6 flex items-center gap-4 text-sm text-gray-500">
-                    <p>
-                        Free plan: {remainingGenerations} of 5 generations left today
-                    </p>
-
-                    <Link
-                        href="/pricing"
-                        className="rounded-lg border border-black px-3 py-1 text-sm font-medium hover:bg-black hover:text-white"
-                    >
-                        Upgrade to Pro
-                    </Link>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-sm text-gray-500">
+                            Free plan: {remainingGenerations} of 5 generations left today
+                        </span>
+                      <Link
+  href="/pricing"
+  className="inline-flex items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
+>
+  <span className="text-sm font-medium text-black [a:hover_&]:text-white">
+    Upgrade to Pro
+  </span>
+</Link>
+                    </div>
                 </div>
 
-                <p className="mb-8 text-gray-500 text-sm">
-                    Built for QA engineers, SDETs, and developers.
-                </p>
-
-                <div className="mb-6 flex gap-3">
+                <div className="mb-6 flex flex-wrap gap-3">
                     <button
                         onClick={() => handleModeChange("text")}
-                        className={`rounded-lg px-4 py-2 ${mode === "text"
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "text"
                             ? "bg-black text-white"
-                            : "border border-gray-300 text-gray-700"
+                            : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
-                        Text
+                        Prompt
+                    </button>
+
+                    <button
+                        onClick={() => handleModeChange("component")}
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "component"
+                            ? "bg-black text-white"
+                            : "border border-gray-300 bg-white text-gray-700"
+                            }`}
+                    >
+                        Component
                     </button>
 
                     <button
                         onClick={() => handleModeChange("html")}
-                        className={`rounded-lg px-4 py-2 ${mode === "html"
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "html"
                             ? "bg-black text-white"
-                            : "border border-gray-300 text-gray-700"
+                            : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
                         HTML
@@ -318,26 +448,52 @@ export default function GeneratorPage() {
 
                     <button
                         onClick={() => handleModeChange("api")}
-                        className={`rounded-lg px-4 py-2 ${mode === "api"
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "api"
                             ? "bg-black text-white"
-                            : "border border-gray-300 text-gray-700"
+                            : "border border-gray-300 bg-white text-gray-700"
                             }`}
                     >
                         API
                     </button>
                 </div>
 
-                <div className="grid gap-6 md:grid-cols-2">
-                    <div className="rounded-xl border border-gray-200 p-5">
-                        <h2 className="mb-3 text-xl font-semibold">{getTitle()}</h2>
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
+
+                            {mode === "component" && (
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setOutputType("playwright")}
+                                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
+                                            ? "bg-black text-white"
+                                            : "border border-gray-300 text-gray-700"
+                                            }`}
+                                    >
+                                        Playwright Test
+                                    </button>
+
+                                    <button
+                                        onClick={() => setOutputType("unit")}
+                                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
+                                            ? "bg-black text-white"
+                                            : "border border-gray-300 text-gray-700"
+                                            }`}
+                                    >
+                                        Unit Test
+                                    </button>
+                                </div>
+                            )}
+                        </div>
 
                         {getTemplates().length > 0 && (
-                            <div className="mb-4 flex flex-wrap gap-2">
+                            <div className="mb-5 flex flex-wrap gap-2">
                                 {getTemplates().map((template) => (
                                     <button
                                         key={template.label}
                                         onClick={() => handleTemplateSelect(template.value)}
-                                        className="rounded-full border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-100"
+                                        className="rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50"
                                     >
                                         {template.label}
                                     </button>
@@ -345,32 +501,35 @@ export default function GeneratorPage() {
                             </div>
                         )}
 
-                        <div className="mb-4">
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
-                                Page URL
-                            </label>
-                            <p className="mb-2 text-sm text-gray-500">
-                                Optional. Add a page URL to help generate a more realistic Playwright test.
-                            </p>
-                            <input
-                                type="text"
-                                placeholder="https://example.com/login"
-                                className="w-full rounded-lg border border-gray-300 p-3 outline-none"
-                                value={url}
-                                onChange={(e) => setUrl(e.target.value)}
-                            />
-                        </div>
+                        {(mode === "text" || mode === "html" || mode === "component") && (
+                            <div className="mb-4">
+                                <label className="mb-2 block text-sm font-medium text-gray-700">
+                                    Page URL
+                                </label>
+                                <p className="mb-2 text-sm text-gray-500">
+                                    Optional. Add a page URL to generate a more realistic browser test.
+                                </p>
+                                <input
+                                    type="text"
+                                    placeholder="https://example.com/login"
+                                    className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                />
+                            </div>
+                        )}
+
                         <div className="mb-4">
                             <label className="mb-2 block text-sm font-medium text-gray-700">
                                 Code Style
                             </label>
 
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                                 <button
                                     onClick={() => setStyleMode("fast")}
-                                    className={`rounded-full px-3 py-1 text-sm ${styleMode === "fast"
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
                                         ? "bg-black text-white"
-                                        : "border border-gray-300 text-gray-700"
+                                        : "border border-gray-300 bg-white text-gray-700"
                                         }`}
                                 >
                                     Fast
@@ -378,63 +537,66 @@ export default function GeneratorPage() {
 
                                 <button
                                     onClick={() => setStyleMode("clean")}
-                                    className={`rounded-full px-3 py-1 text-sm ${styleMode === "clean"
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
                                         ? "bg-black text-white"
-                                        : "border border-gray-300 text-gray-700"
+                                        : "border border-gray-300 bg-white text-gray-700"
                                         }`}
                                 >
                                     Clean
                                 </button>
 
                                 <button
-                                    onClick={() => setStyleMode("senior-sdet")}
-                                    className={`rounded-full px-3 py-1 text-sm ${styleMode === "senior-sdet"
+                                    onClick={() => setStyleMode("production")}
+                                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
                                         ? "bg-black text-white"
-                                        : "border border-gray-300 text-gray-700"
+                                        : "border border-gray-300 bg-white text-gray-700"
                                         }`}
                                 >
-                                    Senior SDET
+                                    Production
                                 </button>
                             </div>
                         </div>
+
                         <textarea
-                            className="min-h-[300px] w-full rounded-lg border border-gray-300 p-4 outline-none"
+                            className="min-h-[320px] w-full rounded-2xl border border-gray-300 bg-white p-4 outline-none transition focus:border-black"
                             placeholder={getPlaceholder()}
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
                         />
 
-                        <div className="mt-4 flex gap-3">
+                        <div className="mt-5 flex flex-wrap gap-3">
                             <button
                                 onClick={handleGenerate}
                                 disabled={loading}
-                                className="rounded-lg bg-black px-5 py-3 text-white hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                                {loading ? "Generating..." : "Generate Test"}
+                                {loading ? "Generating..." : "Generate"}
                             </button>
 
                             <button
                                 onClick={handleAnalyzeUrl}
                                 disabled={!url || loading}
-                                className="rounded-lg border border-gray-300 px-5 py-3 text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 Analyze URL {!isPro && "(Pro)"}
                             </button>
                         </div>
                     </div>
 
-                    <div className="rounded-xl border border-gray-200 p-5">
-                        <div className="mb-3 flex items-start justify-between">
+                    <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <div className="mb-4 flex items-start justify-between gap-4">
                             <div>
                                 <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
-                                <h2 className="text-xl font-semibold">{getOutputTitle()}</h2>
+                                <h2 className="text-xl font-semibold text-black">
+                                    {getOutputTitle()}
+                                </h2>
                             </div>
 
                             <div className="flex gap-2">
                                 <button
                                     onClick={handleCopy}
                                     disabled={!generatedCode}
-                                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {copied ? "Copied!" : "Copy Code"}
                                 </button>
@@ -442,30 +604,31 @@ export default function GeneratorPage() {
                                 <button
                                     onClick={handleDownload}
                                     disabled={!generatedCode}
-                                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
-                                    Download .ts
+                                    Download
                                 </button>
                             </div>
                         </div>
+
                         {analysisSummary && (
-                            <div className="mb-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-600">
+                            <div className="mb-4 rounded-2xl bg-gray-50 p-3 text-sm text-gray-600">
                                 {analysisSummary}
                             </div>
                         )}
 
-                        <div className="min-h-[300px] rounded-lg bg-black p-4 text-sm text-green-400">
+                        <div className="min-h-[420px] rounded-2xl bg-black p-4 text-sm text-green-400">
                             <pre className="whitespace-pre-wrap">
                                 {loading
                                     ? generationType === "url"
                                         ? "Analyzing URL and generating Playwright test..."
-                                        : "Generating Playwright test..."
-                                    : generatedCode || "Your generated Playwright test will appear here."}
+                                        : "Generating code..."
+                                    : generatedCode || "Your generated output will appear here."}
                             </pre>
                         </div>
                     </div>
                 </div>
             </div>
-        </main >
+        </main>
     );
 }

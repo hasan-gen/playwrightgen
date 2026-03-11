@@ -2,10 +2,6 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 const systemPrompts = {
   text: `You are a senior SDET and Playwright expert.
 
@@ -27,7 +23,7 @@ Rules:
 - If the user provides a URL, use it in await page.goto("...")
 - Do not invent a different URL if one is provided
 - If Page Context is provided, use it to infer realistic inputs, buttons, labels, and likely user flow
-- Adapt the code style based on the requested Style Mode: Fast, Clean, or Senior SDET
+- Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
 - Keep the code concise, readable, and professional
 - Prefer assertions that validate user-visible results
 - Avoid brittle selectors when possible
@@ -60,7 +56,24 @@ Rules:
 - If the user provides a URL, use it in await page.goto("...")
 - Do not invent a different URL if one is provided
 - If Page Context is provided, prioritize the discovered labels, buttons, inputs, and placeholders when generating selectors
-- Adapt the code style based on the requested Style Mode: Fast, Clean, or Senior SDET
+- Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
+- Do not include markdown fences
+- Do not include explanations`,
+
+  component: `You are a senior frontend engineer, SDET, and Playwright expert.
+
+The user will provide a React component, JSX, or TSX snippet.
+
+Rules:
+- Respect the requested Output Type
+- If Output Type is "playwright", generate a clean Playwright test in TypeScript using @playwright/test
+- If Output Type is "unit", generate a React Testing Library + Vitest TypeScript test
+- Output only valid code
+- Use clear and professional test names
+- Prefer accessible selectors when possible
+- Include meaningful assertions
+- Infer realistic interactions from the component structure
+- Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
 - Do not include markdown fences
 - Do not include explanations`,
 
@@ -80,14 +93,14 @@ Rules:
 - If the user provides a URL, use it as the base URL when reasonable
 - Do not invent a different URL if one is provided
 - Prefer assertions that validate real API outcomes
+- Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
 - Do not include markdown fences
-- Do not include explanations
-- Adapt the code style based on the requested Style Mode: Fast, Clean, or Senior SDET`,
+- Do not include explanations`,
 };
 
 export async function POST(req: Request) {
   try {
-    const { mode, prompt, url, styleMode } = await req.json();
+    const { mode, prompt, url, styleMode, outputType } = await req.json();
     let pageContext = "";
 
     if (!prompt || !mode) {
@@ -97,7 +110,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (url && (mode === "text" || mode === "html")) {
+    if (url && (mode === "text" || mode === "html" || mode === "component")) {
       try {
         const response = await fetch(url);
         const html = await response.text();
@@ -141,12 +154,15 @@ ${buttons.join("\n")}
 Inputs:
 ${inputs.join("\n")}
 `.trim();
-
       } catch (error) {
         console.error("URL fetch error:", error);
         pageContext = "Could not fetch page HTML context.";
       }
     }
+
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
 
     const completion = await client.chat.completions.create({
       model: "gpt-4.1-mini",
@@ -158,8 +174,11 @@ ${inputs.join("\n")}
         },
         {
           role: "user",
-          content: `${url ? `URL: ${url}\n\n` : ""}${pageContext ? `Page Context:\n${pageContext}\n\n` : ""
-            }Style Mode: ${styleMode || "clean"}\n\nRequest: ${prompt}`,
+          content: `${url ? `URL: ${url}\n\n` : ""}${
+            pageContext ? `Page Context:\n${pageContext}\n\n` : ""
+          }Style Mode: ${styleMode || "clean"}\nOutput Type: ${
+            outputType || "playwright"
+          }\n\nRequest: ${prompt}`,
         },
       ],
     });

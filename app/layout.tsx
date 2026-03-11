@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PlaywrightGen",
   description:
-    "AI-powered Playwright test generation platform for QA engineers, SDETs, and developers.",
+    "AI-powered Playwright test generation for developers, automation engineers, and SDETs.",
 };
 
 export default function RootLayout({
@@ -29,27 +29,32 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <nav className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-          <Link href="/" className="text-xl font-bold tracking-tight text-black">
-            PlaywrightGen
-          </Link>
+        <div className="min-h-screen bg-[#fafafa] text-black">
+          <nav className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur">
+            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+              <Link
+                href="/"
+                className="text-xl font-bold tracking-tight text-black"
+              >
+                PlaywrightGen
+              </Link>
 
-          <div className="flex items-center gap-6 text-sm text-gray-600">
-            <Link href="/generator" className="hover:text-black">
-              Generator
-            </Link>
+              <div className="flex items-center gap-5 text-sm text-gray-600">
+                <Link href="/generator" className="transition hover:text-black">
+                  Generator
+                </Link>
+                <Link href="/pricing" className="transition hover:text-black">
+                  Pricing
+                </Link>
+                <Link href="/" className="transition hover:text-black">
+                  Home
+                </Link>
+              </div>
+            </div>
+          </nav>
 
-            <Link href="/pricing" className="hover:text-black">
-              Pricing
-            </Link>
-
-            <Link href="/" className="hover:text-black">
-              Home
-            </Link>
-          </div>
-        </nav>
-
-        {children}
+          {children}
+        </div>
       </body>
     </html>
   );
