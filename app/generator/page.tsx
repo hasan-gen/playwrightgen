@@ -640,25 +640,24 @@ Return only valid Playwright TypeScript code.`;
                         appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
                       }
                       className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       Negative scenario
                     </button>
                     <button
-type="button"
-onClick​={() =>
-appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
-}
-className={`rounded-full border px-3 py-1 text-sm transition ${
-selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
-? "border-black bg-black text-white"
-: "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-}`}
->
-Validation flow
-</button>
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      Validation flow
+                    </button>
                   </>
                 )}
 
