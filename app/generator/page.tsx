@@ -21,12 +21,13 @@ export default function GeneratorPage() {
   const [remainingGenerations, setRemainingGenerations] = useState<number>(5);
   const [hasSyncedUsage, setHasSyncedUsage] = useState(false);
   const [isPro] = useState(false);
+  const [selectedCoverage, setSelectedCoverage] = useState<string[]>([]);
 
   const getTitle = () => {
     if (mode === "text") return "Describe your test";
     if (mode === "html") return "Paste HTML or JSX";
     if (mode === "component") {
-      return "Component → Test"
+      return "Component → Test";
     }
     return "Describe your API test";
   };
@@ -96,6 +97,26 @@ export default function GeneratorPage() {
       return outputType === "unit" ? "Component Unit Test Mode" : "Component Mode";
     }
     return "API Mode";
+  };
+
+  const appendCoverageSuggestion = (suggestion: string) => {
+    setPrompt((prev) => {
+      const trimmedPrev = prev.trim();
+
+      if (trimmedPrev.includes(suggestion)) {
+        return prev;
+      }
+
+      if (!trimmedPrev) {
+        return suggestion;
+      }
+
+      return `${trimmedPrev}\n${suggestion}`;
+    });
+
+    setSelectedCoverage((prev) =>
+      prev.includes(suggestion) ? prev : [...prev, suggestion]
+    );
   };
 
   const handleGenerate = async () => {
@@ -179,12 +200,14 @@ Requirements:
 - Write the tests like a senior API automation engineer
 
 Return only valid Playwright TypeScript code.`
-
         : `Analyze this page URL: ${url}.
 
 Generate a realistic Playwright test suite in TypeScript.
 
 Requirements:
+- Think like a senior test architect before writing the code
+- Infer the most valuable scenarios from the page structure first
+- Prioritize coverage of primary flows, validation flows, and edge cases before implementation details
 - Generate 3 to 5 related tests
 - Group them inside test.describe(...)
 - Focus on the most likely user flows
@@ -283,6 +306,7 @@ Return only valid Playwright TypeScript code.`;
     setUrl("");
     setGenerationType("prompt");
     setAnalysisSummary("");
+    setSelectedCoverage([]);
 
     if (newMode !== "component") {
       setOutputType("playwright");
@@ -583,6 +607,156 @@ Return only valid Playwright TypeScript code.`;
                 >
                   Production
                 </button>
+              </div>
+            </div>
+
+            <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+              <p className="mb-1 text-sm font-semibold text-gray-800">
+                Suggested Test Coverage
+              </p>
+
+              <p className="mb-3 text-xs text-gray-500">
+                AI-prioritized coverage areas for this input mode.
+              </p>
+
+              <div className="flex flex-wrap gap-2 text-sm text-gray-600">
+                {mode === "text" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      Happy path
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
+                      }
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
+                    >
+                      Negative scenario
+                    </button>
+                    <button
+type="button"
+onClick​={() =>
+appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
+}
+className={`rounded-full border px-3 py-1 text-sm transition ${
+selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
+? "border-black bg-black text-white"
+: "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+}`}
+>
+Validation flow
+</button>
+                  </>
+                )}
+
+                {mode === "html" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Main user flow
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include validation behavior for the provided markup.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Validation behavior
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Negative case
+                    </button>
+                  </>
+                )}
+
+                {mode === "component" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Cover the initial render state of the component.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Render state
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a user interaction scenario for the component.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      User interaction
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      State update
+                    </button>
+                  </>
+                )}
+
+                {mode === "api" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include a successful response scenario for the API.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Success response
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include an invalid request scenario for the API.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Invalid request
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        appendCoverageSuggestion("Include an edge case scenario for the API.")
+                      }
+                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                    >
+                      Edge case
+                    </button>
+                  </>
+                )}
               </div>
             </div>
 
