@@ -16,7 +16,7 @@ export default function PricingPage() {
           </p>
 
           <h1 className="mb-4 text-5xl font-bold tracking-tight text-black md:text-6xl">
-            Simple pricing for modern automation teams
+            Simple pricing for AI-powered test generation
           </h1>
 
           <p className="mx-auto max-w-2xl text-gray-600">
@@ -52,8 +52,11 @@ export default function PricingPage() {
           </div>
 
           <div className="rounded-3xl border border-black bg-black p-8 text-white shadow-sm">
+            <span className="mb-4 inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
+              ⭐ Most Popular
+            </span>
             <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-gray-300">
-              Pro
+              Pro Plan
             </p>
 
             <h2 className="mb-4 text-4xl font-bold">$12 / month</h2>

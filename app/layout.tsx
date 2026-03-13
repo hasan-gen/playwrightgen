@@ -31,15 +31,15 @@ export default function RootLayout({
       >
         <div className="min-h-screen bg-[#fafafa] text-black">
           <nav className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+            <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
               <Link
                 href="/"
-                className="text-xl font-bold tracking-tight text-black"
+                className="text-2xl font-bold tracking-tight text-black"
               >
                 PlaywrightGen
               </Link>
 
-              <div className="flex items-center gap-5 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600">
                 <Link href="/generator" className="transition hover:text-black">
                   Generator
                 </Link>
