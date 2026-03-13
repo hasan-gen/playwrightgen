@@ -26,9 +26,7 @@ export default function GeneratorPage() {
     if (mode === "text") return "Describe your test";
     if (mode === "html") return "Paste HTML or JSX";
     if (mode === "component") {
-      return outputType === "unit"
-        ? "Paste a component for a unit test"
-        : "Paste a component for a Playwright test";
+      return "Component → Test"
     }
     return "Describe your API test";
   };
@@ -169,10 +167,33 @@ export default function GeneratorPage() {
 
     const analysisPrompt =
       mode === "api"
-        ? `Analyze the API behavior for this URL: ${url}. Generate a professional Playwright API test based on a likely authentication or data request scenario.`
-        : mode === "html"
-        ? `Analyze this page URL: ${url}. Generate a professional Playwright test based on a likely HTML form or interactive UI flow on this page.`
-        : `Analyze this page URL: ${url}. Generate a professional Playwright UI test for the most likely user flow on this page. Include realistic interactions and assertions.`;
+        ? `Analyze the API behavior for this URL: ${url}.
+
+Generate a small Playwright API test suite in TypeScript.
+
+Requirements:
+- Generate 3 to 4 realistic API tests
+- Group them inside test.describe(...)
+- Cover success, validation, and edge-case scenarios
+- Include assertions on status and response body
+- Write the tests like a senior API automation engineer
+
+Return only valid Playwright TypeScript code.`
+
+        : `Analyze this page URL: ${url}.
+
+Generate a realistic Playwright test suite in TypeScript.
+
+Requirements:
+- Generate 3 to 5 related tests
+- Group them inside test.describe(...)
+- Focus on the most likely user flows
+- Include positive and negative scenarios
+- Use stable selectors like getByRole, getByLabel, getByPlaceholder when possible
+- Include meaningful expect() assertions
+- Write tests like a senior automation engineer for a production repository
+
+Return only valid Playwright TypeScript code.`;
 
     setAnalysisSummary(`Analyzed URL: ${url}`);
     setPrompt(analysisPrompt);
@@ -313,9 +334,9 @@ export default function GeneratorPage() {
     if (mode === "component") {
       return outputType === "unit"
         ? [
-            {
-              label: "Form Unit Test",
-              value: `export function LoginForm() {
+          {
+            label: "Form Unit Test",
+            value: `export function LoginForm() {
   return (
     <form>
       <label htmlFor="email">Email</label>
@@ -326,10 +347,10 @@ export default function GeneratorPage() {
     </form>
   );
 }`,
-            },
-            {
-              label: "Modal Unit Test",
-              value: `export function DeleteModal() {
+          },
+          {
+            label: "Modal Unit Test",
+            value: `export function DeleteModal() {
   return (
     <div>
       <h2>Delete item</h2>
@@ -338,12 +359,12 @@ export default function GeneratorPage() {
     </div>
   );
 }`,
-            },
-          ]
+          },
+        ]
         : [
-            {
-              label: "Login Component",
-              value: `export function LoginForm() {
+          {
+            label: "Login Component",
+            value: `export function LoginForm() {
   return (
     <form>
       <input placeholder="Enter email" />
@@ -352,10 +373,10 @@ export default function GeneratorPage() {
     </form>
   );
 }`,
-            },
-            {
-              label: "Search Component",
-              value: `export function SearchBar() {
+          },
+          {
+            label: "Search Component",
+            value: `export function SearchBar() {
   return (
     <div>
       <input placeholder="Search products" />
@@ -363,8 +384,8 @@ export default function GeneratorPage() {
     </div>
   );
 }`,
-            },
-          ];
+          },
+        ];
     }
 
     return [];
@@ -373,21 +394,21 @@ export default function GeneratorPage() {
   return (
     <main className="min-h-screen px-4 py-8 sm:px-6 sm:py-10">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
               PlaywrightGen Generator
             </h1>
             <p className="mt-2 max-w-3xl text-gray-600">
-              Generate Playwright tests from prompts, components, HTML snippets,
-              APIs, or page URLs.
+              Generate, analyze, and improve Playwright test coverage from prompts,
+              components, HTML snippets, APIs, and page URLs.
             </p>
             <p className="mt-2 text-sm text-gray-500">
               Built for developers, automation engineers, and SDETs.
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
             <span className="text-sm text-gray-500">
               {hasSyncedUsage
                 ? `Free plan: ${remainingGenerations} of 5 generations left today`
@@ -408,44 +429,40 @@ export default function GeneratorPage() {
         <div className="mb-6 flex flex-wrap gap-3">
           <button
             onClick={() => handleModeChange("text")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              mode === "text"
-                ? "bg-black text-white"
-                : "border border-gray-300 bg-white text-gray-700"
-            }`}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "text"
+              ? "bg-black text-white"
+              : "border border-gray-300 bg-white text-gray-700"
+              }`}
           >
             Prompt
           </button>
 
           <button
             onClick={() => handleModeChange("component")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              mode === "component"
-                ? "bg-black text-white"
-                : "border border-gray-300 bg-white text-gray-700"
-            }`}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "component"
+              ? "bg-black text-white"
+              : "border border-gray-300 bg-white text-gray-700"
+              }`}
           >
             Component
           </button>
 
           <button
             onClick={() => handleModeChange("html")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              mode === "html"
-                ? "bg-black text-white"
-                : "border border-gray-300 bg-white text-gray-700"
-            }`}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "html"
+              ? "bg-black text-white"
+              : "border border-gray-300 bg-white text-gray-700"
+              }`}
           >
             HTML
           </button>
 
           <button
             onClick={() => handleModeChange("api")}
-            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-              mode === "api"
-                ? "bg-black text-white"
-                : "border border-gray-300 bg-white text-gray-700"
-            }`}
+            className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "api"
+              ? "bg-black text-white"
+              : "border border-gray-300 bg-white text-gray-700"
+              }`}
           >
             API
           </button>
@@ -453,47 +470,63 @@ export default function GeneratorPage() {
 
         <div className="grid gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
+            <div className="mb-5">
+              <div className="min-w-0">
+                <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
+              </div>
 
               {mode === "component" && (
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setOutputType("playwright")}
-                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                      outputType === "playwright"
-                        ? "bg-black text-white"
-                        : "border border-gray-300 text-gray-700"
-                    }`}
-                  >
-                    Playwright Test
-                  </button>
+                <div className="mt-4">
+                  <p className="mb-2 text-sm font-medium text-gray-700">Test Type</p>
 
-                  <button
-                    onClick={() => setOutputType("unit")}
-                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                      outputType === "unit"
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setOutputType("playwright")}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
                         ? "bg-black text-white"
-                        : "border border-gray-300 text-gray-700"
-                    }`}
-                  >
-                    Unit Test
-                  </button>
+                        : "border border-gray-300 bg-white text-gray-700"
+                        }`}
+                    >
+                      Playwright Test
+                    </button>
+
+                    <button
+                      onClick={() => setOutputType("unit")}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
+                        ? "bg-black text-white"
+                        : "border border-gray-300 bg-white text-gray-700"
+                        }`}
+                    >
+                      Unit Test
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
 
             {getTemplates().length > 0 && (
-              <div className="mb-5 flex flex-wrap gap-2">
-                {getTemplates().map((template) => (
-                  <button
-                    key={template.label}
-                    onClick={() => handleTemplateSelect(template.value)}
-                    className="rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50"
-                  >
-                    {template.label}
-                  </button>
-                ))}
+              <div className="mb-5">
+                <p className="mb-2 text-sm font-medium text-gray-700">
+                  {mode === "component"
+                    ? "Example Components"
+                    : mode === "html"
+                      ? "Example Markup"
+                      : mode === "api"
+                        ? "Example Requests"
+                        : "Example Tests"}
+                </p>
+
+                <div className="flex flex-wrap gap-2">
+                  {getTemplates().map((template) => (
+                    <button
+                      key={template.label}
+                      onClick={() => handleTemplateSelect(template.value)}
+                      className="rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50"
+                    >
+                      {template.label}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -503,7 +536,7 @@ export default function GeneratorPage() {
                   Page URL
                 </label>
                 <p className="mb-2 text-sm text-gray-500">
-                  Optional. Add a page URL to generate a more realistic browser test.
+                  Optional. Add a page URL to analyze page structure and generate a more realistic Playwright test suite.
                 </p>
                 <input
                   type="text"
@@ -523,33 +556,30 @@ export default function GeneratorPage() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setStyleMode("fast")}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                    styleMode === "fast"
-                      ? "bg-black text-white"
-                      : "border border-gray-300 bg-white text-gray-700"
-                  }`}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
+                    ? "bg-black text-white"
+                    : "border border-gray-300 bg-white text-gray-700"
+                    }`}
                 >
                   Fast
                 </button>
 
                 <button
                   onClick={() => setStyleMode("clean")}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                    styleMode === "clean"
-                      ? "bg-black text-white"
-                      : "border border-gray-300 bg-white text-gray-700"
-                  }`}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
+                    ? "bg-black text-white"
+                    : "border border-gray-300 bg-white text-gray-700"
+                    }`}
                 >
                   Clean
                 </button>
 
                 <button
                   onClick={() => setStyleMode("production")}
-                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${
-                    styleMode === "production"
-                      ? "bg-black text-white"
-                      : "border border-gray-300 bg-white text-gray-700"
-                  }`}
+                  className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
+                    ? "bg-black text-white"
+                    : "border border-gray-300 bg-white text-gray-700"
+                    }`}
                 >
                   Production
                 </button>
@@ -557,7 +587,7 @@ export default function GeneratorPage() {
             </div>
 
             <textarea
-              className="min-h-[280px] w-full rounded-2xl border border-gray-300 bg-white p-4 outline-none transition focus:border-black sm:min-h-[320px]"
+              className="min-h-[300px] w-full rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black sm:min-h-[340px]"
               placeholder={getPlaceholder()}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -577,21 +607,21 @@ export default function GeneratorPage() {
                 disabled={!url || loading}
                 className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Analyze URL {!isPro && "(Pro)"}
+                Analyze Page {!isPro && "(Pro)"}
               </button>
             </div>
           </div>
 
           <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
+            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 lg:max-w-[60%]">
                 <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
                 <h2 className="text-xl font-semibold text-black">
                   {getOutputTitle()}
                 </h2>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 lg:justify-end">
                 <button
                   onClick={handleCopy}
                   disabled={!generatedCode}
@@ -616,11 +646,11 @@ export default function GeneratorPage() {
               </div>
             )}
 
-            <div className="min-h-[360px] overflow-x-auto rounded-2xl bg-black p-4 text-sm text-green-400 sm:min-h-[420px]">
+            <div className="min-h-[360px] overflow-x-auto rounded-2xl bg-black p-5 text-sm text-green-400 sm:min-h-[420px]">
               <pre className="min-w-[260px] whitespace-pre-wrap">
                 {loading
                   ? generationType === "url"
-                    ? "Analyzing URL and generating Playwright test..."
+                    ? "Analyzing page structure and generating Playwright test suite..."
                     : "Generating code..."
                   : generatedCode || "Your generated output will appear here."}
               </pre>

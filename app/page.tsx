@@ -80,10 +80,9 @@ export default function Home() {
               Generate Playwright tests in seconds
             </h1>
 
-            <p className="mt-5 max-w-2xl text-base leading-8 text-gray-600 sm:text-lg">
-              Turn prompts, components, HTML snippets, API descriptions, and page
-              URLs into production-ready automation with a cleaner, faster, and
-              more practical workflow.
+            <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
+              Generate, analyze, and scale Playwright automation from prompts,
+              components, HTML snippets, APIs, and real page URLs.
             </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
