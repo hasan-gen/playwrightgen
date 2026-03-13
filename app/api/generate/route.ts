@@ -92,6 +92,13 @@ Rules:
 - If the user provides a URL, use it in await page.goto("...")
 - Do not invent a different URL if one is provided
 - If Page Context is provided, prioritize discovered labels, buttons, placeholders, headings, and interactive elements
+Test coverage thinking:
+- When appropriate, generate multiple related tests instead of a single test
+- Prefer grouping related tests inside test.describe(...)
+- Cover the most realistic user flows suggested by the markup
+- Include positive scenarios, validation errors, and negative cases when appropriate
+- Do not generate duplicate tests
+- If the markup clearly supports only one meaningful scenario, generate one strong test instead of forcing multiple tests
 - Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
 - Do not include markdown fences
 - Do not include explanations`,
@@ -120,6 +127,14 @@ Rules:
  - Prefer screen.getByRole, getByLabelText, getByPlaceholderText, and userEvent when appropriate
  - Test component behavior the way a frontend engineer would validate it in a real codebase
  - Include meaningful assertions for rendering, interaction, and visible state changes
+
+ Test coverage thinking:
+- When appropriate, generate multiple related tests instead of a single test
+- Prefer grouping Playwright tests inside test.describe(...)
+- For unit tests, cover rendering, interactions, and state changes
+- Include positive and negative scenarios when appropriate
+- Do not generate duplicate tests
+- If the component is simple, generate only the most meaningful tests instead of forcing unnecessary coverage
 
 - Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
 - Do not include markdown fences
