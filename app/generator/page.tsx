@@ -22,6 +22,8 @@ export default function GeneratorPage() {
   const [hasSyncedUsage, setHasSyncedUsage] = useState(false);
   const [isPro] = useState(false);
   const [selectedCoverage, setSelectedCoverage] = useState<string[]>([]);
+  const [explanation, setExplanation] = useState("");
+  const [explaining, setExplaining] = useState(false);
 
   const getTitle = () => {
     if (mode === "text") return "Describe your test";
@@ -283,6 +285,37 @@ Return only valid Playwright TypeScript code.`;
     }
   };
 
+  const handleExplain = async () => {
+    if (!generatedCode) return;
+
+    try {
+      setExplaining(true);
+      setExplanation("");
+
+      const response = await fetch("/api/explain", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ code: generatedCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setExplanation(data.error || "Failed to explain test.");
+        return;
+      }
+
+      setExplanation(data.explanation || "No explanation returned.");
+    } catch (error) {
+      console.error("Explain error:", error);
+      setExplanation("Failed to explain test.");
+    } finally {
+      setExplaining(false);
+    }
+  };
+
   const handleDownload = () => {
     if (!generatedCode) return;
 
@@ -307,6 +340,7 @@ Return only valid Playwright TypeScript code.`;
     setGenerationType("prompt");
     setAnalysisSummary("");
     setSelectedCoverage([]);
+    setExplanation("");
 
     if (newMode !== "component") {
       setOutputType("playwright");
@@ -652,8 +686,8 @@ Return only valid Playwright TypeScript code.`;
                         appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
                       }
                       className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       Validation flow
@@ -786,19 +820,19 @@ Return only valid Playwright TypeScript code.`;
           </div>
 
           <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-            <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 lg:max-w-[60%]">
+            <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 lg:max-w-[52%]">
                 <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
-                <h2 className="text-xl font-semibold text-black">
+                <h2 className="text-xl font-semibold leading-snug text-black">
                   {getOutputTitle()}
                 </h2>
               </div>
 
-              <div className="flex flex-wrap gap-2 lg:justify-end">
+              <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
                 <button
                   onClick={handleCopy}
                   disabled={!generatedCode}
-                  className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {copied ? "Copied!" : "Copy Code"}
                 </button>
@@ -806,9 +840,16 @@ Return only valid Playwright TypeScript code.`;
                 <button
                   onClick={handleDownload}
                   disabled={!generatedCode}
-                  className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Download
+                </button>
+                <button
+                  onClick={handleExplain}
+                  disabled={!generatedCode || explaining}
+                  className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {explaining ? "Explaining..." : "Explain Test"}
                 </button>
               </div>
             </div>
@@ -828,6 +869,12 @@ Return only valid Playwright TypeScript code.`;
                   : generatedCode || "Your generated output will appear here."}
               </pre>
             </div>
+            {explanation && (
+              <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+                <p className="font-semibold mb-2">Test Explanation</p>
+                <p>{explanation}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
