@@ -76,7 +76,7 @@ export default function GeneratorPage() {
 
   const getOutputTitle = () => {
     if (generationType === "url") {
-      return "URL-Based Playwright Test";
+      return "Generated Playwright Test Suite from Page Analysis";
     }
 
     if (mode === "component" && outputType === "unit") {
@@ -662,8 +662,8 @@ Return only valid Playwright TypeScript code.`;
                         appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
                       }
                       className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
-                        ? "border-black bg-black text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       Happy path
@@ -674,8 +674,8 @@ Return only valid Playwright TypeScript code.`;
                         appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
                       }
                       className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
-                        ? "border-black bg-black text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       Negative scenario
@@ -686,8 +686,8 @@ Return only valid Playwright TypeScript code.`;
                         appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
                       }
                       className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
-                        ? "border-black bg-black text-white"
-                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
                         }`}
                     >
                       Validation flow
@@ -702,7 +702,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the main user flow suggested by the provided markup.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Main user flow
                     </button>
@@ -711,7 +714,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include validation behavior for the provided markup.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include validation behavior for the provided markup.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Validation behavior
                     </button>
@@ -720,7 +726,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative case based on the provided HTML or JSX.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Negative case
                     </button>
@@ -734,7 +743,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Cover the initial render state of the component.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the initial render state of the component.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Render state
                     </button>
@@ -743,7 +755,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include a user interaction scenario for the component.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a user interaction scenario for the component.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       User interaction
                     </button>
@@ -752,7 +767,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a scenario that verifies state or UI updates after interaction.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       State update
                     </button>
@@ -766,7 +784,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include a successful response scenario for the API.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a successful response scenario for the API.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Success response
                     </button>
@@ -775,7 +796,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include an invalid request scenario for the API.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an invalid request scenario for the API.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Invalid request
                     </button>
@@ -784,7 +808,10 @@ Return only valid Playwright TypeScript code.`;
                       onClick={() =>
                         appendCoverageSuggestion("Include an edge case scenario for the API.")
                       }
-                      className="rounded-full border border-gray-200 bg-white px-3 py-1 text-sm text-gray-600 transition hover:bg-gray-100"
+                      className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an edge case scenario for the API.")
+                          ? "border-black bg-black text-white"
+                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                        }`}
                     >
                       Edge case
                     </button>
