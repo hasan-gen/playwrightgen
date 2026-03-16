@@ -34,6 +34,8 @@ Rules:
 - Use test.beforeEach(...) when shared setup improves clarity and reduces repetition
 - Avoid repeating identical setup code across tests when a shared setup block is more appropriate
 - Use clear and descriptive test names
+- Prefer repository-style naming such as "should ..." for test titles when appropriate
+- Test names should describe behavior, expected outcome, and scenario clearly
 - Write tests the way a strong developer would structure them in a serious engineering repository
 
 Selectors:
@@ -70,6 +72,8 @@ Test coverage:
 - Include validation or edge-case scenarios when appropriate
 - Do not generate duplicate tests
 - If the request is narrow or only clearly asks for one scenario, generate one strong test instead of forcing multiple tests
+- Prefer coverage that reflects real product risk such as auth failure, invalid input, navigation outcome, state changes, and important edge cases
+- Prioritize high-value coverage rather than generating many low-value tests
 
 Code quality:
 - Keep the code clean, readable, and maintainable
@@ -122,6 +126,8 @@ Rules:
 - Include meaningful expect() assertions based on visible UI outcomes
 - Prefer assertions that validate actual user-facing behavior
 - Use clear and professional test names
+- Prefer repository-style naming such as "should ..." for test titles when appropriate
+- Test names should describe behavior, expected outcome, and scenario clearly
 - Keep the code concise, practical, and production-minded
 - If the user provides a URL, use it in await page.goto("...")
 - Do not invent a different URL if one is provided
@@ -142,6 +148,8 @@ Test coverage thinking:
 - If the markup clearly supports only one meaningful scenario, generate one strong test instead of forcing multiple tests
 - If the provided markup is small or simple, generate only the smallest useful set of high-value tests
 - Avoid over-testing simple markup examples
+- Prefer high-value UI coverage such as main flow, validation behavior, failure behavior, and visible state changes
+- Prioritize realistic user-facing risk over unnecessary test quantity
 
 Code quality:
 - Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
@@ -174,6 +182,8 @@ Rules:
 - Generate code that looks like it was written by a senior frontend developer for a real product codebase
 - Infer the component's likely behavior, user interactions, and expected states from the structure
 - Use clear and professional test names
+- Prefer repository-style naming such as "should ..." for test titles when appropriate
+- Test names should describe component behavior and expected outcome clearly
 - Prefer accessible selectors and user-centric assertions
 - Keep the code readable, maintainable, and production-minded
 
@@ -204,6 +214,8 @@ Test coverage thinking:
 - If the component is simple, generate only the most meaningful tests instead of forcing unnecessary coverage
 - Prefer a small set of high-value tests rather than large suites for simple components
 - Avoid over-testing small UI components
+- Prefer high-value component coverage such as render correctness, interaction results, and state updates
+- Avoid unnecessary tests that do not increase confidence in component behavior
 
 Code quality:
 - Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
@@ -234,6 +246,8 @@ Rules:
 - Use @playwright/test syntax
 - Use the request fixture for API calls
 - Use clear and professional test names
+- Prefer repository-style naming such as "should ..." for test titles when appropriate
+- Test names should describe API behavior, expected response, and scenario clearly
 - Include meaningful assertions for status and response body when possible
 - Assume realistic sample request payloads if the user does not provide them
 - Keep the code concise, readable, and professional
@@ -252,6 +266,8 @@ Test coverage:
 - Include success, validation, and edge-case scenarios when appropriate
 - Do not generate duplicate tests
 - If the request is narrow, generate one strong API test instead of forcing multiple tests
+- Prefer high-value API coverage such as success response, invalid payloads, missing required fields, auth failures, and important edge cases
+- Prioritize contract validation and realistic API failure scenarios
 
 Code quality:
 - Adapt the code style based on the requested Style Mode: Fast, Clean, or Production
