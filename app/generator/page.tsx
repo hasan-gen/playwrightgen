@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
+import Link from "next/link";
 
 
 type Mode = "text" | "html" | "api" | "component";
@@ -246,6 +247,26 @@ export default function GeneratorPage() {
       setGeneratedCode("Failed to analyze page.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpgradeToPro = async () => {
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      setGeneratedCode(data.error || "Failed to start checkout.");
+    } catch (error) {
+      console.error("Checkout error:", error);
+      setGeneratedCode("Failed to start checkout.");
     }
   };
 
@@ -533,17 +554,14 @@ export default function GeneratorPage() {
                   : `Free plan: ${APP_LIMITS.freeDailyGenerations} generations per day`}
               </span>
 
-              <button
-                onClick={() => {
-                  setShowWaitlistModal(true);
-                  setWaitlistMessage("");
-                }}
+              <Link
+                href="/pricing"
                 className="group inline-flex min-h-[44px] items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
               >
                 <span className="text-sm font-medium text-black group-hover:text-white">
                   Upgrade to Pro
                 </span>
-              </button>
+              </Link>
             </div>
           </div>
 

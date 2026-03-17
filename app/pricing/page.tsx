@@ -45,6 +45,26 @@ export default function PricingPage() {
     }
   };
 
+  const handleUpgradeToPro = async () => {
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (data.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      alert(data.error || "Failed to start checkout.");
+    } catch (error) {
+      console.error("Checkout error:", error);
+      alert("Failed to start checkout.");
+    }
+  };
+
   return (
     <>
       <main className="min-h-screen px-6 py-14">
@@ -108,32 +128,25 @@ export default function PricingPage() {
               </ul>
 
               <button
-                onClick={async () => {
-                  try {
-                    const response = await fetch("/api/checkout", {
-                      method: "POST",
-                    });
-
-                    const data = await response.json();
-
-                    if (data.url) {
-                      window.location.href = data.url;
-                    } else {
-                      alert(data.error || "Failed to start checkout.");
-                    }
-                  } catch (error) {
-                    console.error("Checkout error:", error);
-                    alert("Failed to start checkout.");
-                  }
-                }}
+                onClick={handleUpgradeToPro}
                 className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-medium text-black transition hover:opacity-90"
               >
                 Upgrade to Pro
               </button>
 
               <p className="mt-3 text-center text-sm text-gray-400">
-                Early access coming soon
+                Built for individual developers today. Team and enterprise options coming soon.
               </p>
+
+              <button
+                onClick={() => {
+                  setShowWaitlist(true);
+                  setWaitlistMessage("");
+                }}
+                className="mt-3 block w-full text-center text-sm text-gray-300 underline underline-offset-4 transition hover:text-white"
+              >
+                Need enterprise access or future premium features? Join the waitlist
+              </button>
             </div>
           </div>
         </div>
