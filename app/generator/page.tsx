@@ -673,8 +673,8 @@ export default function GeneratorPage() {
           </div>
 
           <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8 h-fit max-h-[500px] overflow-y-auto">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6 h-fit max-h-[500px] overflow-y-auto">
+              <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold text-black">History</h2>
                   <p className="mt-1 text-sm text-gray-500">
@@ -686,7 +686,7 @@ export default function GeneratorPage() {
                   <button
                     type="button"
                     onClick={clearHistory}
-                    className="text-xs text-gray-400 hover:text-black"
+                    className="shrink-0 text-xs text-gray-400 transition hover:text-black"
                   >
                     Clear
                   </button>
@@ -706,27 +706,31 @@ export default function GeneratorPage() {
                       key={item.id}
                       type="button"
                       onClick={() => loadHistoryItem(item)}
-                      className={`w-full rounded-2xl border p-4 text-left transition ${selectedHistoryId === item.id
+                      className={`w-full rounded-2xl border p-3 text-left transition sm:p-4 ${selectedHistoryId === item.id
                         ? "border-black bg-black text-white"
                         : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                         }`}
                     >
-                      <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start justify-between gap-3">
                         <span className="text-xs font-medium uppercase tracking-[0.14em]">
                           {item.generationType === "url" ? "Analyze" : item.mode}
                         </span>
-                        <span className="text-xs opacity-70">
-                          {new Date(item.createdAt).toLocaleDateString()}
+                        <span className="shrink-0 text-[11px] text-right opacity-70">
+                          {new Date(item.createdAt).toLocaleDateString("en-US", {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
                         </span>
                       </div>
 
-                      <p className="mt-2 line-clamp-2 text-sm font-medium">
+                      <p className="mt-2 line-clamp-2 text-sm font-medium leading-5">
                         {item.generationType === "url"
                           ? item.url || "Page analysis"
                           : item.prompt || "Generated test"}
                       </p>
 
-                      <p className="mt-2 line-clamp-2 text-xs opacity-70">
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 opacity-70">
                         {item.generatedCode}
                       </p>
                     </button>
