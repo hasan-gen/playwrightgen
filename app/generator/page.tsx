@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
 import Link from "next/link";
 
@@ -9,6 +9,18 @@ import Link from "next/link";
 type Mode = "text" | "html" | "api" | "component";
 type StyleMode = "fast" | "clean" | "production";
 type OutputType = "playwright" | "unit";
+
+type HistoryItem = {
+  id: string;
+  mode: Mode;
+  prompt: string;
+  url: string;
+  generatedCode: string;
+  createdAt: string;
+  styleMode: StyleMode;
+  outputType: OutputType;
+  generationType: "prompt" | "url";
+};
 
 export default function GeneratorPage() {
   const [mode, setMode] = useState<Mode>("text");
@@ -23,7 +35,6 @@ export default function GeneratorPage() {
   const [analysisSummary, setAnalysisSummary] = useState("");
   const [remainingGenerations, setRemainingGenerations] = useState<number>(5);
   const [hasSyncedUsage, setHasSyncedUsage] = useState(false);
-  const [isPro] = useState(false);
   const [selectedCoverage, setSelectedCoverage] = useState<string[]>([]);
   const [explanation, setExplanation] = useState("");
   const [explaining, setExplaining] = useState(false);
@@ -35,7 +46,22 @@ export default function GeneratorPage() {
   const [checkingPro, setCheckingPro] = useState(false);
   const [isProVerified, setIsProVerified] = useState(false);
   const [proStatusMessage, setProStatusMessage] = useState("");
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
 
+  useEffect(() => {
+    const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+
+    if (!saved) return;
+
+    try {
+      const parsed = JSON.parse(saved) as HistoryItem[];
+      setHistoryItems(parsed);
+    } catch (error) {
+      console.error("Failed to load history:", error);
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+    }
+  }, []);
   const getTitle = () => {
     if (mode === "text") return "Describe your test";
     if (mode === "html") return "Paste HTML or JSX";
@@ -174,6 +200,21 @@ export default function GeneratorPage() {
 
       setGeneratedCode(data.result);
 
+      if (data.result) {
+        saveHistoryItem({
+          id: crypto.randomUUID(),
+          mode,
+          prompt,
+          url,
+          generatedCode: data.result,
+          createdAt: new Date().toISOString(),
+          styleMode,
+          outputType,
+          generationType: "prompt",
+        });
+      }
+
+
       if (typeof data.remaining === "number") {
         setRemainingGenerations(data.remaining);
         setHasSyncedUsage(true);
@@ -224,7 +265,22 @@ export default function GeneratorPage() {
         return;
       }
 
-      setGeneratedCode(data.result || "");
+      const analyzedResult = data.result || "";
+      setGeneratedCode(analyzedResult);
+
+      if (analyzedResult) {
+        saveHistoryItem({
+          id: crypto.randomUUID(),
+          mode,
+          prompt,
+          url,
+          generatedCode: analyzedResult,
+          createdAt: new Date().toISOString(),
+          styleMode,
+          outputType,
+          generationType: "url",
+        });
+      }
 
       if (data.analysis) {
         const summaryParts = [
@@ -247,26 +303,6 @@ export default function GeneratorPage() {
       setGeneratedCode("Failed to analyze page.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleUpgradeToPro = async () => {
-    try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      setGeneratedCode(data.error || "Failed to start checkout.");
-    } catch (error) {
-      console.error("Checkout error:", error);
-      setGeneratedCode("Failed to start checkout.");
     }
   };
 
@@ -407,6 +443,35 @@ export default function GeneratorPage() {
     } finally {
       setWaitlistLoading(false);
     }
+  };
+
+  const HISTORY_STORAGE_KEY = "playwrightgen-history";
+
+  const saveHistoryItem = (item: HistoryItem) => {
+    setHistoryItems((prev) => {
+      const updated = [item, ...prev].slice(0, 20);
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const loadHistoryItem = (item: HistoryItem) => {
+    setSelectedHistoryId(item.id);
+    setMode(item.mode);
+    setPrompt(item.prompt);
+    setUrl(item.url);
+    setGeneratedCode(item.generatedCode);
+    setStyleMode(item.styleMode);
+    setOutputType(item.outputType);
+    setGenerationType(item.generationType);
+    setExplanation("");
+    setCopied(false);
+  };
+
+  const clearHistory = () => {
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
+    setHistoryItems([]);
+    setSelectedHistoryId(null);
   };
 
 
@@ -607,7 +672,69 @@ export default function GeneratorPage() {
             </button>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid gap-6 xl:grid-cols-[240px_minmax(0,1fr)]">
+            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8 h-fit max-h-[500px] overflow-y-auto">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-semibold text-black">History</h2>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Recent generations on this device
+                  </p>
+                </div>
+
+                {historyItems.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={clearHistory}
+                    className="text-xs text-gray-400 hover:text-black"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {historyItems.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-4">
+                  <p className="text-sm text-gray-400">
+                    Your generated tests will appear here.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {historyItems.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => loadHistoryItem(item)}
+                      className={`w-full rounded-2xl border p-4 text-left transition ${selectedHistoryId === item.id
+                        ? "border-black bg-black text-white"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                    >
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-xs font-medium uppercase tracking-[0.14em]">
+                          {item.generationType === "url" ? "Analyze" : item.mode}
+                        </span>
+                        <span className="text-xs opacity-70">
+                          {new Date(item.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+
+                      <p className="mt-2 line-clamp-2 text-sm font-medium">
+                        {item.generationType === "url"
+                          ? item.url || "Page analysis"
+                          : item.prompt || "Generated test"}
+                      </p>
+
+                      <p className="mt-2 line-clamp-2 text-xs opacity-70">
+                        {item.generatedCode}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
               <div className="mb-5">
                 <div className="min-w-0">
@@ -642,384 +769,419 @@ export default function GeneratorPage() {
                   </div>
                 )}
               </div>
-
-              {getTemplates().length > 0 && (
+              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                 <div className="mb-5">
-                  <p className="mb-2 text-sm font-medium text-gray-700">
-                    {mode === "component"
-                      ? "Example Components"
-                      : mode === "html"
-                        ? "Example Markup"
-                        : mode === "api"
-                          ? "Example Requests"
-                          : "Example Tests"}
-                  </p>
-
-                  <div className="flex flex-wrap gap-2">
-                    {getTemplates().map((template) => (
-                      <button
-                        key={template.label}
-                        onClick={() => handleTemplateSelect(template.value)}
-                        className="rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50"
-                      >
-                        {template.label}
-                      </button>
-                    ))}
+                  <div className="min-w-0">
+                    <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
                   </div>
-                </div>
-              )}
-
-              {(mode === "text" || mode === "html" || mode === "component") && (
-                <div className="mb-4">
-                  <label className="mb-2 block text-sm font-medium text-gray-700">
-                    Page URL
-                  </label>
-                  <p className="mb-2 text-sm text-gray-500">
-                    Optional. Add a page URL to analyze page structure and generate a more realistic Playwright test suite.
-                  </p>
-                  <input
-                    type="text"
-                    placeholder="https://example.com/login"
-                    className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <p className="mb-1 text-sm font-semibold text-gray-800">
-                  Pro access email
-                </p>
-
-                <p className="mb-3 text-xs text-gray-500">
-                  Enter the email used during Stripe checkout to unlock Pro features.
-                </p>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <input
-                    type="email"
-                    value={accountEmail}
-                    onChange={(e) => {
-                      setAccountEmail(e.target.value);
-                      setIsProVerified(false);
-                      setProStatusMessage("");
-                    }}
-                    placeholder="Enter your Pro email"
-                    className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={handleCheckProAccess}
-                    disabled={checkingPro}
-                    className="rounded-xl border border-black bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {checkingPro ? "Checking..." : "Verify Pro"}
-                  </button>
-                </div>
-
-                {proStatusMessage && (
-                  <p className="mt-3 text-sm text-gray-600">{proStatusMessage}</p>
-                )}
-              </div>
-
-              <div className="mb-4">
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Code Style
-                </label>
-
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={() => setStyleMode("fast")}
-                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
-                      ? "bg-black text-white"
-                      : "border border-gray-300 bg-white text-gray-700"
-                      }`}
-                  >
-                    Fast
-                  </button>
-
-                  <button
-                    onClick={() => setStyleMode("clean")}
-                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
-                      ? "bg-black text-white"
-                      : "border border-gray-300 bg-white text-gray-700"
-                      }`}
-                  >
-                    Clean
-                  </button>
-
-                  <button
-                    onClick={() => setStyleMode("production")}
-                    className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
-                      ? "bg-black text-white"
-                      : "border border-gray-300 bg-white text-gray-700"
-                      }`}
-                  >
-                    Production
-                  </button>
-                </div>
-              </div>
-
-              <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <p className="mb-1 text-sm font-semibold text-gray-800">
-                  Suggested Test Coverage
-                </p>
-
-                <p className="mb-3 text-xs text-gray-500">
-                  AI-prioritized coverage areas for this input mode.
-                </p>
-
-                <div className="flex flex-wrap gap-2 text-sm text-gray-600">
-                  {mode === "text" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Happy path
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Negative scenario
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Validation flow
-                      </button>
-                    </>
-                  )}
-
-                  {mode === "html" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the main user flow suggested by the provided markup.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Main user flow
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include validation behavior for the provided markup.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include validation behavior for the provided markup.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Validation behavior
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative case based on the provided HTML or JSX.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Negative case
-                      </button>
-                    </>
-                  )}
 
                   {mode === "component" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Cover the initial render state of the component.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the initial render state of the component.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Render state
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a user interaction scenario for the component.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a user interaction scenario for the component.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        User interaction
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a scenario that verifies state or UI updates after interaction.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        State update
-                      </button>
-                    </>
-                  )}
+                    <div className="mt-4">
+                      <p className="mb-2 text-sm font-medium text-gray-700">Test Type</p>
 
-                  {mode === "api" && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include a successful response scenario for the API.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a successful response scenario for the API.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Success response
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include an invalid request scenario for the API.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an invalid request scenario for the API.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Invalid request
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          appendCoverageSuggestion("Include an edge case scenario for the API.")
-                        }
-                        className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an edge case scenario for the API.")
-                          ? "border-black bg-black text-white"
-                          : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                          }`}
-                      >
-                        Edge case
-                      </button>
-                    </>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setOutputType("playwright")}
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
+                            ? "bg-black text-white"
+                            : "border border-gray-300 bg-white text-gray-700"
+                            }`}
+                        >
+                          Playwright Test
+                        </button>
+
+                        <button
+                          onClick={() => setOutputType("unit")}
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
+                            ? "bg-black text-white"
+                            : "border border-gray-300 bg-white text-gray-700"
+                            }`}
+                        >
+                          Unit Test
+                        </button>
+                      </div>
+                    </div>
                   )}
                 </div>
-              </div>
 
-              <textarea
-                className="min-h-[300px] w-full rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black sm:min-h-[340px]"
-                placeholder={getPlaceholder()}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-              />
+                {getTemplates().length > 0 && (
+                  <div className="mb-5">
+                    <p className="mb-2 text-sm font-medium text-gray-700">
+                      {mode === "component"
+                        ? "Example Components"
+                        : mode === "html"
+                          ? "Example Markup"
+                          : mode === "api"
+                            ? "Example Requests"
+                            : "Example Tests"}
+                    </p>
 
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                <button
-                  onClick={handleGenerate}
-                  disabled={loading}
-                  className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {loading ? "Generating..." : "Generate"}
-                </button>
+                    <div className="flex flex-wrap gap-2">
+                      {getTemplates().map((template) => (
+                        <button
+                          key={template.label}
+                          onClick={() => handleTemplateSelect(template.value)}
+                          className="rounded-full border border-gray-300 bg-white px-3 py-1 text-sm text-gray-700 transition hover:bg-gray-50"
+                        >
+                          {template.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                <button
-                  onClick={handleAnalyzeUrl}
-                  disabled={!url || loading}
-                  className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition"
-                >
-                  Analyze Page {isProVerified && "(Pro)"}
-                </button>
-              </div>
-            </div>
+                {(mode === "text" || mode === "html" || mode === "component") && (
+                  <div className="mb-4">
+                    <label className="mb-2 block text-sm font-medium text-gray-700">
+                      Page URL
+                    </label>
+                    <p className="mb-2 text-sm text-gray-500">
+                      Optional. Add a page URL to analyze page structure and generate a more realistic Playwright test suite.
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="https://example.com/login"
+                      className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
+                      value={url}
+                      onChange={(e) => setUrl(e.target.value)}
+                    />
+                  </div>
+                )}
 
-            <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-              <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0 lg:max-w-[52%]">
-                  <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
-                  <h2 className="text-xl font-semibold leading-snug text-black">
-                    {getOutputTitle()}
-                  </h2>
+                <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="mb-1 text-sm font-semibold text-gray-800">
+                    Pro access email
+                  </p>
+
+                  <p className="mb-3 text-xs text-gray-500">
+                    Enter the email used during Stripe checkout to unlock Pro features.
+                  </p>
+
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <input
+                      type="email"
+                      value={accountEmail}
+                      onChange={(e) => {
+                        setAccountEmail(e.target.value);
+                        setIsProVerified(false);
+                        setProStatusMessage("");
+                      }}
+                      placeholder="Enter your Pro email"
+                      className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={handleCheckProAccess}
+                      disabled={checkingPro}
+                      className="rounded-xl border border-black bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {checkingPro ? "Checking..." : "Verify Pro"}
+                    </button>
+                  </div>
+
+                  {proStatusMessage && (
+                    <p className="mt-3 text-sm text-gray-600">{proStatusMessage}</p>
+                  )}
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+                <div className="mb-4">
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Code Style
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => setStyleMode("fast")}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
+                        ? "bg-black text-white"
+                        : "border border-gray-300 bg-white text-gray-700"
+                        }`}
+                    >
+                      Fast
+                    </button>
+
+                    <button
+                      onClick={() => setStyleMode("clean")}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
+                        ? "bg-black text-white"
+                        : "border border-gray-300 bg-white text-gray-700"
+                        }`}
+                    >
+                      Clean
+                    </button>
+
+                    <button
+                      onClick={() => setStyleMode("production")}
+                      className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
+                        ? "bg-black text-white"
+                        : "border border-gray-300 bg-white text-gray-700"
+                        }`}
+                    >
+                      Production
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <p className="mb-1 text-sm font-semibold text-gray-800">
+                    Suggested Test Coverage
+                  </p>
+
+                  <p className="mb-3 text-xs text-gray-500">
+                    AI-prioritized coverage areas for this input mode.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 text-sm text-gray-600">
+                    {mode === "text" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Happy path
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Negative scenario
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Validation flow
+                        </button>
+                      </>
+                    )}
+
+                    {mode === "html" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the main user flow suggested by the provided markup.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Main user flow
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include validation behavior for the provided markup.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include validation behavior for the provided markup.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Validation behavior
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative case based on the provided HTML or JSX.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Negative case
+                        </button>
+                      </>
+                    )}
+
+                    {mode === "component" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Cover the initial render state of the component.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the initial render state of the component.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Render state
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a user interaction scenario for the component.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a user interaction scenario for the component.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          User interaction
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a scenario that verifies state or UI updates after interaction.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          State update
+                        </button>
+                      </>
+                    )}
+
+                    {mode === "api" && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include a successful response scenario for the API.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a successful response scenario for the API.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Success response
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include an invalid request scenario for the API.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an invalid request scenario for the API.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Invalid request
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            appendCoverageSuggestion("Include an edge case scenario for the API.")
+                          }
+                          className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an edge case scenario for the API.")
+                            ? "border-black bg-black text-white"
+                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                            }`}
+                        >
+                          Edge case
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <textarea
+                  className="min-h-[300px] w-full rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black sm:min-h-[340px]"
+                  placeholder={getPlaceholder()}
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+
+                <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <button
-                    onClick={handleCopy}
-                    disabled={!generatedCode}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleGenerate}
+                    disabled={loading}
+                    className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {copied ? "Copied!" : "Copy Code"}
+                    {loading ? "Generating..." : "Generate"}
                   </button>
 
                   <button
-                    onClick={handleDownload}
-                    disabled={!generatedCode}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleAnalyzeUrl}
+                    disabled={!url || loading}
+                    className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition"
                   >
-                    Download
-                  </button>
-                  <button
-                    onClick={handleExplain}
-                    disabled={!generatedCode || explaining}
-                    className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {explaining ? "Explaining..." : "Explain Test"}
+                    Analyze Page {isProVerified && "(Pro)"}
                   </button>
                 </div>
               </div>
 
-              {analysisSummary && (
-                <div className="mb-4 rounded-2xl bg-gray-50 p-3 text-sm text-gray-600">
-                  {analysisSummary}
-                </div>
-              )}
+              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0 lg:max-w-[52%]">
+                    <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
+                    <h2 className="text-xl font-semibold leading-snug text-black">
+                      {getOutputTitle()}
+                    </h2>
+                  </div>
 
-              <div className="min-h-[360px] overflow-x-auto rounded-2xl bg-black p-5 text-sm text-green-400 sm:min-h-[420px]">
-                <pre className="min-w-[260px] whitespace-pre-wrap">
-                  {loading
-                    ? generationType === "url"
-                      ? "Analyzing page structure and generating Playwright test suite..."
-                      : "Generating code..."
-                    : generatedCode || "Your generated output will appear here."}
-                </pre>
-              </div>
-              {explanation && (
-                <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                  <p className="font-semibold mb-2">Test Explanation</p>
-                  <p>{explanation}</p>
+                  <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+                    <button
+                      onClick={handleCopy}
+                      disabled={!generatedCode}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {copied ? "Copied!" : "Copy Code"}
+                    </button>
+
+                    <button
+                      onClick={handleDownload}
+                      disabled={!generatedCode}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Download
+                    </button>
+                    <button
+                      onClick={handleExplain}
+                      disabled={!generatedCode || explaining}
+                      className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {explaining ? "Explaining..." : "Explain Test"}
+                    </button>
+                  </div>
                 </div>
-              )}
+
+                {analysisSummary && (
+                  <div className="mb-4 rounded-2xl bg-gray-50 p-3 text-sm text-gray-600">
+                    {analysisSummary}
+                  </div>
+                )}
+
+                <div className="min-h-[360px] overflow-x-auto rounded-2xl bg-black p-5 text-sm text-green-400 sm:min-h-[420px]">
+                  <pre className="min-w-[260px] whitespace-pre-wrap">
+                    {loading
+                      ? generationType === "url"
+                        ? "Analyzing page structure and generating Playwright test suite..."
+                        : "Generating code..."
+                      : generatedCode || "Your generated output will appear here."}
+                  </pre>
+                </div>
+                {explanation && (
+                  <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
+                    <p className="font-semibold mb-2">Test Explanation</p>
+                    <p>{explanation}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
