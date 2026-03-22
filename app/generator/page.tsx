@@ -54,6 +54,16 @@ function GeneratorContent() {
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
+    const savedEmail = localStorage.getItem("proEmail");
+
+    if (savedEmail) {
+      setAccountEmail(savedEmail);
+    }
+  }, []);
+
+
+
+  useEffect(() => {
     if (!paymentSuccess || !sessionId) return;
 
     const fetchSession = async () => {
@@ -97,6 +107,7 @@ function GeneratorContent() {
 
         if (data.isPro) {
           setIsProVerified(true);
+          setAccountEmail(email);
           setProStatusMessage("Pro access verified.");
         } else {
           setIsProVerified(false);
@@ -1314,9 +1325,9 @@ function GeneratorContent() {
 }
 
 export default function GeneratorPage() {
- return (
- <Suspense fallback={null}>
- <GeneratorContent />
- </Suspense>
- );
+  return (
+    <Suspense fallback={null}>
+      <GeneratorContent />
+    </Suspense>
+  );
 }
