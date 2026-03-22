@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -23,7 +23,7 @@ type HistoryItem = {
   generationType: "prompt" | "url";
 };
 
-export default function GeneratorPage() {
+function GeneratorContent() {
   const [mode, setMode] = useState<Mode>("text");
   const [prompt, setPrompt] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
@@ -1311,4 +1311,12 @@ export default function GeneratorPage() {
       )}
     </>
   );
+}
+
+export default function GeneratorPage() {
+ return (
+ <Suspense fallback={null}>
+ <GeneratorContent />
+ </Suspense>
+ );
 }
