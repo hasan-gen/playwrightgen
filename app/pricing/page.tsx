@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FREE_PLAN, PRO_PLAN, PRO_WAITLIST_COPY } from "../../lib/plan";
 
-export default function PricingPage() {
+function PricingContent() {
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [email, setEmail] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistMessage, setWaitlistMessage] = useState("");
+
   const searchParams = useSearchParams();
   const paymentSuccess = searchParams.get("success") === "true";
   const paymentCanceled = searchParams.get("canceled") === "true";
@@ -86,9 +87,11 @@ export default function PricingPage() {
               Start free, validate your workflow, and upgrade when you need more
               advanced AI-powered automation.
             </p>
+
             {paymentSuccess && (
               <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                Pro activated successfully. You can now go back to the Generator page and verify your email.
+                Pro activated successfully. You can now go back to the Generator
+                page and verify your email.
               </div>
             )}
 
@@ -150,7 +153,8 @@ export default function PricingPage() {
               </button>
 
               <p className="mt-3 text-center text-sm text-gray-400">
-                Built for individual developers today. Team and enterprise options coming soon.
+                Built for individual developers today. Team and enterprise
+                options coming soon.
               </p>
 
               <button
@@ -160,7 +164,8 @@ export default function PricingPage() {
                 }}
                 className="mt-3 block w-full text-center text-sm text-gray-300 underline underline-offset-4 transition hover:text-white"
               >
-                Need enterprise access or future premium features? Join the waitlist
+                Need enterprise access or future premium features? Join the
+                waitlist
               </button>
             </div>
           </div>
@@ -210,5 +215,13 @@ export default function PricingPage() {
         </div>
       )}
     </>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={null}>
+      <PricingContent />
+    </Suspense>
   );
 }

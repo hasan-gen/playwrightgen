@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 
 type Mode = "text" | "html" | "api" | "component";
@@ -48,6 +49,70 @@ export default function GeneratorPage() {
   const [proStatusMessage, setProStatusMessage] = useState("");
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const paymentSuccess = searchParams.get("success") === "true";
+  const sessionId = searchParams.get("session_id");
+
+  useEffect(() => {
+    if (!paymentSuccess || !sessionId) return;
+
+    const fetchSession = async () => {
+      try {
+        const res = await fetch(
+          `/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`
+        );
+
+        const data = await res.json();
+
+        if (data.email) {
+          localStorage.setItem("proEmail", data.email);
+          setAccountEmail(data.email);
+        }
+      } catch (err) {
+        console.error("Fetch session error:", err);
+      }
+    };
+
+    fetchSession();
+  }, [paymentSuccess, sessionId]);
+
+  useEffect(() => {
+    const email = accountEmail || localStorage.getItem("proEmail");
+
+    if (!email) return;
+
+    const checkPro = async () => {
+      try {
+        setCheckingPro(true);
+
+        const res = await fetch("/api/check-pro", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await res.json();
+
+        if (data.isPro) {
+          setIsProVerified(true);
+          setProStatusMessage("Pro access verified.");
+        } else {
+          setIsProVerified(false);
+          setProStatusMessage("Payment received, but Pro is not ready yet.");
+        }
+      } catch (err) {
+        console.error("Check Pro failed:", err);
+        setIsProVerified(false);
+        setProStatusMessage("Automatic Pro verification failed.");
+      } finally {
+        setCheckingPro(false);
+      }
+    };
+
+    checkPro();
+  }, [accountEmail]);
 
   useEffect(() => {
     const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -603,6 +668,11 @@ export default function GeneratorPage() {
               <h1 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
                 PlaywrightGen Generator
               </h1>
+              {paymentSuccess && (
+                <div className="mx-auto mb-6 max-w-2xl rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                  🎉 Payment successful! Your Pro access is now active.
+                </div>
+              )}
               <p className="mt-2 max-w-3xl text-gray-600">
                 Generate, analyze, and improve Playwright test coverage from prompts,
                 components, HTML snippets, APIs, and page URLs.
@@ -613,20 +683,28 @@ export default function GeneratorPage() {
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
-              <span className="text-sm text-gray-500">
-                {hasSyncedUsage
-                  ? `Free plan: ${remainingGenerations} of ${APP_LIMITS.freeDailyGenerations} generations left today`
-                  : `Free plan: ${APP_LIMITS.freeDailyGenerations} generations per day`}
-              </span>
-
-              <Link
-                href="/pricing"
-                className="group inline-flex min-h-[44px] items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
-              >
-                <span className="text-sm font-medium text-black group-hover:text-white">
-                  Upgrade to Pro
+              {isProVerified ? (
+                <span className="text-sm font-medium text-green-700">
+                  Pro plan active
                 </span>
-              </Link>
+              ) : (
+                <>
+                  <span className="text-sm text-gray-500">
+                    {hasSyncedUsage
+                      ? `Free plan: ${remainingGenerations} of ${APP_LIMITS.freeDailyGenerations} generations left today`
+                      : `Free plan: ${APP_LIMITS.freeDailyGenerations} generations per day`}
+                  </span>
+
+                  <Link
+                    href="/pricing"
+                    className="group inline-flex min-h-[44px] items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
+                  >
+                    <span className="text-sm font-medium text-black group-hover:text-white">
+                      Upgrade to Pro
+                    </span>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
 
