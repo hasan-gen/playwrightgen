@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FREE_PLAN, PRO_PLAN, PRO_WAITLIST_COPY } from "../../lib/plan";
 
@@ -9,6 +10,9 @@ export default function PricingPage() {
   const [email, setEmail] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistMessage, setWaitlistMessage] = useState("");
+  const searchParams = useSearchParams();
+  const paymentSuccess = searchParams.get("success") === "true";
+  const paymentCanceled = searchParams.get("canceled") === "true";
 
   const handleJoinWaitlist = async () => {
     if (!email.trim()) {
@@ -82,6 +86,17 @@ export default function PricingPage() {
               Start free, validate your workflow, and upgrade when you need more
               advanced AI-powered automation.
             </p>
+            {paymentSuccess && (
+              <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+                Pro activated successfully. You can now go back to the Generator page and verify your email.
+              </div>
+            )}
+
+            {paymentCanceled && (
+              <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                Checkout was canceled. You can try again whenever you’re ready.
+              </div>
+            )}
           </div>
 
           <div className="grid gap-6 md:grid-cols-2">
