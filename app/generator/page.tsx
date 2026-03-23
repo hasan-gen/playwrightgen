@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 
 type Mode = "text" | "html" | "api" | "component";
@@ -43,24 +43,32 @@ function GeneratorContent() {
   const [waitlistEmail, setWaitlistEmail] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistMessage, setWaitlistMessage] = useState("");
-  const [accountEmail, setAccountEmail] = useState("");
+  const [proEmailInput, setProEmailInput] = useState("");
   const [checkingPro, setCheckingPro] = useState(false);
   const [isProVerified, setIsProVerified] = useState(false);
   const [proStatusMessage, setProStatusMessage] = useState("");
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  const router = useRouter();
   const paymentSuccess = searchParams.get("success") === "true";
   const sessionId = searchParams.get("session_id");
 
   useEffect(() => {
-    const savedEmail = localStorage.getItem("proEmail");
+    const savedProEmail = localStorage.getItem("proEmail");
 
-    if (savedEmail) {
-      setAccountEmail(savedEmail);
+    if (savedProEmail) {
+      setProEmailInput(savedProEmail);
     }
   }, []);
 
+  useEffect(() => {
+    const savedUser = localStorage.getItem("playwrightgen_user_email");
+
+    if (!savedUser) {
+      router.replace("/login?next=/generator");
+    }
+  }, [router]);
 
 
   useEffect(() => {
@@ -76,7 +84,7 @@ function GeneratorContent() {
 
         if (data.email) {
           localStorage.setItem("proEmail", data.email);
-          setAccountEmail(data.email);
+          setProEmailInput(data.email);
         }
       } catch (err) {
         console.error("Fetch session error:", err);
@@ -87,7 +95,7 @@ function GeneratorContent() {
   }, [paymentSuccess, sessionId]);
 
   useEffect(() => {
-    const email = accountEmail || localStorage.getItem("proEmail");
+    const email = proEmailInput || localStorage.getItem("proEmail");
 
     if (!email) return;
 
@@ -107,7 +115,7 @@ function GeneratorContent() {
 
         if (data.isPro) {
           setIsProVerified(true);
-          setAccountEmail(email);
+          setProEmailInput(email);
           setProStatusMessage("Pro access verified.");
         } else {
           setIsProVerified(false);
@@ -123,7 +131,7 @@ function GeneratorContent() {
     };
 
     checkPro();
-  }, [accountEmail]);
+  }, [proEmailInput]);
 
   useEffect(() => {
     const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -235,6 +243,10 @@ function GeneratorContent() {
   };
 
   const handleGenerate = async () => {
+    if (!isProVerified && remainingGenerations <= 0) {
+      setShowWaitlistModal(true);
+      return;
+    }
     if (!prompt.trim()) {
       setGeneratedCode("Please enter a prompt first.");
       return;
@@ -262,7 +274,6 @@ function GeneratorContent() {
       });
 
       const data = await response.json();
-
       if (!response.ok) {
         setGeneratedCode(data.error || "Something went wrong.");
 
@@ -275,6 +286,10 @@ function GeneratorContent() {
       }
 
       setGeneratedCode(data.result);
+
+      if (!isProVerified) {
+        setRemainingGenerations(prev => prev - 1);
+      }
 
       if (data.result) {
         saveHistoryItem({
@@ -383,7 +398,7 @@ function GeneratorContent() {
   };
 
   const handleCheckProAccess = async () => {
-    if (!accountEmail.trim()) {
+    if (!proEmailInput.trim()) {
       setProStatusMessage("Please enter your email.");
       setIsProVerified(false);
       return;
@@ -398,7 +413,7 @@ function GeneratorContent() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email: accountEmail }),
+        body: JSON.stringify({ email: proEmailInput }),
       });
 
       const data = await response.json();
@@ -673,7 +688,7 @@ function GeneratorContent() {
   return (
     <>
       <main className="min-h-screen px-4 py-8 sm:px-6 sm:py-10">
-        <div className="mx-auto max-w-7xl">
+         <div className="mx-auto max-w-7xl">
           <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
             <div>
               <h1 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
@@ -695,7 +710,7 @@ function GeneratorContent() {
 
             <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
               {isProVerified ? (
-                <span className="text-sm font-medium text-green-700">
+                <span className="text-sm text-gray-500 text-left sm:text-right">
                   Pro plan active
                 </span>
               ) : (
@@ -708,7 +723,7 @@ function GeneratorContent() {
 
                   <Link
                     href="/pricing"
-                    className="group inline-flex min-h-[44px] items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
+                    className="group inline-flex w-full sm:w-auto min-h-[44px] items-center justify-center rounded-xl border border-black bg-white px-4 py-2 transition hover:bg-black"
                   >
                     <span className="text-sm font-medium text-black group-hover:text-white">
                       Upgrade to Pro
@@ -953,9 +968,9 @@ function GeneratorContent() {
                   <div className="flex flex-col gap-3 sm:flex-row">
                     <input
                       type="email"
-                      value={accountEmail}
+                      value={proEmailInput}
                       onChange={(e) => {
-                        setAccountEmail(e.target.value);
+                        setProEmailInput(e.target.value);
                         setIsProVerified(false);
                         setProStatusMessage("");
                       }}
@@ -1192,12 +1207,14 @@ function GeneratorContent() {
                   </div>
                 </div>
 
-                <textarea
-                  className="min-h-[300px] w-full rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black sm:min-h-[340px]"
-                  placeholder={getPlaceholder()}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                />
+                <div className="px-1 sm:px-0">
+                  <textarea
+                    className="min-h-[300px] w-full rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black sm:min-h-[340px]"
+                    placeholder={getPlaceholder()}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                  />
+                </div>
 
                 <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <button

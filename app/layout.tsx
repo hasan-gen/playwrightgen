@@ -31,7 +31,7 @@ export default function RootLayout({
       >
         <div className="min-h-screen bg-[#fafafa] text-black">
           <nav className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-4 sm:px-6 md:flex-row md:items-center md:justify-between">
+            <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
               <Link
                 href="/"
                 className="text-2xl font-bold tracking-tight text-black"
@@ -39,7 +39,7 @@ export default function RootLayout({
                 PlaywrightGen
               </Link>
 
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-gray-600">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
                 <Link href="/generator" className="transition hover:text-black">
                   Generator
                 </Link>
@@ -54,6 +54,16 @@ export default function RootLayout({
           </nav>
 
           {children}
+          <footer className="mt-20 border-t py-6 text-center text-sm text-gray-500">
+            <div className="flex justify-center gap-6">
+              <a href="/terms" className="hover:text-black">
+                Terms
+              </a>
+              <a href="/privacy" className="hover:text-black">
+                Privacy
+              </a>
+            </div>
+          </footer>
         </div>
       </body>
     </html>

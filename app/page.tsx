@@ -35,34 +35,34 @@ const availableNow = [
 
 const futureItems = [
   {
-    title: "Agentic URL Analysis",
+    title: "AI-Powered URL Analysis",
     description:
-      "Analyze a live page, infer likely user journeys, and generate more complete Playwright coverage automatically.",
+      "Analyze live pages with AI, understand user flows, and generate complete Playwright test coverage automatically.",
   },
   {
-    title: "Multi-Test Suite Generation",
+    title: "AI Multi-Test Generation",
     description:
-      "Create related tests for login, validation, navigation, search, and critical flows from a single input.",
+      "Generate full test suites with AI — covering login, validation, navigation, and edge cases from a single input.",
   },
   {
-    title: "AI Test Architecture Helpers",
+    title: "AI Test Architecture",
     description:
-      "Generate reusable flows, page object ideas, and smarter production-ready test structures for modern projects.",
+      "Let AI design reusable page objects, clean test structure, and scalable automation frameworks.",
   },
   {
-    title: "Saved Test Workspace",
+    title: "AI Workspace Memory",
     description:
-      "Store generated outputs, compare versions, and reuse successful automation drafts across future sessions.",
+      "Save, compare, and reuse AI-generated tests across sessions — no more starting from scratch.",
   },
   {
-    title: "Project-Level Test Generation",
+    title: "AI Project-Level Planning",
     description:
-      "Expand beyond single prompts into broader automation planning for pages, components, and application workflows.",
+      "AI expands beyond prompts — generating complete testing strategies across your entire application.",
   },
   {
-    title: "Pro Plan",
+    title: "AI Pro Workflows",
     description:
-      "Unlock higher limits, more advanced AI workflows, and stronger productivity features for teams and power users.",
+      "Unlock advanced AI automation, deeper analysis, and production-ready workflows for real engineering teams.",
   },
 ];
 
@@ -77,7 +77,7 @@ export default function Home() {
             </p>
 
             <h1 className="max-w-4xl text-5xl font-bold tracking-tight text-black md:text-6xl">
-              Generate Playwright tests in seconds
+              Generate production-ready playwright tests with AI
             </h1>
 
             <p className="mt-5 max-w-2xl text-lg leading-8 text-gray-600">
@@ -87,7 +87,7 @@ export default function Home() {
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
               <Link
-                href="/generator"
+                href="/login?next=/generator"
                 className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-black px-6 py-3 text-base font-medium text-white transition hover:opacity-90 sm:min-w-[190px] sm:w-auto"
               >
                 Start Generating
@@ -100,23 +100,19 @@ export default function Home() {
                 Pricing
               </Link>
             </div>
-
-            <div className="mt-8 flex flex-wrap gap-3 text-sm text-gray-500">
-              <span className="rounded-full border border-gray-200 bg-white px-3 py-1">
+            <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-gray-600">
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center">
                 Prompt → Test
-              </span>
-              <span className="rounded-full border border-gray-200 bg-white px-3 py-1">
-                Component → Test
-              </span>
-              <span className="rounded-full border border-gray-200 bg-white px-3 py-1">
-                HTML → Locator
-              </span>
-              <span className="rounded-full border border-gray-200 bg-white px-3 py-1">
-                API → Test
-              </span>
-              <span className="rounded-full border border-gray-200 bg-white px-3 py-1">
-                Free Plan
-              </span>
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center">
+                Analyze Page
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center">
+                Free: 5/day
+              </div>
+              <div className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-center">
+                Pro Features
+              </div>
             </div>
           </div>
 
@@ -224,36 +220,36 @@ test("user can log in", async ({ page }) => {
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
             <Link
-              href="/generator"
+              href="/login?next=/generator"
               className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 py-3 text-base font-medium text-black transition hover:bg-gray-100 sm:min-w-[190px] sm:w-auto"
             >
-              Open Generator
+              Start Generating ⇒
             </Link>
 
             <Link
               href="/pricing"
-              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/20 px-6 py-3 text-base font-medium text-white transition hover:bg-white/10 sm:min-w-[150px] sm:w-auto"
+              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-white/30 bg-white/15 px-6 py-3 text-base font-medium text-white transition hover:bg-white/25 sm:min-w-[150px] sm:w-auto"
             >
-              View Pricing
+              View Pricing💲
             </Link>
+            <p className="text-xs text-gray-400 mt-3">
+              No credit card required • Upgrade anytime
+            </p>
           </div>
         </section>
 
         <section className="mt-16">
           <div className="mb-8">
             <p className="mb-3 text-xs font-medium uppercase tracking-[0.24em] text-gray-500 sm:text-sm">
-              Future of PlaywrightGen
+              AI-first test automation platform
             </p>
 
             <h2 className="text-3xl font-bold tracking-tight text-black md:text-4xl">
-              A more powerful AI automation roadmap
+              The future of AI powered testing
             </h2>
 
             <p className="mt-4 max-w-3xl text-gray-600">
-              PlaywrightGen is moving toward broader AI-assisted automation:
-              stronger context awareness, smarter test planning, and workflows
-              that help engineering teams generate more complete coverage with
-              less repetition.
+              Unlock deeper AI automation, smarter analysis, and production-ready workflows designed for serious engineering teams.
             </p>
           </div>
 
