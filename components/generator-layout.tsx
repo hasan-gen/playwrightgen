@@ -41,7 +41,7 @@ export default function GeneratorLayout({
 
     return (
         <div className="min-h-screen bg-[#fafafa] text-black">
-            <div className="flex min-h-screen overflow-hidden">
+            <div className="flex min-h-screen">
                 {/* Desktop sidebar */}
                 <div className="hidden lg:block">
                     <GeneratorSidebar {...sidebarProps} />
@@ -78,7 +78,7 @@ export default function GeneratorLayout({
                 </div>
 
                 {/* Main content */}
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto touch-pan-y overscroll-contain">
                     <div className="lg:hidden px-4 pt-4">
                         {!sidebarOpen && (
                             <button
