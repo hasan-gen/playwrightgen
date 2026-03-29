@@ -715,7 +715,7 @@ return (
           freeDailyGenerations: APP_LIMITS.freeDailyGenerations,
         }}
       >
-        <main className="min-h-screen px-4 py-8 sm:px-6 sm:py-10">
+        <main className="overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
           <div className="mx-auto max-w-7xl">
             <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div>
@@ -822,8 +822,8 @@ transition hover:bg-black"
                       type="button"
                       onClick={() => setAiModeEnabled((prev) => !prev)}
                       className={`relative inline-flex h-8 w-16 items-center rounded-full transition-all duration-300 ${aiModeEnabled
-                          ? "bg-black shadow-[0_0_20px_rgba(34,197,94,0.45)]"
-                          : "bg-gray-300"
+                        ? "bg-black shadow-[0_0_20px_rgba(34,197,94,0.45)]"
+                        : "bg-gray-300"
                         }`}
                       aria-pressed={aiModeEnabled}
                       aria-label="Toggle AI mode"
@@ -1201,8 +1201,7 @@ disabled:cursor-not-allowed disabled:opacity-60"
                   </div>
                   <div className="px-1 sm:px-0">
                     <textarea
-                      className="min-h-[300px] w-full rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black
-sm:min-h-[340px]"
+ className="min-h-[300px] w-full resize-none rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black [touch-action:pan-y] sm:min-h-[340px]"
                       placeholder={getPlaceholder()}
                       value={prompt}
                       onChange={(e) => setPrompt(e.target.value)}
@@ -1277,8 +1276,8 @@ text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:o
                       {analysisSummary}
                     </div>
                   )}
-                  <div className="min-h-[360px] overflow-x-auto rounded-2xl bg-black p-5 text-sm text-green-400 sm:min-h-[420px]">
-                    <pre className="min-w-[260px] whitespace-pre-wrap">
+                  <div className="min-h-[360px] rounded-2xl bg-black p-5 text-sm text-green-400 sm:min-h-[420px]">
+                    <pre className="min-w-0 max-w-full whitespace-pre-wrap break-words [touch-action:pan-y]">
                       {loading
                         ? generationType === "url"
                           ? "Analyzing page structure and generating Playwright test suite..."
