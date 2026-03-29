@@ -58,7 +58,7 @@ export default function GeneratorSidebar({
         });
     }, [historyItems, search]);
     return (
-        <aside className="flex h-full w-[290px] flex-col border-r border-gray-200 bg-[hashtag#fcfcfc]">
+        <aside className="flex h-full w-[19rem] flex-col border-r border-gray-200 bg-white pt-4 lg:h-screen lg:w-[290px] lg:pt-0">
             <div className="border-b border-gray-200 px-4 py-4">
                 <div className="text-lg font-semibold text-black">PlaywrightGen</div>
                 <div className="text-xs text-gray-500">AI test workspace</div>

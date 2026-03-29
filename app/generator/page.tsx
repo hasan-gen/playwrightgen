@@ -31,6 +31,7 @@ function GeneratorContent() {
   const [url, setUrl] = useState("");
   const [styleMode, setStyleMode] = useState<StyleMode>("clean");
   const [outputType, setOutputType] = useState<OutputType>("playwright");
+  const [aiModeEnabled, setAiModeEnabled] = useState(true);
   const [generationType, setGenerationType] = useState<"prompt" | "url">("prompt");
   const [analysisSummary, setAnalysisSummary] = useState("");
   const [remainingGenerations, setRemainingGenerations] = useState<number>(5);
@@ -297,6 +298,7 @@ return (
           url,
           styleMode,
           outputType,
+          aiModeEnabled,
         }),
       });
       const data = await response.json();
@@ -805,6 +807,43 @@ transition hover:bg-black"
                 <div className="mb-5">
                   <div className="min-w-0">
                     <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
+                  </div>
+                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-black">AI Mode</p>
+                      <p className="text-xs text-gray-500">
+                        {aiModeEnabled
+                          ? "Enhanced generation is enabled"
+                          : "Standard generation is enabled"}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setAiModeEnabled((prev) => !prev)}
+                      className={`relative inline-flex h-8 w-16 items-center rounded-full transition-all duration-300 ${aiModeEnabled
+                          ? "bg-black shadow-[0_0_20px_rgba(34,197,94,0.45)]"
+                          : "bg-gray-300"
+                        }`}
+                      aria-pressed={aiModeEnabled}
+                      aria-label="Toggle AI mode"
+                      title="Toggle AI mode"
+                    >
+                      <span
+                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-all duration-300 ${aiModeEnabled ? "translate-x-9" : "translate-x-1"
+                          }`}
+                      />
+                      {aiModeEnabled && (
+                        <span className="pointer-events-none absolute left-2 text-[10px] font-semibold text-green-400">
+                          ON
+                        </span>
+                      )}
+                      {!aiModeEnabled && (
+                        <span className="pointer-events-none absolute right-2 text-[10px] font-semibold text-gray-600">
+                          OFF
+                        </span>
+                      )}
+                    </button>
                   </div>
                   {mode === "component" && (
                     <div className="mt-4">
