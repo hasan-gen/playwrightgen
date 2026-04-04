@@ -9,6 +9,16 @@ import GeneratorLayout from "@/components/generator-layout";
 type Mode = "text" | "html" | "api" | "component";
 type StyleMode = "fast" | "clean" | "production";
 type OutputType = "playwright" | "unit";
+type TabType = "generate" | "debug";
+
+type IssueType =
+  | "Smart Detect"
+  | "Test Failure"
+  | "UI/Layout"
+  | "Component Logic"
+  | "Styling"
+  | "General Bug";
+
 type HistoryItem = {
   id: string;
   mode: Mode;
@@ -19,6 +29,8 @@ type HistoryItem = {
   styleMode: StyleMode;
   outputType: OutputType;
   generationType: "prompt" | "url";
+  tabType?: TabType;
+  issueType?: IssueType;
 };
 function GeneratorContent() {
   const [mode, setMode] = useState<Mode>("text");
@@ -50,6 +62,10 @@ function GeneratorContent() {
   const [proStatusMessage, setProStatusMessage] = useState("");
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
+  // ==================== 新增 Debug 状态 ====================
+  const [activeTab, setActiveTab] = useState<TabType>("generate");
+  const [issueType, setIssueType] = useState<IssueType>("Smart Detect");
+  const [debugInput, setDebugInput] = useState("");
   const outputRef = useRef<HTMLDivElement | null>(null);
   const deleteHistoryItem = (id: string) => {
     const updated = historyItems.filter(item => item.id !== id);
@@ -58,6 +74,19 @@ function GeneratorContent() {
     if (selectedHistoryId === id) {
       setSelectedHistoryId(null);
     }
+  };
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const newFiles = Array.from(e.target.files);
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const removeUploadedFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -211,6 +240,21 @@ return (
     if (item.styleMode) setStyleMode(item.styleMode);
     if (item.outputType) setOutputType(item.outputType);
     if (item.generationType) setGenerationType(item.generationType);
+
+    // ==================== 新增：自动切换 Tab ====================
+    if (item.tabType === "debug") {
+      setActiveTab("debug");
+      setDebugInput(item.prompt || "");           // 把历史里的内容填回 Debug 输入框
+      if (item.issueType) setIssueType(item.issueType);
+    } else {
+      setActiveTab("generate");
+    }
+    // ============================================================
+
+    // 滚动到输出区
+    setTimeout(() => {
+      outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 100);
   };
   const getOutputTitle = () => {
     if (generationType === "url") {
@@ -429,6 +473,105 @@ return (
       setLoading(false);
     }
   };
+
+  const handleDebug = async () => {
+    if (!debugInput.trim() && uploadedFiles.length === 0) {
+      setError("Please enter a description or upload a file/image.");
+      return;
+    }
+
+    setError(null);
+    setLoading(true);
+    setGeneratedCode("");
+
+    try {
+      const formData = new FormData();
+      formData.append("input", debugInput);
+      formData.append("issueType", issueType === "Smart Detect" ? "Auto Detect" : issueType);
+      formData.append("styleMode", styleMode);
+
+      // 上传所有文件
+      uploadedFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
+      const response = await fetch("/api/debug", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Debug request failed.");
+        return;
+      }
+
+      // 处理结构化输出
+      let displayText = "";
+      if (typeof data.result === "string") {
+        try {
+          const parsed = JSON.parse(data.result);
+          displayText = `
+Root Cause: ${parsed.rootCause || "N/A"}
+
+Confidence: ${parsed.confidence || "Medium"}
+
+Issue Type: ${parsed.issueType || "General"}
+
+Minimal Fix:
+${parsed.minimalFix || "No minimal fix provided"}
+
+Updated Code:
+${parsed.updatedCode || "No code change suggested"}
+
+Why:
+${parsed.why || "N/A"}
+
+What to test next:
+${parsed.whatToTestNext || "N/A"}
+
+Risks / Side Effects:
+${parsed.risks || "No risks mentioned"}
+          `.trim();
+        } catch (e) {
+          displayText = data.result;
+        }
+      } else {
+        displayText = JSON.stringify(data.result, null, 2);
+      }
+
+      setGeneratedCode(displayText);
+
+      // 保存到历史
+      const newHistoryItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        mode: "text",
+        prompt: debugInput,
+        url: "",
+        generatedCode: displayText,
+        createdAt: new Date().toISOString(),
+        styleMode,
+        outputType: "playwright",
+        generationType: "prompt",
+        tabType: "debug",
+        issueType: issueType,
+      };
+
+      saveHistoryItem(newHistoryItem);
+
+      setTimeout(() => {
+        outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+
+    } catch (err) {
+      console.error("Debug error:", err);
+      setError("Failed to analyze the issue. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCheckProAccess = async () => {
     if (!proEmailInput.trim()) {
       setProStatusMessage("Please enter your email.");
@@ -713,6 +856,13 @@ return (
           remainingGenerations,
           hasSyncedUsage,
           freeDailyGenerations: APP_LIMITS.freeDailyGenerations,
+
+          // ==================== 新增：上传功能（供 History 面板使用） ====================
+          uploadedFiles,
+          onFileUpload: handleFileUpload,
+          onRemoveFile: removeUploadedFile,
+          fileInputRef,
+          // ========================================================================
         }}
       >
         <main className="overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
@@ -762,6 +912,23 @@ transition hover:bg-black"
                 )}
               </div>
             </div>
+            {/* ==================== Tab 切换 ==================== */}
+            <div className="mb-8 flex border-b border-gray-200">
+              <button
+                onClick={() => setActiveTab("generate")}
+                className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "generate" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                Generate Test
+              </button>
+              <button
+                onClick={() => setActiveTab("debug")}
+                className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "debug" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                Debug Assistant
+              </button>
+            </div>
             <div className="mb-6 flex flex-wrap gap-3">
               <button
                 onClick={() => handleModeChange("text")}
@@ -802,81 +969,50 @@ transition hover:bg-black"
                 API
               </button>
             </div>
-            <div className="space-y-6">
-              <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                <div className="mb-5">
-                  <div className="min-w-0">
-                    <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-black">AI Mode</p>
-                      <p className="text-xs text-gray-500">
-                        {aiModeEnabled
-                          ? "Enhanced generation is enabled"
-                          : "Standard generation is enabled"}
-                      </p>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setAiModeEnabled((prev) => !prev)}
-                      className={`relative inline-flex h-8 w-16 items-center rounded-full transition-all duration-300 ${aiModeEnabled
-                        ? "bg-black shadow-[0_0_20px_rgba(34,197,94,0.45)]"
-                        : "bg-gray-300"
-                        }`}
-                      aria-pressed={aiModeEnabled}
-                      aria-label="Toggle AI mode"
-                      title="Toggle AI mode"
-                    >
-                      <span
-                        className={`inline-block h-6 w-6 transform rounded-full bg-white transition-all duration-300 ${aiModeEnabled ? "translate-x-9" : "translate-x-1"
-                          }`}
-                      />
-                      {aiModeEnabled && (
-                        <span className="pointer-events-none absolute left-2 text-[10px] font-semibold text-green-400">
-                          ON
-                        </span>
-                      )}
-                      {!aiModeEnabled && (
-                        <span className="pointer-events-none absolute right-2 text-[10px] font-semibold text-gray-600">
-                          OFF
-                        </span>
-                      )}
-                    </button>
-                  </div>
-                  {mode === "component" && (
-                    <div className="mt-4">
-
-
-                      <p className="mb-2 text-sm font-medium text-gray-700">Test Type</p>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setOutputType("playwright")}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
-                            }`}
-                        >
-                          Playwright Test
-                        </button>
-                        <button
-                          onClick={() => setOutputType("unit")}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
-                            }`}
-                        >
-                          Unit Test
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+            {/* ==================== Generate Tab ==================== */}
+            {activeTab === "generate" && (
+              <div className="space-y-6">
                 <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                   <div className="mb-5">
                     <div className="min-w-0">
                       <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-black">AI Mode</p>
+                        <p className="text-xs text-gray-500">
+                          {aiModeEnabled
+                            ? "Enhanced generation is enabled"
+                            : "Standard generation is enabled"}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setAiModeEnabled((prev) => !prev)}
+                        className={`relative inline-flex h-8 w-16 items-center rounded-full transition-all duration-300 ${aiModeEnabled
+                          ? "bg-black shadow-[0_0_20px_rgba(34,197,94,0.45)]"
+                          : "bg-gray-300"
+                          }`}
+                        aria-pressed={aiModeEnabled}
+                        aria-label="Toggle AI mode"
+                        title="Toggle AI mode"
+                      >
+                        <span
+                          className={`inline-block h-6 w-6 transform rounded-full bg-white transition-all duration-300 ${aiModeEnabled ? "translate-x-9" : "translate-x-1"
+                            }`}
+                        />
+                        {aiModeEnabled && (
+                          <span className="pointer-events-none absolute left-2 text-[10px] font-semibold text-green-400">
+                            ON
+                          </span>
+                        )}
+                        {!aiModeEnabled && (
+                          <span className="pointer-events-none absolute right-2 text-[10px] font-semibold text-gray-600">
+                            OFF
+                          </span>
+                        )}
+                      </button>
                     </div>
                     {mode === "component" && (
                       <div className="mt-4">
@@ -896,8 +1032,6 @@ transition hover:bg-black"
                             className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
                               ? "bg-black text-white"
                               : "border border-gray-300 bg-white text-gray-700"
-
-
                               }`}
                           >
                             Unit Test
@@ -906,326 +1040,409 @@ transition hover:bg-black"
                       </div>
                     )}
                   </div>
-                  {getTemplates().length > 0 && (
-                    <div className="mb-5">
-                      <p className="mb-2 text-sm font-medium text-gray-700">
-                        {mode === "component"
-                          ? "Example Components"
-                          : mode === "html"
-                            ? "Example Markup"
-                            : mode === "api"
-                              ? "Example Requests"
-                              : "Example Tests"}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {getTemplates().map((template) => (
-                          <button
-                            key={template.label}
-                            onClick={() => handleTemplateSelect(template.value)}
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedTemplate === template.value
-                              ? "border-black bg-black text-white"
-                              : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                              }`}
-                          >
-                            {template.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {(mode === "text" || mode === "html" || mode === "component") && (
-                    <div className="mb-4">
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Page URL
-                      </label>
-                      <p className="mb-2 text-sm text-gray-500">
-                        Optional. Add a page URL to analyze page structure and generate a more realistic Playwright test suite.
-                      </p>
-                      <input
-                        type="text"
-                        placeholder="https://example.com/login"
-                        className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-                        value={url}
-                        onChange={(e) => setUrl(e.target.value)}
-                      />
-                    </div>
-                  )}
 
-
-                  <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-1 text-sm font-semibold text-gray-800">
-                      Pro access email
-                    </p>
-                    <p className="mb-3 text-xs text-gray-500">
-                      Enter the email used during Stripe checkout to unlock Pro features.
-                    </p>
-                    <div className="flex flex-col gap-3 sm:flex-row">
-                      <input
-                        type="email"
-                        value={proEmailInput}
-                        onChange={(e) => {
-                          setProEmailInput(e.target.value);
-                          setIsProVerified(false);
-                          setProStatusMessage("");
-                        }}
-                        placeholder="Enter your Pro email"
-                        className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-                      />
+                  {/* ==================== Generate Tab 的上传区域 ==================== */}
+                  <div className="mb-6">
+                    <p className="mb-3 text-sm font-medium text-gray-700">Attach files or screenshots (optional)</p>
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={handleCheckProAccess}
-                        disabled={checkingPro}
-                        className="rounded-xl border border-black bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-black hover:text-white
-disabled:cursor-not-allowed disabled:opacity-60"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                       >
-                        {checkingPro ? "Checking..." : "Verify Pro"}
+                        📸 Image
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        📄 File
                       </button>
                     </div>
-                    {proStatusMessage && (
-                      <p className="mt-3 text-sm text-gray-600">{proStatusMessage}</p>
+
+                    {/* 隐藏的文件输入框 */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*,.log,.txt,.json,.ts,.tsx,.js,.jsx,.html,.css"
+                      multiple
+                      className="hidden"
+                      onChange={handleFileUpload}
+                    />
+
+                    {/* 预览卡片 */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {uploadedFiles.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 rounded-2xl bg-gray-100 px-3 py-1 text-xs text-gray-700"
+                          >
+                            <span className="max-w-[140px] truncate">{file.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeUploadedFile(index)}
+                              className="text-red-500 hover:text-red-700 text-base leading-none"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <div className="mb-4">
-                    <label className="mb-2 block text-sm font-medium text-gray-700">
-                      Code Style
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => setStyleMode("fast")}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
-                          ? "bg-black text-white"
-                          : "border border-gray-300 bg-white text-gray-700"
-                          }`}
-                      >
+                  {/* ======================================================== */}
 
-
-                        Fast
-                      </button>
-                      <button
-                        onClick={() => setStyleMode("clean")}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
-                          ? "bg-black text-white"
-                          : "border border-gray-300 bg-white text-gray-700"
-                          }`}
-                      >
-                        Clean
-                      </button>
-                      <button
-                        onClick={() => setStyleMode("production")}
-                        className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
-                          ? "bg-black text-white"
-                          : "border border-gray-300 bg-white text-gray-700"
-                          }`}
-                      >
-                        Production
-                      </button>
-                    </div>
-                  </div>
-                  <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                    <p className="mb-1 text-sm font-semibold text-gray-800">
-                      Suggested Test Coverage
-                    </p>
-                    <p className="mb-3 text-xs text-gray-500">
-                      AI-prioritized coverage areas for this input mode.
-                    </p>
-                    <div className="flex flex-wrap gap-2 text-sm text-gray-600">
-                      {mode === "text" && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Happy path
-                          </button>
-                          <button
-                            type="button"
-
-
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Negative scenario
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Validation flow
-                          </button>
-                        </>
-                      )}
-                      {mode === "html" && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the main user flow suggested by the provided markup.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Main user flow
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include validation behavior for the provided markup.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include validation behavior for the provided markup.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-
-
-                          >
-                            Validation behavior
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative case based on the provided HTML or JSX.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Negative case
-                          </button>
-                        </>
-                      )}
+                  <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                    {/* 你原来的所有内容从这里开始保持完全不变 */}
+                    <div className="mb-5">
+                      <div className="min-w-0">
+                        <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
+                      </div>
                       {mode === "component" && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Cover the initial render state of the component.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the initial render state of the component.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Render state
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a user interaction scenario for the component.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a user interaction scenario for the component.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            User interaction
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
-                            }
-
-
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a scenario that verifies state or UI updates after interaction.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            State update
-                          </button>
-                        </>
-                      )}
-                      {mode === "api" && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include a successful response scenario for the API.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a successful response scenario for the API.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Success response
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include an invalid request scenario for the API.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an invalid request scenario for the API.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Invalid request
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              appendCoverageSuggestion("Include an edge case scenario for the API.")
-                            }
-                            className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an edge case scenario for the API.")
-                              ? "border-black bg-black text-white"
-                              : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                              }`}
-                          >
-                            Edge case
-                          </button>
-                        </>
-
-
+                        <div className="mt-4">
+                          <p className="mb-2 text-sm font-medium text-gray-700">Test Type</p>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => setOutputType("playwright")}
+                              className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 bg-white text-gray-700"
+                                }`}
+                            >
+                              Playwright Test
+                            </button>
+                            <button
+                              onClick={() => setOutputType("unit")}
+                              className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
+                                ? "bg-black text-white"
+                                : "border border-gray-300 bg-white text-gray-700"
+                                }`}
+                            >
+                              Unit Test
+                            </button>
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-                  <div className="px-1 sm:px-0">
-                    <textarea
- className="min-h-[300px] w-full resize-none rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black [touch-action:pan-y] sm:min-h-[340px]"
-                      placeholder={getPlaceholder()}
-                      value={prompt}
-                      onChange={(e) => setPrompt(e.target.value)}
-                    />
-                  </div>
-                  <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                    <button
-                      type="button"
-                      onClick={handleGenerate}
-                      disabled={loading || !prompt.trim()}
-                      className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading ? "Generating..." : "Generate"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAnalyzeUrl}
-                      disabled={!url.trim() || loading}
-                      className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading && generationType === "url" ? "Analyzing..." : "Analyze Page"}
-                    </button>
+
+                    {getTemplates().length > 0 && (
+                      <div className="mb-5">
+                        <p className="mb-2 text-sm font-medium text-gray-700">
+                          {mode === "component"
+                            ? "Example Components"
+                            : mode === "html"
+                              ? "Example Markup"
+                              : mode === "api"
+                                ? "Example Requests"
+                                : "Example Tests"}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {getTemplates().map((template) => (
+                            <button
+                              key={template.label}
+                              onClick={() => handleTemplateSelect(template.value)}
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedTemplate === template.value
+                                ? "border-black bg-black text-white"
+                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                                }`}
+                            >
+                              {template.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {(mode === "text" || mode === "html" || mode === "component") && (
+                      <div className="mb-4">
+                        <label className="mb-2 block text-sm font-medium text-gray-700">
+                          Page URL
+                        </label>
+                        <p className="mb-2 text-sm text-gray-500">
+                          Optional. Add a page URL to analyze page structure and generate a more realistic Playwright test suite.
+                        </p>
+                        <input
+                          type="text"
+                          placeholder="https://example.com/login"
+                          className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
+                          value={url}
+                          onChange={(e) => setUrl(e.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <p className="mb-1 text-sm font-semibold text-gray-800">
+                        Pro access email
+                      </p>
+                      <p className="mb-3 text-xs text-gray-500">
+                        Enter the email used during Stripe checkout to unlock Pro features.
+                      </p>
+                      <div className="flex flex-col gap-3 sm:flex-row">
+                        <input
+                          type="email"
+                          value={proEmailInput}
+                          onChange={(e) => {
+                            setProEmailInput(e.target.value);
+                            setIsProVerified(false);
+                            setProStatusMessage("");
+                          }}
+                          placeholder="Enter your Pro email"
+                          className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCheckProAccess}
+                          disabled={checkingPro}
+                          className="rounded-xl border border-black bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {checkingPro ? "Checking..." : "Verify Pro"}
+                        </button>
+                      </div>
+                      {proStatusMessage && (
+                        <p className="mt-3 text-sm text-gray-600">{proStatusMessage}</p>
+                      )}
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Code Style
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={() => setStyleMode("fast")}
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
+                            ? "bg-black text-white"
+                            : "border border-gray-300 bg-white text-gray-700"
+                            }`}
+                        >
+                          Fast
+                        </button>
+                        <button
+                          onClick={() => setStyleMode("clean")}
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
+                            ? "bg-black text-white"
+                            : "border border-gray-300 bg-white text-gray-700"
+                            }`}
+                        >
+                          Clean
+                        </button>
+                        <button
+                          onClick={() => setStyleMode("production")}
+                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
+                            ? "bg-black text-white"
+                            : "border border-gray-300 bg-white text-gray-700"
+                            }`}
+                        >
+                          Production
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <p className="mb-1 text-sm font-semibold text-gray-800">
+                        Suggested Test Coverage
+                      </p>
+                      <p className="mb-3 text-xs text-gray-500">
+                        AI-prioritized coverage areas for this input mode.
+                      </p>
+                      <div className="flex flex-wrap gap-2 text-sm text-gray-600">
+                        {mode === "text" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Happy path
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Negative scenario
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Validation flow
+                            </button>
+                          </>
+                        )}
+                        {mode === "html" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the main user flow suggested by the provided markup.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Main user flow
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include validation behavior for the provided markup.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include validation behavior for the provided markup.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Validation behavior
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative case based on the provided HTML or JSX.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Negative case
+                            </button>
+                          </>
+                        )}
+                        {mode === "component" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Cover the initial render state of the component.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the initial render state of the component.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Render state
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a user interaction scenario for the component.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a user interaction scenario for the component.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              User interaction
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a scenario that verifies state or UI updates after interaction.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              State update
+                            </button>
+                          </>
+                        )}
+                        {mode === "api" && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include a successful response scenario for the API.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a successful response scenario for the API.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Success response
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include an invalid request scenario for the API.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an invalid request scenario for the API.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Invalid request
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                appendCoverageSuggestion("Include an edge case scenario for the API.")
+                              }
+                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an edge case scenario for the API.")
+                                ? "border-black bg-black text-white"
+                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                                }`}
+                            >
+                              Edge case
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="px-1 sm:px-0">
+                      <textarea
+                        className="min-h-[300px] w-full resize-none rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black [touch-action:pan-y] sm:min-h-[340px]"
+                        placeholder={getPlaceholder()}
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+                      <button
+                        type="button"
+                        onClick={handleGenerate}
+                        disabled={loading || (!prompt.trim() && uploadedFiles.length === 0)}
+                        className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {loading ? "Generating..." : "Generate"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleAnalyzeUrl}
+                        disabled={!url.trim() || loading}
+                        className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {loading && generationType === "url" ? "Analyzing..." : "Analyze Page"}
+                      </button>
+                    </div>
                   </div>
                 </div>
+
+                {/* Generate 输出区 */}
                 <div
                   ref={outputRef}
                   className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
@@ -1251,21 +1468,17 @@ disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         {copied ? "Copied!" : "Copy Code"}
                       </button>
-
-
                       <button
                         onClick={handleDownload}
                         disabled={!generatedCode}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium
-text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Download
                       </button>
                       <button
                         onClick={handleExplain}
                         disabled={!generatedCode || explaining}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium
-text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         {explaining ? "Explaining..." : "Explain Test"}
                       </button>
@@ -1293,18 +1506,153 @@ text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:o
                   )}
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* ==================== Debug Tab ==================== */}
+            {activeTab === "debug" && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+                  <h2 className="mb-4 text-2xl font-semibold text-black">AI Debugging Workspace</h2>
+                  <p className="mb-6 text-gray-600">
+                    Paste your failed test, error message, flaky locator, layout issue, or describe the bug.<br />
+                    I will find the root cause and give you the smallest safe fix with risk assessment.
+                  </p>
+
+                  <div className="mb-6">
+                    <p className="mb-3 text-sm font-medium text-gray-700">Issue Type</p>
+                    <div className="flex flex-wrap gap-2">
+                      {["Smart Detect", "Test Failure", "UI/Layout", "Component Logic", "Styling", "General Bug"].map((type) => (
+                        <button
+                          key={type}
+                          onClick={() => setIssueType(type as IssueType)}
+                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${issueType === type ? "bg-black text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* 明显附件上传区域（修复版） */}
+                  <div className="mb-4 flex gap-3">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      📸 Image
+                    </button>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      📄 File
+                    </button>
+                  </div>
+
+                  {/* 隐藏的文件输入框（关键修复） */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*,.log,.txt,.json,.ts,.tsx,.js,.jsx"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+
+                  <textarea
+                    className="min-h-[280px] w-full resize-none rounded-2xl border border-gray-300 bg-white p-5 font-mono text-sm outline-none transition focus:border-black"
+                    placeholder="Paste the error message, failed Playwright test, flaky selector, layout bug description, or component code here..."
+                    value={debugInput}
+                    onChange={(e) => setDebugInput(e.target.value)}
+                  />
+
+                  {/* 已上传附件预览 */}
+                  {uploadedFiles.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {uploadedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1 text-sm">
+                          {file.type.startsWith("image/") ? "🖼️" : "📄"}
+                          <span className="max-w-[180px] truncate">{file.name}</span>
+                          <button
+                            onClick={() => removeUploadedFile(index)}
+                            className="ml-2 text-gray-400 hover:text-red-500 text-xs"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="mt-6">
+                    <button
+                      onClick={handleDebug}
+                      disabled={loading || (!debugInput.trim() && uploadedFiles.length === 0)}
+                      className="rounded-xl bg-black px-8 py-3.5 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loading ? "Analyzing Root Cause..." : "Debug This Issue"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Debug 输出区（美化版） */}
+                <div
+                  ref={outputRef}
+                  className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
+                >
+                  {error && (
+                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                      {error}
+                    </div>
+                  )}
+
+                  <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 lg:max-w-[52%]">
+                      <h2 className="text-xl font-semibold text-black flex items-center gap-2">
+                        <span className="text-emerald-600 text-2xl">✓</span>
+                        Debug Result
+                      </h2>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
+                      <button
+                        type="button"
+                        onClick={handleCopy}
+                        disabled={!generatedCode}
+                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {copied ? "✅ Copied!" : "Copy Result"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDebug}
+                        disabled={loading}
+                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        🔄 Regenerate
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="min-h-[400px] rounded-2xl bg-black p-6 text-sm leading-relaxed text-green-400 sm:min-h-[460px] overflow-auto">
+                    <pre className="min-w-0 max-w-full whitespace-pre-wrap break-words font-mono text-[15px]">
+                      {loading
+                        ? "🔍 Analyzing root cause and generating professional debug report..."
+                        : generatedCode || "Debug result will appear here after analysis."}
+                    </pre>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </main>
       </GeneratorLayout>
+
       {showWaitlistModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="mb-4">
               <h3 className="text-xl font-semibold text-black">{PRO_WAITLIST_COPY.title}</h3>
               <p className="mt-2 text-sm text-gray-600">
-
-
                 {PRO_WAITLIST_COPY.description}
               </p>
             </div>
@@ -1322,8 +1670,7 @@ text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:o
               <button
                 onClick={handleJoinWaitlist}
                 disabled={waitlistLoading}
-                className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed
-disabled:opacity-60"
+                className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {waitlistLoading ? "Joining..." : PRO_WAITLIST_COPY.buttonText}
               </button>
@@ -1340,6 +1687,7 @@ disabled:opacity-60"
     </>
   );
 }
+
 export default function GeneratorPage() {
   return (
     <Suspense fallback={null}>
