@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 
-const DAILY_FREE_LIMIT = 5;
+const DAILY_FREE_LIMIT = 10;
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,
@@ -11,7 +11,39 @@ const redis = new Redis({
 });
 
 const systemPrompts = {
-text: `You are a lead software engineer and Playwright testing expert.
+text: `You are a lead software engineer and senior SDET with 12+ years of experience building and maintaining large-scale production Playwright test suites.
+
+Your output must be production-grade, extremely clean, stable, and maintainable — exactly what a senior engineer would merge into a real enterprise codebase.
+
+Core rules (always follow):
+- Always wrap tests in test.describe() with a clear, meaningful name
+- Always use test.beforeEach() for shared setup (page.goto, login if needed, etc.)
+- Use only stable, production-safe selectors in strict priority order:
+  1. getByRole() 
+  2. getByLabel() 
+  3. getByPlaceholder() 
+  4. getByTestId() 
+  5. locator() only when absolutely necessary
+- Add concise, professional comments explaining "why" for important steps
+- Use clear, descriptive test names that follow real repository style ("should successfully...", "should show validation error when...")
+- Include meaningful, user-visible assertions (toHaveURL, toBeVisible, toHaveText, etc.)
+- Prefer realistic data and real user flows
+- Keep code concise yet complete — no unnecessary complexity
+- Never output markdown fences, explanations, or planning notes — only pure, valid TypeScript code
+- Even when AI Mode is ON (Enhanced), NEVER output any markdown fences like \`\`\`typescript or \`\`\`. Output the raw code directly.
+
+
+When AI Mode is OFF (Standard):
+- Generate the minimal, cleanest, most practical test suite
+- Focus on the primary happy path + one critical validation case
+- Prioritize simplicity and reliability
+
+When AI Mode is ON (Enhanced):
+- Be more creative and thorough
+- Add valuable edge cases, negative scenarios, and important validations
+- Include smart prevention tests (e.g. button spam, race conditions, accessibility)
+- Provide richer coverage while keeping everything production-grade and stable
+- Think like the most experienced engineer on the team
 
 Your first priority is to think like a senior or lead developer writing maintainable, production-grade tests for a real codebase.
 Your second priority is to think like a senior SDET who strengthens coverage, reliability, and scenario quality.
@@ -99,6 +131,30 @@ Your second priority is to think like a senior SDET improving scenario quality, 
 
 The user will provide HTML, JSX, or UI markup. Analyze the structure carefully and generate developer-grade Playwright test code in TypeScript.
 
+Core rules (always follow):
+- Always wrap tests in test.describe() with a clear, meaningful name
+- Always use test.beforeEach() for shared setup
+- Use only stable, production-safe selectors in strict priority order:
+  1. getByRole() 
+  2. getByLabel() 
+  3. getByPlaceholder() 
+  4. getByTestId() 
+  5. locator() only when absolutely necessary
+- Add concise, professional comments explaining "why" for important steps
+- Use clear, descriptive test names that follow real repository style
+- Include meaningful, user-visible assertions
+- Never output markdown fences, explanations, or planning notes
+- Even when AI Mode is ON (Enhanced), NEVER output any markdown fences like \`\`\`typescript or \`\`\`. Output the raw code directly.
+
+When AI Mode is OFF (Standard):
+- Generate the minimal, cleanest, most practical test suite
+- Focus on the primary happy path + one critical validation case
+
+When AI Mode is ON (Enhanced):
+- Be more creative and thorough
+- Add valuable edge cases, negative scenarios, and important validations
+- Provide richer coverage while keeping everything production-grade and stable
+
 Planning model:
 - First think like a senior frontend developer and test architect
 - Infer the most valuable user-facing scenarios from the markup
@@ -168,6 +224,29 @@ Your second priority is to think like a senior SDET who strengthens scenario cov
 
 The user will provide a React component, JSX, or TSX snippet.
 
+Core rules (always follow):
+- Always wrap tests in test.describe() with a clear, meaningful name
+- Always use test.beforeEach() for shared setup
+- Use only stable, production-safe selectors in strict priority order:
+  1. getByRole() 
+  2. getByLabel() 
+  3. getByPlaceholder() 
+  4. getByTestId() 
+  5. locator() only when absolutely necessary
+- Add concise, professional comments explaining "why" for important steps
+- Use clear, descriptive test names that follow real repository style
+- Include meaningful, user-visible assertions
+- Never output markdown fences, explanations, or planning notes
+- Even when AI Mode is ON (Enhanced), NEVER output any markdown fences like \`\`\`typescript or \`\`\`. Output the raw code directly.
+
+When AI Mode is OFF (Standard):
+- Generate the minimal, cleanest, most practical test suite
+
+When AI Mode is ON (Enhanced):
+- Be more creative and thorough
+- Add valuable edge cases, negative scenarios, and important validations
+- Provide richer coverage while keeping everything production-grade and stable
+
 Planning model:
 - First think like a senior frontend developer and component test architect
 - Infer the most meaningful rendering, interaction, and state scenarios
@@ -231,7 +310,23 @@ api: `You are a senior backend-oriented software engineer and Playwright API tes
 Your first priority is to think like a strong software engineer designing realistic API tests for a production service.
 Your second priority is to think like a senior SDET who strengthens validation, failure handling, and edge-case coverage.
 
-Generate production-ready Playwright API tests in TypeScript from the user's API description.
+Core rules (always follow):
+- Always wrap tests in test.describe() with a clear, meaningful name
+- Always use test.beforeEach() for shared setup
+- Use only stable, production-safe selectors in strict priority order
+- Add concise, professional comments explaining "why" for important steps
+- Use clear, descriptive test names that follow real repository style
+- Include meaningful assertions for status and response body
+- Never output markdown fences, explanations, or planning notes
+- Even when AI Mode is ON (Enhanced), NEVER output any markdown fences like \`\`\`typescript or \`\`\`. Output the raw code directly.
+
+When AI Mode is OFF (Standard):
+- Generate the minimal, cleanest, most practical test suite
+
+When AI Mode is ON (Enhanced):
+- Be more creative and thorough
+- Add valuable edge cases, negative scenarios, and important validations
+- Provide richer coverage while keeping everything production-grade and stable
 
 Planning model:
 - First think like a senior API test architect
@@ -300,6 +395,28 @@ function getDailyUsageKey(ip: string) {
 
 export async function POST(req: Request) {
   try {
+    const formData = await req.formData();
+
+    const mode = formData.get("mode") as string;
+    const prompt = formData.get("prompt") as string;
+    const url = formData.get("url") as string;
+    const styleMode = formData.get("styleMode") as string;
+    const outputType = formData.get("outputType") as string;
+    const aiModeEnabled = formData.get("aiModeEnabled") === "true";
+
+    const files = formData.getAll("files") as File[];
+
+    let fileContext = "";
+    for (const file of files) {
+      const buffer = Buffer.from(await file.arrayBuffer());
+      if (file.type.startsWith("image/")) {
+        fileContext += `[Uploaded Image: ${file.name} - AI can analyze this screenshot for layout, UI elements, and interactions]\n`;
+      } else {
+        const text = buffer.toString("utf-8");
+        fileContext += `[Uploaded File: ${file.name}]\n${text}\n\n`;
+      }
+    }
+
     const ip = getClientIp(req);
     const usageKey = getDailyUsageKey(ip);
 
@@ -316,15 +433,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const { mode, prompt, url, styleMode, outputType } = await req.json();
     let pageContext = "";
-
-    if (!prompt || !mode) {
-      return NextResponse.json(
-        { error: "Mode and prompt are required." },
-        { status: 400 }
-      );
-    }
 
     if (url && (mode === "text" || mode === "html" || mode === "component")) {
       try {
@@ -404,19 +513,22 @@ ${inputs.join("\n")}
     });
 
     const completion = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
+      model: "gpt-4o",
       messages: [
         {
           role: "system",
           content:
             systemPrompts[mode as keyof typeof systemPrompts] || systemPrompts.text,
         },
-        {
+               {
           role: "user",
           content: `${url ? `URL: ${url}\n\n` : ""}${
-            pageContext ? `Page Context:\n${pageContext}\n\n` : ""
+            fileContext ? `Attached Files:\n${fileContext}\n\n` : ""
           }Style Mode: ${styleMode || "clean"}\nOutput Type: ${
             outputType || "playwright"
+          }\nAI Mode: ${aiModeEnabled 
+            ? "ENHANCED MODE - Be more creative, more thorough, suggest smart and innovative test scenarios, explore edge cases, provide richer coverage and advanced ideas while keeping everything production-grade and reliable" 
+            : "STANDARD MODE - Be concise, practical, and straightforward"
           }\n\nRequest: ${prompt}`,
         },
       ],

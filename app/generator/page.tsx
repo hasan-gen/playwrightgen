@@ -5,6 +5,8 @@ import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import GeneratorLayout from "@/components/generator-layout";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 type Mode = "text" | "html" | "api" | "component";
 type StyleMode = "fast" | "clean" | "production";
@@ -36,6 +38,7 @@ function GeneratorContent() {
   const [mode, setMode] = useState<Mode>("text");
   const [prompt, setPrompt] = useState("");
   const [generatedCode, setGeneratedCode] = useState("");
+  const [debugCode, setDebugCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState("");
   const [copied, setCopied] = useState(false);
@@ -43,7 +46,7 @@ function GeneratorContent() {
   const [url, setUrl] = useState("");
   const [styleMode, setStyleMode] = useState<StyleMode>("clean");
   const [outputType, setOutputType] = useState<OutputType>("playwright");
-  const [aiModeEnabled, setAiModeEnabled] = useState(true);
+  const [aiModeEnabled, setAiModeEnabled] = useState(false);
   const [generationType, setGenerationType] = useState<"prompt" | "url">("prompt");
   const [analysisSummary, setAnalysisSummary] = useState("");
   const [remainingGenerations, setRemainingGenerations] = useState<number>(5);
@@ -234,7 +237,16 @@ return (
     setSelectedTemplate("");
     setPrompt(item.prompt || "");
     setUrl(item.url || "");
-    setGeneratedCode(item.generatedCode || "");
+
+    // ==================== 关键修复：区分 Generate 和 Debug 的输出 ====================
+    if (item.tabType === "debug") {
+      setDebugCode(item.generatedCode || "");
+      setGeneratedCode("");                    // 清空 Generate 的输出，避免串台
+    } else {
+      setGeneratedCode(item.generatedCode || "");
+      setDebugCode("");                        // 清空 Debug 的输出，避免串台
+    }
+    // =====================================================================
 
     if (item.mode) setMode(item.mode);
     if (item.styleMode) setStyleMode(item.styleMode);
@@ -321,52 +333,62 @@ return (
       setShowWaitlistModal(true);
       return;
     }
-    if (!prompt.trim()) {
-      setGeneratedCode("Please enter a prompt first.");
+
+    // 支持只上传文件不写 prompt 的情况
+    if (!prompt.trim() && uploadedFiles.length === 0) {
+      setError("Please enter a prompt or upload at least one file/image.");
       return;
     }
+
     try {
       setGenerationType("prompt");
       setAnalysisSummary("");
       setLoading(true);
       setCopied(false);
       setGeneratedCode("");
+
+      const formData = new FormData();
+      formData.append("mode", mode);
+      formData.append("prompt", prompt || "");
+      formData.append("url", url || "");
+      formData.append("styleMode", styleMode);
+      formData.append("outputType", outputType);
+      formData.append("aiModeEnabled", String(aiModeEnabled));   // AI Mode 真正生效
+
+      // 上传所有文件
+      uploadedFiles.forEach((file) => {
+        formData.append("files", file);
+      });
+
       const response = await fetch("/api/generate", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          mode,
-          prompt,
-          url,
-          styleMode,
-          outputType,
-          aiModeEnabled,
-        }),
+        body: formData,                    // 改成 FormData，支持文件上传
       });
+
       const data = await response.json();
+
       if (!response.ok) {
         setError(data.error || "Something went wrong.");
-        setGeneratedCode("");
-
         if (typeof data.remaining === "number") {
           setRemainingGenerations(data.remaining);
           setHasSyncedUsage(true);
         }
-
         return;
       }
+
       setGeneratedCode(data.result);
+
       setTimeout(() => {
         outputRef.current?.scrollIntoView({
           behavior: "smooth",
           block: "start",
         });
       }, 100);
+
       if (!isProVerified) {
         setRemainingGenerations(prev => prev - 1);
       }
+
       if (data.result) {
         saveHistoryItem({
           id: crypto.randomUUID(),
@@ -541,7 +563,7 @@ ${parsed.risks || "No risks mentioned"}
         displayText = JSON.stringify(data.result, null, 2);
       }
 
-      setGeneratedCode(displayText);
+      setDebugCode(displayText);
 
       // 保存到历史
       const newHistoryItem: HistoryItem = {
@@ -1489,14 +1511,32 @@ transition hover:bg-black"
                       {analysisSummary}
                     </div>
                   )}
-                  <div className="min-h-[360px] rounded-2xl bg-black p-5 text-sm text-green-400 sm:min-h-[420px]">
-                    <pre className="min-w-0 max-w-full whitespace-pre-wrap break-words [touch-action:pan-y]">
-                      {loading
-                        ? generationType === "url"
+                  {/* ==================== Generate Tab - VS Code 风格语法高亮输出 ==================== */}
+                  <div className="min-h-[360px] rounded-3xl border border-gray-200 bg-[#1e1e1e] p-6 shadow-inner sm:min-h-[420px] overflow-auto">
+                    {loading ? (
+                      <div className="font-mono text-sm text-zinc-400">
+                        {generationType === "url"
                           ? "Analyzing page structure and generating Playwright test suite..."
-                          : "Generating code..."
-                        : generatedCode || "Your generated output will appear here."}
-                    </pre>
+                          : "Generating production-grade code..."}
+                      </div>
+                    ) : (
+                      <SyntaxHighlighter
+                        language="typescript"
+                        style={vscDarkPlus}
+                        customStyle={{
+                          margin: 0,
+                          padding: "1.25rem",
+                          background: "transparent",
+                          fontSize: "0.875rem",
+                          lineHeight: "1.6",
+                          borderRadius: "1rem",
+                        }}
+                        wrapLongLines={true}
+                        showLineNumbers={true}
+                      >
+                        {generatedCode || "Your generated output will appear here."}
+                      </SyntaxHighlighter>
+                    )}
                   </div>
                   {explanation && (
                     <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
@@ -1633,12 +1673,30 @@ transition hover:bg-black"
                     </div>
                   </div>
 
-                  <div className="min-h-[400px] rounded-2xl bg-black p-6 text-sm leading-relaxed text-green-400 sm:min-h-[460px] overflow-auto">
-                    <pre className="min-w-0 max-w-full whitespace-pre-wrap break-words font-mono text-[15px]">
-                      {loading
-                        ? "🔍 Analyzing root cause and generating professional debug report..."
-                        : generatedCode || "Debug result will appear here after analysis."}
-                    </pre>
+                  {/* ==================== Debug Tab - VS Code 风格语法高亮输出 ==================== */}
+                  <div className="min-h-[400px] rounded-3xl border border-gray-200 bg-[#1e1e1e] p-6 shadow-inner sm:min-h-[460px] overflow-auto">
+                    {loading ? (
+                      <div className="font-mono text-sm text-zinc-400">
+                        🔍 Analyzing root cause and generating professional debug report...
+                      </div>
+                    ) : (
+                      <SyntaxHighlighter
+                        language="typescript"
+                        style={vscDarkPlus}
+                        customStyle={{
+                          margin: 0,
+                          padding: "1.25rem",
+                          background: "transparent",
+                          fontSize: "0.875rem",
+                          lineHeight: "1.6",
+                          borderRadius: "1rem",
+                        }}
+                        wrapLongLines={true}
+                        showLineNumbers={true}
+                      >
+                        {debugCode || "Debug result will appear here after analysis."}
+                      </SyntaxHighlighter>
+                    )}
                   </div>
                 </div>
               </div>
