@@ -8,10 +8,10 @@ import GeneratorLayout from "@/components/generator-layout";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-type Mode = "text" | "html" | "api" | "component";
+type Mode = "text" | "html" | "api" | "component" | "figma";
 type StyleMode = "fast" | "clean" | "production";
 type OutputType = "playwright" | "unit";
-type TabType = "generate" | "debug";
+type TabType = "generate" | "debug" | "figma";
 
 type IssueType =
   | "Smart Detect"
@@ -67,6 +67,7 @@ function GeneratorContent() {
   const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
   // ==================== 新增 Debug 状态 ====================
   const [activeTab, setActiveTab] = useState<TabType>("generate");
+  const [figmaUrl, setFigmaUrl] = useState("");
   const [issueType, setIssueType] = useState<IssueType>("Smart Detect");
   const [debugInput, setDebugInput] = useState("");
   const outputRef = useRef<HTMLDivElement | null>(null);
@@ -594,6 +595,63 @@ ${parsed.risks || "No risks mentioned"}
     }
   };
 
+    const handleFigmaGenerate = async () => {
+    setError(null);
+    if (!isProVerified && remainingGenerations <= 0) {
+      setShowWaitlistModal(true);
+      return;
+    }
+
+    if (!figmaUrl && uploadedFiles.length === 0) {
+      setError("Please upload a Figma screenshot or paste a Figma link.");
+      return;
+    }
+
+    setLoading(true);
+    setGeneratedCode("");
+
+    const formData = new FormData();
+    formData.append("mode", "figma");
+    formData.append("figmaUrl", figmaUrl || "");
+    uploadedFiles.forEach((file) => formData.append("files", file));
+
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to generate from Figma.");
+        return;
+      }
+
+      setGeneratedCode(data.result);
+
+      // 保存到历史
+      const newHistoryItem: HistoryItem = {
+        id: crypto.randomUUID(),
+        mode: "figma",
+        prompt: figmaUrl || "Figma upload",
+        url: figmaUrl || "",
+        generatedCode: data.result,
+        createdAt: new Date().toISOString(),
+        styleMode,
+        outputType: "playwright",
+        generationType: "prompt",
+        tabType: "figma",
+      };
+      saveHistoryItem(newHistoryItem);
+    } catch (err) {
+      console.error("Figma generate error:", err);
+      setError("Failed to generate from Figma.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCheckProAccess = async () => {
     if (!proEmailInput.trim()) {
       setProStatusMessage("Please enter your email.");
@@ -949,6 +1007,13 @@ transition hover:bg-black"
                   }`}
               >
                 Debug Assistant
+              </button>
+                            <button
+                onClick={() => setActiveTab("figma")}
+                className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "figma" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
+                  }`}
+              >
+                Figma to Code
               </button>
             </div>
             <div className="mb-6 flex flex-wrap gap-3">
@@ -1697,6 +1762,55 @@ transition hover:bg-black"
                         {debugCode || "Debug result will appear here after analysis."}
                       </SyntaxHighlighter>
                     )}
+                  </div>
+                </div>
+              </div>
+            )}
+                        {/* ==================== Figma Tab ==================== */}
+            {activeTab === "figma" && (
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                  <div className="mb-5">
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-semibold text-black">Figma to Code</h2>
+                      <p className="text-sm text-gray-500 mt-1">Upload Figma screenshot or paste Figma link → Get production-ready components</p>
+                    </div>
+                  </div>
+
+                  {/* Figma 输入区域 */}
+                  <div className="space-y-4">
+                    {/* 上传 Figma 截图 */}
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-gray-700">Upload Figma Screenshot</p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center justify-center gap-2 w-full rounded-2xl border border-gray-300 bg-white px-6 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                      >
+                        📸 Upload Figma Image
+                      </button>
+                    </div>
+
+                    {/* 或粘贴 Figma 链接 */}
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-gray-700">Or paste Figma link</p>
+                      <input
+                        type="text"
+                        placeholder="https://www.figma.com/file/..."
+                        className="w-full rounded-2xl border border-gray-300 bg-white px-5 py-4 text-sm outline-none focus:border-black"
+                        value={figmaUrl || ""}
+                        onChange={(e) => setFigmaUrl(e.target.value)}
+                      />
+                    </div>
+
+                    {/* 生成按钮 */}
+                    <button
+                      onClick={handleFigmaGenerate}
+                      disabled={loading || (!figmaUrl && uploadedFiles.length === 0)}
+                      className="w-full rounded-2xl bg-black px-8 py-4 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {loading ? "Generating components..." : "Generate Code from Figma"}
+                    </button>
                   </div>
                 </div>
               </div>

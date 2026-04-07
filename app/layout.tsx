@@ -26,9 +26,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="min-h-screen bg-[#fafafa] text-black">
           <nav className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur">
             <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
@@ -54,6 +52,7 @@ export default function RootLayout({
           </nav>
 
           {children}
+
           <footer className="mt-20 border-t py-6 text-center text-sm text-gray-500">
             <div className="flex justify-center gap-6">
               <a href="/terms" className="hover:text-black">

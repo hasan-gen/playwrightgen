@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 
-const DAILY_FREE_LIMIT = 10;
+const DAILY_FREE_LIMIT = 5;
 
 const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL!,

@@ -1,43 +1,57 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type ChangeEvent, type RefObject } from "react";
 import GeneratorSidebar from "./generator-sidebar";
+
+type Mode = "text" | "html" | "api" | "component" | "figma";
+type StyleMode = "fast" | "clean" | "production";
+type OutputType = "playwright" | "unit";
+type TabType = "generate" | "debug" | "figma";
+
+type IssueType =
+  | "Smart Detect"
+  | "Test Failure"
+  | "UI/Layout"
+  | "Component Logic"
+  | "Styling"
+  | "General Bug";
 
 type SidebarHistoryItem = {
   id: string;
-  mode: "text" | "html" | "api" | "component";
+  mode: Mode;
   prompt: string;
   url: string;
   generatedCode: string;
   createdAt: string;
-  styleMode: "fast" | "clean" | "production";
-  outputType: "playwright" | "unit";
+  styleMode: StyleMode;
+  outputType: OutputType;
   generationType: "prompt" | "url";
+  tabType?: TabType;
+  issueType?: IssueType;
+};
+
+type SidebarProps = {
+  historyItems: SidebarHistoryItem[];
+  selectedHistoryId: string | null;
+  onSelect: (item: SidebarHistoryItem) => void;
+  onNew: () => void;
+  onClear: () => void;
+  onDelete: (id: string) => void;
+  onLogout: () => void;
+  userEmail: string;
+  isProVerified: boolean;
+  remainingGenerations: number;
+  hasSyncedUsage: boolean;
+  freeDailyGenerations: number;
+  uploadedFiles: File[];
+  onFileUpload: (e: ChangeEvent<HTMLInputElement>) => void;
+  onRemoveFile: (index: number) => void;
+  fileInputRef: RefObject<HTMLInputElement | null>;
 };
 
 type Props = {
   children: ReactNode;
-  sidebarProps: {
-    historyItems: SidebarHistoryItem[];
-    selectedHistoryId: string | null;
-    onSelect: (item: SidebarHistoryItem) => void;
-    onNew: () => void;
-    onClear: () => void;
-    onDelete: (id: string) => void;
-    onLogout: () => void;
-    userEmail: string;
-    isProVerified: boolean;
-    remainingGenerations: number;
-    hasSyncedUsage: boolean;
-    freeDailyGenerations: number;
-
-    // ==================== 上传功能 ====================
-    uploadedFiles: File[];
-    onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
-    onRemoveFile: (index: number) => void;
-    fileInputRef: React.RefObject<HTMLInputElement | null>;   // ← 这里已修复
-    // =======================================================
-  };
+  sidebarProps: SidebarProps;
 };
 
 export default function GeneratorLayout({
@@ -49,12 +63,10 @@ export default function GeneratorLayout({
   return (
     <div className="min-h-screen bg-[#fafafa] text-black">
       <div className="flex min-h-screen">
-        {/* Desktop sidebar */}
         <div className="hidden lg:sticky lg:top-0 lg:block lg:h-screen lg:shrink-0">
           <GeneratorSidebar {...sidebarProps} />
         </div>
 
-        {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div className="fixed inset-0 z-40 lg:hidden">
             <div
@@ -78,9 +90,8 @@ export default function GeneratorLayout({
           </div>
         )}
 
-        {/* Main content */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="shrink-0 lg:hidden px-4 pt-4">
+          <div className="shrink-0 px-4 pt-4 lg:hidden">
             {!sidebarOpen && (
               <button
                 type="button"
