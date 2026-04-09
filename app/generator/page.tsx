@@ -68,6 +68,16 @@ function GeneratorContent() {
   // ==================== 新增 Debug 状态 ====================
   const [activeTab, setActiveTab] = useState<TabType>("generate");
   const [figmaUrl, setFigmaUrl] = useState("");
+
+  type FigmaGenerateFor = "angular" | "react" | "html-css" | "playwright";
+  type FigmaOutputFormat = "single" | "multi";
+
+  const [figmaPrompt, setFigmaPrompt] = useState("");
+  const [figmaGenerateFor, setFigmaGenerateFor] = useState<FigmaGenerateFor>("angular");
+  const [figmaOutputFormat, setFigmaOutputFormat] = useState<FigmaOutputFormat>("multi");
+  const [selectedFigmaResultFile, setSelectedFigmaResultFile] = useState("");
+  const [figmaGeneratedFiles, setFigmaGeneratedFiles] = useState<Record<string, string>>({});
+
   const [issueType, setIssueType] = useState<IssueType>("Smart Detect");
   const [debugInput, setDebugInput] = useState("");
   const outputRef = useRef<HTMLDivElement | null>(null);
@@ -595,7 +605,7 @@ ${parsed.risks || "No risks mentioned"}
     }
   };
 
-    const handleFigmaGenerate = async () => {
+  const handleFigmaGenerate = async () => {
     setError(null);
     if (!isProVerified && remainingGenerations <= 0) {
       setShowWaitlistModal(true);
@@ -610,11 +620,16 @@ ${parsed.risks || "No risks mentioned"}
     setLoading(true);
     setGeneratedCode("");
 
+
+
     const formData = new FormData();
     formData.append("mode", "figma");
     formData.append("figmaUrl", figmaUrl || "");
-    uploadedFiles.forEach((file) => formData.append("files", file));
+    formData.append("figmaPrompt", figmaPrompt || "");
+    formData.append("figmaGenerateFor", figmaGenerateFor);
+    formData.append("figmaOutputFormat", figmaOutputFormat);
 
+    uploadedFiles.forEach((file) => formData.append("files", file));
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -629,17 +644,25 @@ ${parsed.risks || "No risks mentioned"}
       }
 
       setGeneratedCode(data.result);
+      const parsedFiles = parseFigmaFiles(data.result || "");
+      setFigmaGeneratedFiles(parsedFiles);
+
+      const fileNames = Object.keys(parsedFiles);
+      setSelectedFigmaResultFile(fileNames[0] || "");
 
       // 保存到历史
       const newHistoryItem: HistoryItem = {
         id: crypto.randomUUID(),
         mode: "figma",
-        prompt: figmaUrl || "Figma upload",
+        prompt:
+          figmaPrompt ||
+          figmaUrl ||
+          `Figma ${figmaGenerateFor} (${figmaOutputFormat === "multi" ? "multi-file" : "single-file"})`,
         url: figmaUrl || "",
         generatedCode: data.result,
         createdAt: new Date().toISOString(),
         styleMode,
-        outputType: "playwright",
+        outputType: figmaGenerateFor === "playwright" ? "playwright" : "unit",
         generationType: "prompt",
         tabType: "figma",
       };
@@ -650,6 +673,56 @@ ${parsed.risks || "No risks mentioned"}
     } finally {
       setLoading(false);
     }
+  };
+
+  const getFigmaOutputPreview = () => {
+    if (figmaGenerateFor === "angular") {
+      return figmaOutputFormat === "multi"
+        ? [
+          "a.component.ts",
+          "a.component.html",
+          "a.component.less",
+          "a.component.spec.ts",
+        ]
+        : ["component.generated.ts"];
+    }
+
+    if (figmaGenerateFor === "react") {
+      return figmaOutputFormat === "multi"
+        ? ["Component.tsx", "Component.css", "Component.test.tsx"]
+        : ["Component.tsx"];
+    }
+
+    if (figmaGenerateFor === "html-css") {
+      return figmaOutputFormat === "multi"
+        ? ["index.html", "styles.css"]
+        : ["ui-snippet.html"];
+    }
+
+    return ["ui.spec.ts"];
+  };
+
+  const parseFigmaFiles = (result: string) => {
+    const files: Record<string, string> = {};
+    const normalized = result.replace(/\r\n/g, "\n");
+
+    const matches = [...normalized.matchAll(/^FILE:\s*(.+)$/gm)];
+
+    if (!matches.length) {
+      return files;
+    }
+
+    for (let i = 0; i < matches.length; i++) {
+      const fileName = matches[i][1].trim();
+      const start = matches[i].index! + matches[i][0].length;
+      const end = i + 1 < matches.length ? matches[i + 1].index! : normalized.length;
+
+      const content = normalized.slice(start, end).trim();
+
+      files[fileName] = content;
+    }
+
+    return files;
   };
 
   const handleCheckProAccess = async () => {
@@ -1008,7 +1081,7 @@ transition hover:bg-black"
               >
                 Debug Assistant
               </button>
-                            <button
+              <button
                 onClick={() => setActiveTab("figma")}
                 className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "figma" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
                   }`}
@@ -1766,7 +1839,7 @@ transition hover:bg-black"
                 </div>
               </div>
             )}
-                        {/* ==================== Figma Tab ==================== */}
+            {/* ==================== Figma Tab ==================== */}
             {activeTab === "figma" && (
               <div className="space-y-6">
                 <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
@@ -1803,6 +1876,136 @@ transition hover:bg-black"
                       />
                     </div>
 
+                    <div className="mt-5">
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        Optional prompt
+                      </label>
+                      <textarea
+                        value={figmaPrompt}
+                        onChange={(e) => setFigmaPrompt(e.target.value)}
+                        placeholder="Generate a production-ready Angular component from this design. Use reusable markup, LESS styling, and include a.component.spec.ts."
+                        rows={4}
+                        className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black"
+                      />
+                    </div>
+
+                    <div className="mt-6">
+                      <p className="mb-3 text-sm font-medium text-gray-700">Generate For</p>
+
+                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <button
+                          type="button"
+                          onClick={() => setFigmaGenerateFor("angular")}
+                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "angular"
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
+                            }`}
+                        >
+                          <div className="text-sm font-semibold">Angular</div>
+                          <div
+                            className={`mt-1 text-xs ${figmaGenerateFor === "angular" ? "text-gray-200" : "text-gray-500"
+                              }`}
+                          >
+                            Generate Angular component files
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFigmaGenerateFor("react")}
+                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "react"
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
+                            }`}
+                        >
+                          <div className="text-sm font-semibold">React</div>
+                          <div
+                            className={`mt-1 text-xs ${figmaGenerateFor === "react" ? "text-gray-200" : "text-gray-500"
+                              }`}
+                          >
+                            Generate React UI component code
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFigmaGenerateFor("html-css")}
+                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "html-css"
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
+                            }`}
+                        >
+                          <div className="text-sm font-semibold">HTML/CSS</div>
+                          <div
+                            className={`mt-1 text-xs ${figmaGenerateFor === "html-css" ? "text-gray-200" : "text-gray-500"
+                              }`}
+                          >
+                            Generate static markup and styles
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFigmaGenerateFor("playwright")}
+                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "playwright"
+                            ? "border-black bg-black text-white"
+                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
+                            }`}
+                        >
+                          <div className="text-sm font-semibold">Playwright Test</div>
+                          <div
+                            className={`mt-1 text-xs ${figmaGenerateFor === "playwright" ? "text-gray-200" : "text-gray-500"
+                              }`}
+                          >
+                            Generate UI automation test from the design
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <p className="mb-3 text-sm font-medium text-gray-700">Code Output Format</p>
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFigmaOutputFormat("single")}
+                          className={`rounded-full px-5 py-2 text-sm font-medium transition ${figmaOutputFormat === "single"
+                            ? "bg-black text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                          Single file
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setFigmaOutputFormat("multi")}
+                          className={`rounded-full px-5 py-2 text-sm font-medium transition ${figmaOutputFormat === "multi"
+                            ? "bg-black text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                        >
+                          Multi-file output
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-6">
+                      <p className="mb-3 text-sm font-medium text-gray-700">Output Preview</p>
+
+                      <div className="flex flex-wrap gap-2">
+                        {getFigmaOutputPreview().map((file) => (
+                          <span
+                            key={file}
+                            className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
+                          >
+                            {file}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
                     {/* 生成按钮 */}
                     <button
                       onClick={handleFigmaGenerate}
@@ -1811,6 +2014,58 @@ transition hover:bg-black"
                     >
                       {loading ? "Generating components..." : "Generate Code from Figma"}
                     </button>
+                    {Object.keys(figmaGeneratedFiles).length > 0 && (
+                      <div className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-black">Generated Files</h3>
+                            <p className="text-sm text-gray-500">
+                              Review the generated output by file.
+                            </p>
+                          </div>
+
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={handleCopy}
+                              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-black hover:text-black"
+                            >
+                              {copied ? "Copied" : "Copy"}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleDownload}
+                              className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+                            >
+                              Download
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mb-4 flex flex-wrap gap-2">
+                          {Object.keys(figmaGeneratedFiles).map((fileName) => (
+                            <button
+                              key={fileName}
+                              type="button"
+                              onClick={() => setSelectedFigmaResultFile(fileName)}
+                              className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedFigmaResultFile === fileName
+                                  ? "bg-black text-white"
+                                  : "border border-gray-300 bg-white text-gray-700 hover:border-black"
+                                }`}
+                            >
+                              {fileName}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="overflow-x-auto rounded-2xl bg-black p-4 text-xs text-green-400 sm:p-5 sm:text-sm">
+                          <pre className="min-w-[260px] whitespace-pre-wrap">
+                            {figmaGeneratedFiles[selectedFigmaResultFile] || ""}
+                          </pre>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

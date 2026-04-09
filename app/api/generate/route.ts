@@ -11,7 +11,7 @@ const redis = new Redis({
 });
 
 const systemPrompts = {
-text: `You are a lead software engineer and senior SDET with 12+ years of experience building and maintaining large-scale production Playwright test suites.
+  text: `You are a lead software engineer and senior SDET with 12+ years of experience building and maintaining large-scale production Playwright test suites.
 
 Your output must be production-grade, extremely clean, stable, and maintainable — exactly what a senior engineer would merge into a real enterprise codebase.
 
@@ -124,7 +124,7 @@ Output rules:
 - Do not include planning notes
 - Output only final Playwright TypeScript code`,
 
-html: `You are a senior frontend software engineer and Playwright expert.
+  html: `You are a senior frontend software engineer and Playwright expert.
 
 Your first priority is to think like a lead frontend developer writing maintainable tests for a real product codebase.
 Your second priority is to think like a senior SDET improving scenario quality, validation coverage, and reliability.
@@ -217,7 +217,7 @@ Output rules:
 - Do not include planning notes
 - Output only final Playwright TypeScript code`,
 
-component: `You are a lead frontend software engineer, senior test engineer, and component testing expert.
+  component: `You are a lead frontend software engineer, senior test engineer, and component testing expert.
 
 Your first priority is to think like a senior or lead frontend developer writing maintainable component tests for a real production codebase.
 Your second priority is to think like a senior SDET who strengthens scenario coverage and behavioral confidence.
@@ -305,7 +305,7 @@ Output rules:
 - Do not include planning notes
 - Output only final test code`,
 
-api: `You are a senior backend-oriented software engineer and Playwright API testing expert.
+  api: `You are a senior backend-oriented software engineer and Playwright API testing expert.
 
 Your first priority is to think like a strong software engineer designing realistic API tests for a production service.
 Your second priority is to think like a senior SDET who strengthens validation, failure handling, and edge-case coverage.
@@ -372,6 +372,26 @@ Output rules:
 - Do not include explanations
 - Do not include planning notes
 - Output only final Playwright TypeScript code`,
+
+  figma: `You are a senior frontend engineer and UI implementation expert.
+
+Your job is to convert Figma-style UI designs, screenshots, and design references into clean, developer-ready output.
+
+Rules:
+- Respect the requested target framework exactly
+- Respect the requested output format exactly
+- Prefer production-minded structure
+- Keep code clean, readable, and realistic
+- Do not include markdown fences
+- Do not include explanations unless explicitly requested
+- When multi-file output is requested, structure the output like real project files
+- For Angular, prefer component.ts, component.html, component.less, and component.spec.ts when appropriate
+- For React, prefer Component.tsx, Component.css, and Component.test.tsx when appropriate
+- For HTML/CSS, prefer index.html and styles.css when appropriate
+- For Playwright, return realistic UI automation test code
+- Infer layout and structure from the screenshot or design reference as accurately as possible
+- Avoid overengineering
+- Output only code`,
 };
 
 function getClientIp(req: Request): string {
@@ -403,6 +423,13 @@ export async function POST(req: Request) {
     const styleMode = formData.get("styleMode") as string;
     const outputType = formData.get("outputType") as string;
     const aiModeEnabled = formData.get("aiModeEnabled") === "true";
+
+    const figmaUrl = (formData.get("figmaUrl") as string) || "";
+    const figmaPrompt = (formData.get("figmaPrompt") as string) || "";
+    const figmaGenerateFor =
+      (formData.get("figmaGenerateFor") as string) || "angular";
+    const figmaOutputFormat =
+      (formData.get("figmaOutputFormat") as string) || "multi";
 
     const files = formData.getAll("files") as File[];
 
@@ -512,6 +539,82 @@ ${inputs.join("\n")}
       apiKey: process.env.OPENAI_API_KEY,
     });
 
+    const figmaInstruction = `
+Generate output for: ${figmaGenerateFor}
+Output format: ${figmaOutputFormat === "multi" ? "multi-file" : "single-file"}
+
+${figmaUrl ? `Figma link: ${figmaUrl}` : ""}
+${fileContext ? `Attached design files:\n${fileContext}` : ""}
+Style Mode: ${styleMode || "clean"}
+
+${figmaGenerateFor === "angular"
+        ? `Target framework: Angular.
+If output format is multi-file, return exactly these files in this format:
+
+FILE: a.component.ts
+<code here>
+
+FILE: a.component.html
+<code here>
+
+FILE: a.component.less
+<code here>
+
+FILE: a.component.spec.ts
+<code here>
+
+If output format is single-file, return exactly:
+
+FILE: component.generated.ts
+<code here>`
+        : figmaGenerateFor === "react"
+          ? `Target framework: React.
+If output format is multi-file, return exactly these files in this format:
+
+FILE: Component.tsx
+<code here>
+
+FILE: Component.css
+<code here>
+
+FILE: Component.test.tsx
+<code here>
+
+If output format is single-file, return exactly:
+
+FILE: Component.tsx
+<code here>`
+          : figmaGenerateFor === "html-css"
+            ? `Target framework: HTML/CSS.
+If output format is multi-file, return exactly these files in this format:
+
+FILE: index.html
+<code here>
+
+FILE: styles.css
+<code here>
+
+If output format is single-file, return exactly:
+
+FILE: ui-snippet.html
+<code here>`
+            : `Target framework: Playwright test.
+Return exactly:
+
+FILE: ui.spec.ts
+<code here>`
+      }
+
+${figmaPrompt ? `Additional user instructions: ${figmaPrompt}` : ""}
+
+Important rules:
+- Use the exact FILE: filename format
+- Do not include markdown fences
+- Do not include explanations
+- Do not include extra commentary before or after the files
+- Return only the file blocks
+`.trim();
+
     const completion = await client.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -520,16 +623,18 @@ ${inputs.join("\n")}
           content:
             systemPrompts[mode as keyof typeof systemPrompts] || systemPrompts.text,
         },
-               {
+        {
           role: "user",
-          content: `${url ? `URL: ${url}\n\n` : ""}${
-            fileContext ? `Attached Files:\n${fileContext}\n\n` : ""
-          }Style Mode: ${styleMode || "clean"}\nOutput Type: ${
-            outputType || "playwright"
-          }\nAI Mode: ${aiModeEnabled 
-            ? "ENHANCED MODE - Be more creative, more thorough, suggest smart and innovative test scenarios, explore edge cases, provide richer coverage and advanced ideas while keeping everything production-grade and reliable" 
-            : "STANDARD MODE - Be concise, practical, and straightforward"
-          }\n\nRequest: ${prompt}`,
+          content:
+            mode === "figma"
+              ? figmaInstruction
+              : `${url ? `URL: ${url}\n\n` : ""}${fileContext ? `Attached Files:\n${fileContext}\n\n` : ""
+              }${pageContext ? `Page Context:\n${pageContext}\n\n` : ""
+              }Style Mode: ${styleMode || "clean"}\nOutput Type: ${outputType || "playwright"
+              }\nAI Mode: ${aiModeEnabled
+                ? "ENHANCED MODE - Be more creative, more thorough, suggest smart and innovative test scenarios, explore edge cases, provide richer coverage and advanced ideas while keeping everything production-grade and reliable"
+                : "STANDARD MODE - Be concise, practical, and straightforward"
+              }\n\nRequest: ${prompt}`,
         },
       ],
     });
