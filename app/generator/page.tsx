@@ -725,6 +725,15 @@ ${parsed.risks || "No risks mentioned"}
     return files;
   };
 
+  const getFigmaLanguage = (fileName: string) => {
+    if (fileName.endsWith(".html")) return "markup";
+    if (fileName.endsWith(".less")) return "css";
+    if (fileName.endsWith(".css")) return "css";
+    if (fileName.endsWith(".tsx")) return "tsx";
+    if (fileName.endsWith(".ts")) return "typescript";
+    return "typescript";
+  };
+
   const handleCheckProAccess = async () => {
     if (!proEmailInput.trim()) {
       setProStatusMessage("Please enter your email.");
@@ -804,13 +813,40 @@ ${parsed.risks || "No risks mentioned"}
   const handleDownload = () => {
     if (!generatedCode) return;
 
-
     const extension = outputType === "unit" ? "test.tsx" : "spec.ts";
     const blob = new Blob([generatedCode], { type: "text/typescript" });
     const downloadUrl = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = downloadUrl;
     link.download = `playwrightgen-output.${extension}`;
+    link.click();
+    window.URL.revokeObjectURL(downloadUrl);
+  };
+
+  const handleCopyFigmaFile = async () => {
+    const currentFile = figmaGeneratedFiles[selectedFigmaResultFile] || "";
+    if (!currentFile) return;
+
+    try {
+      await navigator.clipboard.writeText(currentFile);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+    } catch (error) {
+      console.error("Copy failed:", error);
+    }
+  };
+
+  const handleDownloadFigmaFile = () => {
+    const currentFile = figmaGeneratedFiles[selectedFigmaResultFile] || "";
+    if (!currentFile || !selectedFigmaResultFile) return;
+
+    const blob = new Blob([currentFile], { type: "text/plain;charset=utf-8" });
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = selectedFigmaResultFile;
     link.click();
     window.URL.revokeObjectURL(downloadUrl);
   };
@@ -2018,7 +2054,9 @@ transition hover:bg-black"
                       <div className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
                         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <h3 className="text-lg font-semibold text-black">Generated Files</h3>
+                            <h3 className="text-lg font-semibold text-black">
+                              Generated Code (Figma)
+                            </h3>
                             <p className="text-sm text-gray-500">
                               Review the generated output by file.
                             </p>
@@ -2027,7 +2065,7 @@ transition hover:bg-black"
                           <div className="flex gap-2">
                             <button
                               type="button"
-                              onClick={handleCopy}
+                              onClick={handleCopyFigmaFile}
                               className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-black hover:text-black"
                             >
                               {copied ? "Copied" : "Copy"}
@@ -2035,7 +2073,7 @@ transition hover:bg-black"
 
                             <button
                               type="button"
-                              onClick={handleDownload}
+                              onClick={handleDownloadFigmaFile}
                               className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
                             >
                               Download
@@ -2049,9 +2087,9 @@ transition hover:bg-black"
                               key={fileName}
                               type="button"
                               onClick={() => setSelectedFigmaResultFile(fileName)}
-                              className={`rounded-full px-4 py-2 text-sm font-medium transition ${selectedFigmaResultFile === fileName
-                                  ? "bg-black text-white"
-                                  : "border border-gray-300 bg-white text-gray-700 hover:border-black"
+                              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${selectedFigmaResultFile === fileName
+                                ? "bg-black text-white shadow-sm"
+                                : "border border-gray-300 bg-white text-gray-700 hover:border-black"
                                 }`}
                             >
                               {fileName}
@@ -2059,10 +2097,26 @@ transition hover:bg-black"
                           ))}
                         </div>
 
-                        <div className="overflow-x-auto rounded-2xl bg-black p-4 text-xs text-green-400 sm:p-5 sm:text-sm">
-                          <pre className="min-w-[260px] whitespace-pre-wrap">
+                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+                          <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500">
+                            {selectedFigmaResultFile}
+                          </div>
+
+                          <SyntaxHighlighter
+                            language={getFigmaLanguage(selectedFigmaResultFile)}
+                            style={vscDarkPlus}
+                            customStyle={{
+                              margin: 0,
+                              borderRadius: 0,
+                              padding: "1rem",
+                              fontSize: "0.875rem",
+                              lineHeight: "1.6",
+                              minHeight: "220px",
+                            }}
+                            wrapLongLines
+                          >
                             {figmaGeneratedFiles[selectedFigmaResultFile] || ""}
-                          </pre>
+                          </SyntaxHighlighter>
                         </div>
                       </div>
                     )}
