@@ -81,6 +81,7 @@ function GeneratorContent() {
   const [issueType, setIssueType] = useState<IssueType>("Smart Detect");
   const [debugInput, setDebugInput] = useState("");
   const outputRef = useRef<HTMLDivElement | null>(null);
+  const figmaOutputRef = useRef<HTMLDivElement | null>(null);
   const deleteHistoryItem = (id: string) => {
     const updated = historyItems.filter(item => item.id !== id);
     setHistoryItems(updated);
@@ -248,14 +249,31 @@ return (
     setSelectedTemplate("");
     setPrompt(item.prompt || "");
     setUrl(item.url || "");
+    setError(null);
 
-    // ==================== 关键修复：区分 Generate 和 Debug 的输出 ====================
+    // ==================== 关键修复：区分 Generate / Debug / Figma 的输出 ====================
     if (item.tabType === "debug") {
       setDebugCode(item.generatedCode || "");
-      setGeneratedCode("");                    // 清空 Generate 的输出，避免串台
+      setGeneratedCode("");
+      setFigmaGeneratedFiles({});
+      setSelectedFigmaResultFile("");
+    } else if (item.tabType === "figma" || item.mode === "figma") {
+      setGeneratedCode(item.generatedCode || "");
+      setDebugCode("");
+
+      const parsedFiles = parseFigmaFiles(item.generatedCode || "");
+      setFigmaGeneratedFiles(parsedFiles);
+
+      const fileNames = Object.keys(parsedFiles);
+      setSelectedFigmaResultFile(fileNames[0] || "");
+
+      setFigmaUrl(item.url || "");
+      setFigmaPrompt(item.prompt || "");
     } else {
       setGeneratedCode(item.generatedCode || "");
-      setDebugCode("");                        // 清空 Debug 的输出，避免串台
+      setDebugCode("");
+      setFigmaGeneratedFiles({});
+      setSelectedFigmaResultFile("");
     }
     // =====================================================================
 
@@ -264,19 +282,31 @@ return (
     if (item.outputType) setOutputType(item.outputType);
     if (item.generationType) setGenerationType(item.generationType);
 
-    // ==================== 新增：自动切换 Tab ====================
+    // ==================== 自动切换 Tab ====================
     if (item.tabType === "debug") {
       setActiveTab("debug");
-      setDebugInput(item.prompt || "");           // 把历史里的内容填回 Debug 输入框
+      setDebugInput(item.prompt || "");
       if (item.issueType) setIssueType(item.issueType);
+    } else if (item.tabType === "figma" || item.mode === "figma") {
+      setActiveTab("figma");
     } else {
       setActiveTab("generate");
     }
     // ============================================================
 
-    // 滚动到输出区
+    // 滚动到对应输出区
     setTimeout(() => {
-      outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      if (item.tabType === "figma" || item.mode === "figma") {
+        figmaOutputRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      } else {
+        outputRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
     }, 100);
   };
   const getOutputTitle = () => {
@@ -576,6 +606,10 @@ ${parsed.risks || "No risks mentioned"}
 
       setDebugCode(displayText);
 
+      if (typeof data.remaining === "number") {
+        setRemainingGenerations(data.remaining);
+      }
+
       // 保存到历史
       const newHistoryItem: HistoryItem = {
         id: crypto.randomUUID(),
@@ -612,8 +646,8 @@ ${parsed.risks || "No risks mentioned"}
       return;
     }
 
-    if (!figmaUrl && uploadedFiles.length === 0) {
-      setError("Please upload a Figma screenshot or paste a Figma link.");
+    if (!figmaUrl && uploadedFiles.length === 0 && !figmaPrompt.trim()) {
+      setError("Please upload a Figma screenshot, paste a Figma link, or enter a prompt.");
       return;
     }
 
@@ -644,11 +678,22 @@ ${parsed.risks || "No risks mentioned"}
       }
 
       setGeneratedCode(data.result);
+
+      if (typeof data.remaining === "number") {
+        setRemainingGenerations(data.remaining);
+      }
       const parsedFiles = parseFigmaFiles(data.result || "");
       setFigmaGeneratedFiles(parsedFiles);
 
       const fileNames = Object.keys(parsedFiles);
       setSelectedFigmaResultFile(fileNames[0] || "");
+
+      setTimeout(() => {
+        figmaOutputRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
 
       // 保存到历史
       const newHistoryItem: HistoryItem = {
@@ -706,7 +751,7 @@ ${parsed.risks || "No risks mentioned"}
     const files: Record<string, string> = {};
     const normalized = result.replace(/\r\n/g, "\n");
 
-    const matches = [...normalized.matchAll(/^FILE:\s*(.+)$/gm)];
+    const matches = [...normalized.matchAll(/^===FILE:\s*(.+?)===\s*$/gm)];
 
     if (!matches.length) {
       return files;
@@ -2045,13 +2090,19 @@ transition hover:bg-black"
                     {/* 生成按钮 */}
                     <button
                       onClick={handleFigmaGenerate}
-                      disabled={loading || (!figmaUrl && uploadedFiles.length === 0)}
+                      disabled={
+                        loading ||
+                        (!figmaUrl && uploadedFiles.length === 0 && !figmaPrompt.trim())
+                      }
                       className="w-full rounded-2xl bg-black px-8 py-4 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {loading ? "Generating components..." : "Generate Code from Figma"}
                     </button>
                     {Object.keys(figmaGeneratedFiles).length > 0 && (
-                      <div className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+                      <div
+                        ref={figmaOutputRef}
+                        className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
+                      >
                         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div>
                             <h3 className="text-lg font-semibold text-black">

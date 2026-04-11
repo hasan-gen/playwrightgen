@@ -1,58 +1,110 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
+import { Redis } from "@upstash/redis";
+
+const DAILY_FREE_LIMIT = 5;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL!,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+});
+
+function getClientIp(req: Request): string {
+  const forwardedFor = req.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0].trim();
+  }
+
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) {
+    return realIp.trim();
+  }
+
+  return "unknown";
+}
+
+function getDailyUsageKey(ip: string) {
+  const today = new Date().toISOString().slice(0, 10);
+  return `playwrightgen:usage:${ip}:${today}`;
+}
+
 export async function POST(req: Request) {
   try {
+    const ip = getClientIp(req);
+    const usageKey = getDailyUsageKey(ip);
+
+    const currentCount = ((await redis.get<number>(usageKey)) ?? 0) as number;
+
+    if (currentCount >= DAILY_FREE_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `Free limit reached (${DAILY_FREE_LIMIT} generations per day). Upgrade to Pro for unlimited generation.`,
+          remaining: 0,
+        },
+        { status: 429 }
+      );
+    }
+
     const formData = await req.formData();
 
     const input = (formData.get("input") as string) || "";
     const issueType = (formData.get("issueType") as string) || "Auto Detect";
     const styleMode = (formData.get("styleMode") as string) || "clean";
 
-    // 处理所有上传的文件
     const files = formData.getAll("files") as File[];
     let fileDescriptions = "";
 
     for (const file of files) {
-      if (file) {
-        const bytes = await file.arrayBuffer();
-        const buffer = Buffer.from(bytes);
-        const base64 = buffer.toString("base64");
+      if (!file) continue;
 
-        if (file.type.startsWith("image/")) {
-          fileDescriptions += `[Uploaded Image: ${file.name}]\n`;
-        } else {
-          const text = buffer.toString("utf-8");
-          fileDescriptions += `[Uploaded File: ${file.name}]\n${text}\n\n`;
-        }
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      if (file.type.startsWith("image/")) {
+        fileDescriptions += `[Uploaded Image: ${file.name}]\n`;
+      } else {
+        const text = buffer.toString("utf-8");
+        fileDescriptions += `[Uploaded File: ${file.name}]\n${text}\n\n`;
       }
     }
 
-    const userMessage = `${input}\n\n${fileDescriptions || "No files uploaded."}`;
+    const userMessage = `
+Issue Type: ${issueType}
+Style Mode: ${styleMode}
+
+User Input:
+${input || "No input provided."}
+
+${fileDescriptions ? `Attached Files:\n${fileDescriptions}` : "No files uploaded."}
+`.trim();
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         {
           role: "system",
-          content: `You are a senior frontend engineer and SDET with 10+ years experience.
+          content: `You are a senior frontend engineer and SDET with 10+ years of experience.
 
-Your job is to debug real-world issues in Playwright tests, React components, HTML/CSS, or layout problems.
+Your job is to debug real-world issues in Playwright tests, React components, HTML/CSS, and layout problems.
 
 Rules:
 - Always identify the most likely root cause first
-- Prefer minimal, safe fixes (change as few lines as possible)
+- Prefer minimal, safe fixes and change as few lines as possible
 - Never rewrite large parts of code unless absolutely necessary
 - Always consider side effects and regression risks
 - Be practical and production-minded
 - Use stable selectors
+- Respect the user's issue type and style mode when relevant
 - Output only in the exact JSON schema provided`,
         },
-        { role: "user", content: userMessage },
+        {
+          role: "user",
+          content: userMessage,
+        },
       ],
       response_format: {
         type: "json_schema",
@@ -71,7 +123,16 @@ Rules:
               whatToTestNext: { type: "string" },
               risks: { type: "string" },
             },
-            required: ["rootCause", "confidence", "issueType", "minimalFix", "updatedCode", "why", "whatToTestNext", "risks"],
+            required: [
+              "rootCause",
+              "confidence",
+              "issueType",
+              "minimalFix",
+              "updatedCode",
+              "why",
+              "whatToTestNext",
+              "risks",
+            ],
             additionalProperties: false,
           },
         },
@@ -81,10 +142,23 @@ Rules:
 
     const result = completion.choices[0]?.message?.content || "{}";
 
-    return NextResponse.json({ result });
+    const newCount = await redis.incr(usageKey);
 
+    if (newCount === 1) {
+      await redis.expire(usageKey, 60 * 60 * 24);
+    }
+
+    const remaining = Math.max(0, DAILY_FREE_LIMIT - newCount);
+
+    return NextResponse.json({ result, remaining });
   } catch (error) {
     console.error("Debug API error:", error);
-    return NextResponse.json({ error: "Failed to analyze the issue. Please try again." }, { status: 500 });
+
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Failed to analyze the issue. Please try again.";
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -375,23 +375,88 @@ Output rules:
 
   figma: `You are a senior frontend engineer and UI implementation expert.
 
-Your job is to convert Figma-style UI designs, screenshots, and design references into clean, developer-ready output.
+Your job is to convert Figma-style UI designs, screenshots, and design references into clean, developer-ready code.
 
-Rules:
-- Respect the requested target framework exactly
-- Respect the requested output format exactly
-- Prefer production-minded structure
-- Keep code clean, readable, and realistic
-- Do not include markdown fences
-- Do not include explanations unless explicitly requested
-- When multi-file output is requested, structure the output like real project files
-- For Angular, prefer component.ts, component.html, component.less, and component.spec.ts when appropriate
-- For React, prefer Component.tsx, Component.css, and Component.test.tsx when appropriate
-- For HTML/CSS, prefer index.html and styles.css when appropriate
-- For Playwright, return realistic UI automation test code
-- Infer layout and structure from the screenshot or design reference as accurately as possible
-- Avoid overengineering
-- Output only code`,
+You must follow these rules exactly:
+
+OUTPUT RULES
+- Output only code.
+- Do not include explanations.
+- Do not include markdown fences.
+- Do not include notes before or after the code.
+- Always return files using this exact format:
+
+===FILE: filename===
+<code here>
+
+- Never return plain paragraphs.
+- Never combine multiple files into one block when multi-file output is requested.
+- Do not skip required files when multi-file output is requested.
+
+QUALITY RULES
+- Respect the requested framework exactly.
+- Respect the requested output format exactly.
+- Keep the code production-minded, clean, and realistic.
+- Infer structure from the screenshot, uploaded design, and Figma reference as accurately as possible.
+- Prefer maintainable structure over flashy output.
+- Avoid overengineering.
+- Use sensible naming and realistic component structure.
+- Keep HTML semantic when possible.
+- Keep styling organized and practical.
+- Keep tests realistic and useful.
+
+FRAMEWORK RULES
+
+Angular multi-file output:
+===FILE: a.component.ts===
+===FILE: a.component.html===
+===FILE: a.component.less===
+===FILE: a.component.spec.ts===
+
+Angular single-file output:
+===FILE: component.generated.ts===
+
+React multi-file output:
+===FILE: Component.tsx===
+===FILE: Component.css===
+===FILE: Component.test.tsx===
+
+React single-file output:
+===FILE: Component.tsx===
+
+HTML/CSS multi-file output:
+===FILE: index.html===
+===FILE: styles.css===
+
+HTML/CSS single-file output:
+===FILE: ui-snippet.html===
+
+Playwright output:
+===FILE: ui.spec.ts===
+
+ANGULAR REQUIREMENTS
+- Use realistic Angular component structure.
+- Prefer clear template separation when multi-file output is requested.
+- Put template code in HTML file.
+- Put styles in LESS file.
+- Put basic component tests in spec file.
+
+REACT REQUIREMENTS
+- Use realistic functional component structure.
+- Put component UI in TSX.
+- Put styling in CSS when multi-file output is requested.
+- Put basic rendering and interaction tests in test file.
+
+HTML/CSS REQUIREMENTS
+- Return clean, structured markup.
+- Keep styling separate when multi-file output is requested.
+
+PLAYWRIGHT REQUIREMENTS
+- Return realistic UI automation test code.
+- Use stable selectors when possible.
+- Keep the test production-minded and readable.
+
+Your output must be directly usable by a developer.`,
 };
 
 function getClientIp(req: Request): string {
@@ -607,12 +672,58 @@ FILE: ui.spec.ts
 
 ${figmaPrompt ? `Additional user instructions: ${figmaPrompt}` : ""}
 
+Code quality requirements:
+- Generate code that looks like real project code, not toy examples.
+- Use realistic component structure and naming.
+- Keep imports accurate and minimal.
+- Keep markup semantic and organized.
+- Keep styles practical and consistent.
+- Keep tests realistic and useful.
+- Prefer reusable structure over placeholder content.
+
+Framework-specific expectations:
+
+For Angular:
+- Use a realistic Angular component class.
+- Keep template code in HTML when multi-file output is requested.
+- Keep styles in LESS when multi-file output is requested.
+- Include a basic but realistic spec file.
+- Avoid fake demo logic unless necessary.
+
+For React:
+- Use a realistic functional component.
+- Return TSX that looks ready for a real project.
+- Keep CSS practical and scoped to the component.
+- Include a useful test file when multi-file output is requested.
+- Avoid overly generic placeholder UI.
+
+For HTML/CSS:
+- Return realistic layout markup.
+- Keep CSS clean and readable.
+- Avoid overly minimal toy snippets unless single-file output is requested.
+
+For Playwright:
+- Return realistic test structure.
+- Use readable test names.
+- Prefer stable selectors where possible.
+- Keep tests production-minded, not tutorial-style.
+
 Important rules:
-- Use the exact FILE: filename format
-- Do not include markdown fences
-- Do not include explanations
-- Do not include extra commentary before or after the files
+- You MUST use this exact format:
+
+===FILE: filename===
+<code>
+
+- Do NOT use FILE: format anymore
+- Do NOT include markdown fences
+- Do NOT include explanations
+- Do NOT include extra commentary before or after the files
 - Return only the file blocks
+
+CRITICAL:
+If you do not follow the ===FILE: format exactly, the output will break the system.
+
+Return ONLY structured files.
 `.trim();
 
     const completion = await client.chat.completions.create({
