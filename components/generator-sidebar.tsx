@@ -107,42 +107,6 @@ export default function GeneratorSidebar({
           placeholder="Search history"
           className="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 text-sm outline-none transition focus:border-black"
         />
-
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          onChange={onFileUpload}
-          className="hidden"
-        />
-
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-black hover:text-black"
-        >
-          Upload files
-        </button>
-
-        {uploadedFiles.length > 0 && (
-          <div className="space-y-2 rounded-xl border border-gray-200 bg-gray-50 p-3">
-            {uploadedFiles.map((file, index) => (
-              <div
-                key={`${file.name}-${index}`}
-                className="flex items-center justify-between gap-2 text-xs text-gray-700"
-              >
-                <span className="truncate">{file.name}</span>
-                <button
-                  type="button"
-                  onClick={() => onRemoveFile(index)}
-                  className="rounded-md px-2 py-1 text-gray-500 transition hover:bg-gray-200 hover:text-red-500"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
 
       <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">

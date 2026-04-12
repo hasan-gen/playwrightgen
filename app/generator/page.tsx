@@ -92,11 +92,27 @@ function GeneratorContent() {
   };
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const figmaFileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
       setUploadedFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
+  const handleFigmaFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const selectedFiles = Array.from(files).filter((file) =>
+      file.type.startsWith("image/")
+    );
+
+    setUploadedFiles(selectedFiles);
+
+    if (figmaFileInputRef.current) {
+      figmaFileInputRef.current.value = "";
     }
   };
 
@@ -243,6 +259,26 @@ return (
     setSelectedCoverage([]);
     setSelectedTemplate("");
     setSelectedHistoryId(null);
+
+    setDebugCode("");
+    setDebugInput("");
+    setError(null);
+
+    setFigmaGeneratedFiles({});
+    setSelectedFigmaResultFile("");
+    setFigmaUrl("");
+    setFigmaPrompt("");
+
+    clearUploadedFiles();
+  };
+
+
+  const clearUploadedFiles = () => {
+    setUploadedFiles([]);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
   const handleSelectHistoryItem = (item: HistoryItem) => {
     setSelectedHistoryId(item.id);
@@ -250,6 +286,8 @@ return (
     setPrompt(item.prompt || "");
     setUrl(item.url || "");
     setError(null);
+
+    clearUploadedFiles();
 
     // ==================== 关键修复：区分 Generate / Debug / Figma 的输出 ====================
     if (item.tabType === "debug") {
@@ -1938,11 +1976,20 @@ transition hover:bg-black"
                       <p className="mb-2 text-sm font-medium text-gray-700">Upload Figma Screenshot</p>
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
+                        onClick={() => figmaFileInputRef.current?.click()}
                         className="flex items-center justify-center gap-2 w-full rounded-2xl border border-gray-300 bg-white px-6 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                       >
                         📸 Upload Figma Image
                       </button>
+                      <input
+                        ref={figmaFileInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleFigmaFileUpload}
+                      />
+
+
                     </div>
 
                     {/* 或粘贴 Figma 链接 */}

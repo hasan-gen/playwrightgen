@@ -24,3 +24,47 @@ body {
   background: #171717;
   color: #ffffff;
 }
+
+@keyframes pipelineFlow {
+  0% {
+    left: 14%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.9);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  48% {
+    left: 50%;
+    opacity: 1;
+    transform: translateY(-50%) scale(1.15);
+  }
+
+  100% {
+    left: 86%;
+    opacity: 0;
+    transform: translateY(-50%) scale(0.95);
+  }
+}
+
+@keyframes pipelineScan {
+  0% {
+    transform: translateX(0) translateY(-50%);
+    opacity: 0;
+  }
+
+  15% {
+    opacity: 0.45;
+  }
+
+  85% {
+    opacity: 0.45;
+  }
+
+  100% {
+    transform: translateX(520px) translateY(-50%);
+    opacity: 0;
+  }
+}
