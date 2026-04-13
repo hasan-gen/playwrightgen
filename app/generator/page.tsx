@@ -91,6 +91,7 @@ function GeneratorContent() {
     }
   };
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [figmaFiles, setFigmaFiles] = useState<File[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const figmaFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -109,7 +110,7 @@ function GeneratorContent() {
       file.type.startsWith("image/")
     );
 
-    setUploadedFiles(selectedFiles);
+    setFigmaFiles(selectedFiles);
 
     if (figmaFileInputRef.current) {
       figmaFileInputRef.current.value = "";
@@ -274,10 +275,16 @@ return (
 
 
   const clearUploadedFiles = () => {
-    setUploadedFiles([]);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+    if (activeTab === "figma") {
+      setFigmaFiles([]);
+      if (figmaFileInputRef.current) {
+        figmaFileInputRef.current.value = "";
+      }
+    } else {
+      setUploadedFiles([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
   const handleSelectHistoryItem = (item: HistoryItem) => {
@@ -684,7 +691,7 @@ ${parsed.risks || "No risks mentioned"}
       return;
     }
 
-    if (!figmaUrl && uploadedFiles.length === 0 && !figmaPrompt.trim()) {
+    if (!figmaUrl && figmaFiles.length === 0 && !figmaPrompt.trim()) {
       setError("Please upload a Figma screenshot, paste a Figma link, or enter a prompt.");
       return;
     }
@@ -701,7 +708,7 @@ ${parsed.risks || "No risks mentioned"}
     formData.append("figmaGenerateFor", figmaGenerateFor);
     formData.append("figmaOutputFormat", figmaOutputFormat);
 
-    uploadedFiles.forEach((file) => formData.append("files", file));
+    figmaFiles.forEach((file) => formData.append("files", file));
     try {
       const response = await fetch("/api/generate", {
         method: "POST",
@@ -1167,9 +1174,7 @@ return (
                 ) : (
                   <>
                     <span className="text-sm text-gray-500">
-                      {hasSyncedUsage
-                        ? `Free plan: ${remainingGenerations} of ${APP_LIMITS.freeDailyGenerations} generations left today`
-                        : `Free plan: ${APP_LIMITS.freeDailyGenerations} generations per day`}
+                      {`Free plan: ${remainingGenerations} of ${APP_LIMITS.freeDailyGenerations} generations left today`}
                     </span>
                     <Link
                       href="/pricing"
@@ -1989,6 +1994,28 @@ transition hover:bg-black"
                         onChange={handleFigmaFileUpload}
                       />
 
+                      {figmaFiles.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {figmaFiles.map((file, index) => (
+                            <div
+                              key={`${file.name}-${index}`}
+                              className="flex items-center gap-2 rounded-2xl bg-gray-100 px-3 py-1 text-xs text-gray-700"
+                            >
+                              <span className="max-w-[180px] truncate">{file.name}</span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setFigmaFiles((prev) => prev.filter((_, i) => i !== index))
+                                }
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
 
                     </div>
 
@@ -2139,7 +2166,7 @@ transition hover:bg-black"
                       onClick={handleFigmaGenerate}
                       disabled={
                         loading ||
-                        (!figmaUrl && uploadedFiles.length === 0 && !figmaPrompt.trim())
+                        (!figmaUrl && figmaFiles.length === 0 && !figmaPrompt.trim())
                       }
                       className="w-full rounded-2xl bg-black px-8 py-4 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                     >
