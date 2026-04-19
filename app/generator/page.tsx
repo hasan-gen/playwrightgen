@@ -82,6 +82,7 @@ function GeneratorContent() {
   const [debugInput, setDebugInput] = useState("");
   const outputRef = useRef<HTMLDivElement | null>(null);
   const figmaOutputRef = useRef<HTMLDivElement | null>(null);
+  const explanationRef = useRef<HTMLDivElement | null>(null);
   const deleteHistoryItem = (id: string) => {
     const updated = historyItems.filter(item => item.id !== id);
     setHistoryItems(updated);
@@ -257,6 +258,7 @@ return (
     setUrl("");
     setGeneratedCode("");
     setAnalysisSummary("");
+    setExplanation("");
     setSelectedCoverage([]);
     setSelectedTemplate("");
     setSelectedHistoryId(null);
@@ -293,6 +295,7 @@ return (
     setPrompt(item.prompt || "");
     setUrl(item.url || "");
     setError(null);
+    setExplanation("");
 
     clearUploadedFiles();
 
@@ -413,7 +416,46 @@ return (
       return [...cleanedLines, suggestion].join("\n");
     });
   };
+  const parseCodeAndExplanation = (result: string) => {
+    const codePart = result.split("===EXPLANATION===")[0] || "";
+    const explanationPart = result.split("===EXPLANATION===")[1] || "";
+
+    const cleanCode = codePart.replace("===CODE===", "").trim();
+    const cleanExplanation = explanationPart.trim();
+
+    return { cleanCode, cleanExplanation };
+  };
+
+  const parseExplanationSections = (text: string) => {
+    const sections = {
+      overview: "",
+      keyLogic: "",
+      whyThisWorks: "",
+      improvements: "",
+      risks: "",
+    };
+
+    const getSection = (start: string, end?: string) => {
+      const startIndex = text.indexOf(start);
+      if (startIndex === -1) return "";
+      const contentStart = startIndex + start.length;
+      const endIndex = end ? text.indexOf(end, contentStart) : -1;
+      return (endIndex === -1
+        ? text.slice(contentStart)
+        : text.slice(contentStart, endIndex)
+      ).trim();
+    };
+
+    sections.overview = getSection("1. Overview", "2. Key Logic");
+    sections.keyLogic = getSection("2. Key Logic", "3. Why This Works");
+    sections.whyThisWorks = getSection("3. Why This Works", "4. Improvements");
+    sections.improvements = getSection("4. Improvements", "5. Risks / Edge Cases");
+    sections.risks = getSection("5. Risks / Edge Cases");
+
+    return sections;
+  };
   const handleGenerate = async () => {
+    setExplanation("");
     setError(null);
     if (!isProVerified && remainingGenerations <= 0) {
       setShowWaitlistModal(true);
@@ -432,6 +474,7 @@ return (
       setLoading(true);
       setCopied(false);
       setGeneratedCode("");
+      setExplanation("");
 
       const formData = new FormData();
       formData.append("mode", mode);
@@ -462,7 +505,9 @@ return (
         return;
       }
 
-      setGeneratedCode(data.result);
+      const { cleanCode, cleanExplanation } = parseCodeAndExplanation(data.result || "");
+      setGeneratedCode(cleanCode);
+      setExplanation("");
 
       setTimeout(() => {
         outputRef.current?.scrollIntoView({
@@ -698,6 +743,7 @@ ${parsed.risks || "No risks mentioned"}
 
     setLoading(true);
     setGeneratedCode("");
+    setExplanation("");
 
 
 
@@ -722,7 +768,9 @@ ${parsed.risks || "No risks mentioned"}
         return;
       }
 
-      setGeneratedCode(data.result);
+      const { cleanCode, cleanExplanation } = parseCodeAndExplanation(data.result || "");
+      setGeneratedCode(cleanCode);
+      setExplanation("");
 
       if (typeof data.remaining === "number") {
         setRemainingGenerations(data.remaining);
@@ -893,6 +941,13 @@ ${parsed.risks || "No risks mentioned"}
         return;
       }
       setExplanation(data.explanation || "No explanation returned.");
+
+      setTimeout(() => {
+        explanationRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 100);
     } catch (error) {
       console.error("Explain error:", error);
       setExplanation("Failed to explain test.");
@@ -900,6 +955,17 @@ ${parsed.risks || "No risks mentioned"}
       setExplaining(false);
     }
   };
+
+  const explainButtonLabel =
+    activeTab === "figma" ? "Explain Output" : "Explain Test";
+
+  const explanationTitle =
+    activeTab === "figma" ? "Output Explanation" : "Test Explanation";
+
+  const reExplainButtonLabel =
+    activeTab === "figma" ? "Re-explain Output" : "Re-explain Test";
+
+
   const handleDownload = () => {
     if (!generatedCode) return;
 
@@ -1762,9 +1828,16 @@ transition hover:bg-black"
                       <button
                         onClick={handleExplain}
                         disabled={!generatedCode || explaining}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        className={`inline-flex min-h-[40px] items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${explanation
+                          ? "bg-sky-600 text-white hover:bg-sky-700"
+                          : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                          }`}
                       >
-                        {explaining ? "Explaining..." : "Explain Test"}
+                        {explaining
+                          ? "Explaining..."
+                          : explanation
+                            ? reExplainButtonLabel
+                            : explainButtonLabel}
                       </button>
                     </div>
                   </div>
@@ -1800,12 +1873,67 @@ transition hover:bg-black"
                       </SyntaxHighlighter>
                     )}
                   </div>
-                  {explanation && (
-                    <div className="mt-4 rounded-2xl bg-gray-50 p-4 text-sm text-gray-700">
-                      <p className="font-semibold mb-2">Test Explanation</p>
-                      <p>{explanation}</p>
+                  {explaining && (
+                    <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                      <h3 className="mb-4 text-base font-semibold text-black">
+                        {explanationTitle}
+                      </h3>
+
+                      <div className="space-y-2 text-sm text-gray-600">
+                        <p className="animate-pulse">Analyzing test...</p>
+                        <p className="animate-pulse">Breaking down logic...</p>
+                        <p className="animate-pulse">Reviewing assertions...</p>
+                      </div>
                     </div>
                   )}
+                  {explanation && (() => {
+                    const sections = parseExplanationSections(explanation);
+
+                    return (
+                      <div
+                        ref={explanationRef}
+                        className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
+                        <h3 className="mb-4 text-base font-semibold text-black">Explanation</h3>
+
+                        <div className="space-y-4">
+                          <div className="rounded-xl bg-white p-4 border border-gray-200">
+                            <h4 className="mb-2 text-sm font-semibold text-black">1. Overview</h4>
+                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
+                              {sections.overview.replace(/^- /gm, "• ")}
+                            </pre>
+                          </div>
+
+                          <div className="rounded-xl bg-white p-4 border border-gray-200">
+                            <h4 className="mb-2 text-sm font-semibold text-black">2. Key Logic</h4>
+                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700 font-medium">
+                              {sections.keyLogic.replace(/^- /gm, "• ")}
+                            </pre>
+                          </div>
+
+                          <div className="rounded-xl bg-white p-4 border border-gray-200">
+                            <h4 className="mb-2 text-sm font-semibold text-black">3. Why This Works</h4>
+                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
+                              {sections.whyThisWorks.replace(/^- /gm, "• ")}
+                            </pre>
+                          </div>
+
+                          <div className="rounded-xl bg-white p-4 border border-gray-200">
+                            <h4 className="mb-2 text-sm font-semibold text-black">4. Improvements</h4>
+                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
+                              {sections.improvements.replace(/^- /gm, "• ")}
+                            </pre>
+                          </div>
+
+                          <div className="rounded-xl bg-white p-4 border border-gray-200">
+                            <h4 className="mb-2 text-sm font-semibold text-black">5. Risks / Edge Cases</h4>
+                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
+                              {sections.risks.replace(/^- /gm, "• ")}
+                            </pre>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             )}

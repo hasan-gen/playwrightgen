@@ -10,6 +10,34 @@ const redis = new Redis({
   token: process.env.UPSTASH_REDIS_REST_TOKEN!,
 });
 
+const EXPLANATION_OUTPUT_RULES = `
+
+FINAL RESPONSE FORMAT
+- Return the response in this exact structure:
+
+===CODE===
+<final code here>
+
+===EXPLANATION===
+1. Overview
+Briefly explain what this output does in 1-2 sentences.
+
+2. Key Logic
+Break down the most important logic or structure clearly.
+
+3. Why This Works
+Explain why this approach is correct and production-minded.
+
+4. Improvements
+Suggest 2-3 practical senior-level improvements.
+
+STRICT RESPONSE RULES
+- Do not use markdown fences.
+- Do not add extra introductions or closing notes.
+- The CODE section must contain only the final usable code.
+- The EXPLANATION section must be structured exactly as shown above.
+- Do not include planning notes or chain-of-thought.
+`;
 const systemPrompts = {
   text: `You are a lead software engineer and senior SDET with 12+ years of experience building and maintaining large-scale production Playwright test suites.
 
@@ -122,7 +150,7 @@ Output rules:
 - Do not include markdown fences
 - Do not include explanations
 - Do not include planning notes
-- Output only final Playwright TypeScript code`,
+- Output the final code in the CODE section only.${EXPLANATION_OUTPUT_RULES}`,
 
   html: `You are a senior frontend software engineer and Playwright expert.
 
@@ -215,7 +243,7 @@ Output rules:
 - Do not include markdown fences
 - Do not include explanations
 - Do not include planning notes
-- Output only final Playwright TypeScript code`,
+- Output the final code in the CODE section only.${EXPLANATION_OUTPUT_RULES}`,
 
   component: `You are a lead frontend software engineer, senior test engineer, and component testing expert.
 
@@ -303,7 +331,7 @@ Output rules:
 - Do not include markdown fences
 - Do not include explanations
 - Do not include planning notes
-- Output only final test code`,
+- Output the final code in the CODE section only.${EXPLANATION_OUTPUT_RULES}`,
 
   api: `You are a senior backend-oriented software engineer and Playwright API testing expert.
 
@@ -371,7 +399,7 @@ Output rules:
 - Do not include markdown fences
 - Do not include explanations
 - Do not include planning notes
-- Output only final Playwright TypeScript code`,
+- Output the final code in the CODE section only.${EXPLANATION_OUTPUT_RULES}`,
 
   figma: `You are a senior frontend engineer and UI implementation expert.
 
@@ -456,7 +484,7 @@ PLAYWRIGHT REQUIREMENTS
 - Use stable selectors when possible.
 - Keep the test production-minded and readable.
 
-Your output must be directly usable by a developer.`,
+Your output must be directly usable by a developer.${EXPLANATION_OUTPUT_RULES}`,
 };
 
 function getClientIp(req: Request): string {
@@ -762,8 +790,22 @@ Return ONLY structured files.
 
     return NextResponse.json({
       result,
+      explanation: `
+### What this test does
+- Covers main user flow
+- Validates expected UI behavior
+
+### Key steps
+- Navigate to page
+- Perform user action
+- Assert result
+
+### Why this matters
+- Ensures critical path works
+- Prevents regressions
+`,
       remaining,
-    });
+    }); 
   } catch (error) {
     console.error("OpenAI API error:", error);
 
