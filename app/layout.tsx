@@ -41,6 +41,9 @@ export default function RootLayout({
                 <Link href="/generator" className="transition hover:text-black">
                   Generator
                 </Link>
+                <Link href="/intelligence" className="transition hover:text-black">
+                  Intelligence
+                </Link>
                 <Link href="/pricing" className="transition hover:text-black">
                   Pricing
                 </Link>
