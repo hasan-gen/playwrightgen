@@ -2,7 +2,11 @@
 
 import { useMemo, useState } from "react";
 
-type IntelligenceMode = "gaps" | "risk" | "scenarios";
+type IntelligenceMode =
+    | "coverage"
+    | "flaky"
+    | "architecture"
+    | "assertions";
 
 type IntelligenceResult = {
     coverageScore?: number;
@@ -18,19 +22,28 @@ const modes: {
     description: string;
 }[] = [
         {
-            id: "gaps",
-            title: "Coverage Gaps",
-            description: "Find missing test coverage from flows, URLs, or existing tests.",
+            id: "coverage",
+            title: "Coverage Intelligence",
+            description:
+                "Detect missing business-critical flows, negative paths, edge cases, and automation gaps.",
         },
         {
-            id: "risk",
-            title: "Risk Planner",
-            description: "Prioritize scenarios by product risk and regression impact.",
+            id: "flaky",
+            title: "Flaky Risk Detection",
+            description:
+                "Identify brittle selectors, async timing issues, race conditions, hard waits, and unstable test patterns.",
         },
         {
-            id: "scenarios",
-            title: "Scenario Generator",
-            description: "Turn requirements into clear automation-ready test scenarios.",
+            id: "architecture",
+            title: "Framework Architecture",
+            description:
+                "Review fixtures, duplicated setup, reusable helpers, page objects, maintainability, and scaling risks.",
+        },
+        {
+            id: "assertions",
+            title: "Assertion Intelligence",
+            description:
+                "Detect weak assertions, shallow validations, missing user-visible checks, and low-confidence verification.",
         },
     ];
 
@@ -42,7 +55,7 @@ const emptyResult: IntelligenceResult = {
 };
 
 export default function CoveragePage() {
-    const [mode, setMode] = useState<IntelligenceMode>("gaps");
+    const [mode, setMode] = useState<IntelligenceMode>("coverage");
     const [url, setUrl] = useState("");
     const [requirement, setRequirement] = useState("");
     const [existingTests, setExistingTests] = useState("");
@@ -151,7 +164,7 @@ export default function CoveragePage() {
                     </div>
                 </section>
 
-                <section className="mt-8 grid gap-4 md:grid-cols-3">
+                <section className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                     {modes.map((item) => (
                         <button
                             key={item.id}
@@ -163,7 +176,13 @@ export default function CoveragePage() {
                                 }`}
                         >
                             <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-sm font-bold text-white">
-                                {item.id === "gaps" ? "01" : item.id === "risk" ? "02" : "03"}
+                                {item.id === "coverage"
+                                    ? "01"
+                                    : item.id === "flaky"
+                                        ? "02"
+                                        : item.id === "architecture"
+                                            ? "03"
+                                            : "04"}
                             </div>
 
                             <h2 className="text-lg font-semibold text-slate-950">
