@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 type IntelligenceMode =
     | "coverage"
@@ -8,12 +11,19 @@ type IntelligenceMode =
     | "architecture"
     | "assertions";
 
+type IntelligenceFinding = {
+    title: string;
+    impact: "Low" | "Medium" | "High" | "Critical";
+    whyItMatters: string;
+    recommendation: string;
+};
+
 type IntelligenceResult = {
     coverageScore?: number;
-    coverageGaps: string[];
-    missingScenarios: string[];
-    riskPriority: string[];
-    suggestedNextTests: string[];
+    coverageGaps: IntelligenceFinding[];
+    missingScenarios: IntelligenceFinding[];
+    riskPriority: IntelligenceFinding[];
+    suggestedNextTests: IntelligenceFinding[];
 };
 
 const modes: {
@@ -48,6 +58,7 @@ const modes: {
     ];
 
 const emptyResult: IntelligenceResult = {
+    coverageScore: 0,
     coverageGaps: [],
     missingScenarios: [],
     riskPriority: [],
@@ -59,6 +70,8 @@ export default function CoveragePage() {
     const [url, setUrl] = useState("");
     const [requirement, setRequirement] = useState("");
     const [existingTests, setExistingTests] = useState("");
+    const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+    const [uploadedImage, setUploadedImage] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<IntelligenceResult | null>(null);
     const [error, setError] = useState("");
@@ -69,28 +82,70 @@ export default function CoveragePage() {
         [mode]
     );
 
+    const normalizeItems = (items: any[]): IntelligenceFinding[] => {
+        if (!Array.isArray(items)) {
+            return [];
+        }
+
+        return items.map((item: any) => ({
+            title:
+                typeof item?.title === "string"
+                    ? item.title
+                    : "Untitled finding",
+
+            impact:
+                item?.impact === "Critical" ||
+                    item?.impact === "High" ||
+                    item?.impact === "Medium" ||
+                    item?.impact === "Low"
+                    ? item.impact
+                    : "Medium",
+
+            whyItMatters:
+                typeof item?.whyItMatters === "string"
+                    ? item.whyItMatters
+                    : "No impact explanation provided.",
+
+            recommendation:
+                typeof item?.recommendation === "string"
+                    ? item.recommendation
+                    : "No recommendation provided.",
+        }));
+    };
+
     const normalizeResult = (data: any): IntelligenceResult => {
         const raw = data?.result || {};
 
         return {
-            coverageScore: raw.coverageScore ?? 72,
-            coverageGaps:
+            coverageScore:
+                typeof raw.coverageScore === "number"
+                    ? raw.coverageScore
+                    : 72,
+
+            coverageGaps: normalizeItems(
                 raw.coverageGaps ||
                 raw.highRiskAreas ||
                 raw.coreFlows ||
-                emptyResult.coverageGaps,
-            missingScenarios:
+                emptyResult.coverageGaps
+            ),
+
+            missingScenarios: normalizeItems(
                 raw.missingScenarios ||
                 raw.validationCases ||
-                emptyResult.missingScenarios,
-            riskPriority:
+                emptyResult.missingScenarios
+            ),
+
+            riskPriority: normalizeItems(
                 raw.riskPriority ||
                 raw.edgeCases ||
-                emptyResult.riskPriority,
-            suggestedNextTests:
+                emptyResult.riskPriority
+            ),
+
+            suggestedNextTests: normalizeItems(
                 raw.suggestedNextTests ||
                 raw.coreFlows ||
-                emptyResult.suggestedNextTests,
+                emptyResult.suggestedNextTests
+            ),
         };
     };
 
@@ -115,6 +170,8 @@ export default function CoveragePage() {
                     url,
                     requirement,
                     existingTests,
+                    uploadedFileName: uploadedFile?.name || null,
+                    uploadedImageName: uploadedImage?.name || null,
                 }),
             });
 
@@ -169,7 +226,16 @@ export default function CoveragePage() {
                         <button
                             key={item.id}
                             type="button"
-                            onClick={() => setMode(item.id)}
+                            onClick={() => {
+                                setMode(item.id);
+                                setResult(null);
+                                setError("");
+                                setUrl("");
+                                setRequirement("");
+                                setExistingTests("");
+                                setUploadedFile(null);
+                                setUploadedImage(null);
+                            }}
                             className={`rounded-2xl border p-5 text-left transition ${mode === item.id
                                 ? "border-sky-300 bg-sky-50 shadow-sm"
                                 : "border-slate-200 bg-white hover:border-sky-200 hover:bg-sky-50/40"
@@ -237,6 +303,62 @@ export default function CoveragePage() {
                     </div>
 
                     <div className="mt-6">
+                        <div className="mt-6 grid gap-4 md:grid-cols-2">
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                    Upload Test / Framework File
+                                </label>
+
+                                <input
+                                    type="file"
+                                    accept=".ts,.tsx,.js,.jsx,.txt,.json"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0] || null;
+                                        setUploadedFile(file);
+
+                                        if (!file) return;
+
+                                        if (file.size > 250_000) {
+                                            setError("File is too large. Please upload a smaller test or framework file under 250KB.");
+                                            return;
+                                        }
+
+                                        const text = await file.text();
+                                        setExistingTests(text);
+                                        setError("");
+                                    }}
+                                    className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-700"
+                                />
+
+                                {uploadedFile && (
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Selected: {uploadedFile.name}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                <label className="mb-2 block text-sm font-semibold text-slate-800">
+                                    Upload Screenshot / UI Image
+                                </label>
+
+                                <input
+                                    type="file"
+                                    accept="image/png,image/jpeg,image/webp"
+                                    onChange={(e) => {
+                                        const file = e.target.files?.[0] || null;
+                                        setUploadedImage(file);
+                                    }}
+                                    className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-sky-600 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-sky-700"
+                                />
+
+                                {uploadedImage && (
+                                    <p className="mt-2 text-xs text-slate-500">
+                                        Selected: {uploadedImage.name}
+                                    </p>
+                                )}
+                            </div>
+                        </div>
                         <label className="mb-2 block text-sm font-medium text-slate-700">
                             Existing Playwright Test Code
                         </label>
@@ -304,26 +426,26 @@ export default function CoveragePage() {
 
                         <div className="grid gap-6 lg:grid-cols-2">
                             <ResultCard
-                                title="Coverage Gaps"
-                                description="Important areas that appear under-tested or missing."
+                                title="Engineering Gaps"
+                                description="Missing product, automation, and engineering signals that reduce confidence and increase regression risk."
                                 items={result.coverageGaps}
                             />
 
                             <ResultCard
-                                title="Missing Scenarios"
-                                description="Scenarios that should be added before trusting coverage."
+                                title="Missing Critical Scenarios"
+                                description="High-impact scenarios that should be covered before considering this workflow production-ready."
                                 items={result.missingScenarios}
                             />
 
                             <ResultCard
-                                title="Risk Priority"
-                                description="Highest-risk areas ranked by business and regression impact."
+                                title="Risk & Stability Priorities"
+                                description="Areas most likely to introduce flaky behavior, unstable automation, regression issues, or production instability."
                                 items={result.riskPriority}
                             />
 
                             <ResultCard
-                                title="Suggested Next Tests"
-                                description="Practical automation targets to send into Generate next."
+                                title="Senior Engineering Recommendations"
+                                description="Recommended architecture, automation, and reliability improvements from a Senior Dev / Lead SDET perspective."
                                 items={result.suggestedNextTests}
                             />
                         </div>
@@ -341,7 +463,7 @@ function ResultCard({
 }: {
     title: string;
     description: string;
-    items: string[];
+    items: IntelligenceFinding[];
 }) {
     return (
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -350,18 +472,86 @@ function ResultCard({
                 <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
             </div>
 
-            <div className="space-y-3 text-sm text-slate-700">
+            <div className="space-y-4">
                 {items.length > 0 ? (
                     items.map((item, index) => (
                         <div
                             key={`${title}-${index}`}
-                            className="rounded-xl border border-slate-100 bg-slate-50 p-3"
+                            className="rounded-xl border border-slate-100 bg-slate-50 p-4"
                         >
-                            {item}
+                            <div className="mb-3 flex items-start justify-between gap-3">
+                                <h4 className="text-sm font-semibold text-slate-950">
+                                    {item.title}
+                                </h4>
+
+                                <span
+                                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold border ${item.impact === "Critical"
+                                        ? "border-red-200 bg-red-50 text-red-700"
+                                        : item.impact === "High"
+                                            ? "border-orange-200 bg-orange-50 text-orange-700"
+                                            : item.impact === "Medium"
+                                                ? "border-yellow-200 bg-yellow-50 text-yellow-700"
+                                                : "border-sky-200 bg-sky-50 text-sky-700"
+                                        }`}
+                                >
+                                    {item.impact}
+                                </span>
+                            </div>
+
+                            <div className="space-y-4 text-sm leading-6 text-slate-700">
+
+                                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-amber-500" />
+
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Why This Matters
+                                        </p>
+                                    </div>
+
+                                    <p className="text-sm leading-6 text-slate-700">
+                                        {item.whyItMatters}
+                                    </p>
+                                </div>
+
+                                <div className="rounded-xl border border-slate-200 bg-white p-3">
+                                    <div className="mb-2 flex items-center gap-2">
+                                        <div className="h-2 w-2 rounded-full bg-emerald-500" />
+
+                                        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                            Recommended Action
+                                        </p>
+                                    </div>
+
+                                    {title === "Senior Engineering Recommendations" ? (
+                                        <div className="overflow-hidden rounded-xl border border-slate-900">
+                                            <SyntaxHighlighter
+                                                language="typescript"
+                                                style={oneDark}
+                                                customStyle={{
+                                                    margin: 0,
+                                                    padding: "1rem",
+                                                    fontSize: "0.82rem",
+                                                    borderRadius: "0px",
+                                                    background: "hashtag#0f172a",
+                                                }}
+                                                wrapLongLines
+                                            >
+                                                {item.recommendation}
+                                            </SyntaxHighlighter>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm leading-6 text-slate-700">
+                                            {item.recommendation}
+                                        </p>
+                                    )}
+                                </div>
+
+                            </div>
                         </div>
                     ))
                 ) : (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-slate-500">
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3 text-sm text-slate-500">
                         No items returned yet.
                     </div>
                 )}

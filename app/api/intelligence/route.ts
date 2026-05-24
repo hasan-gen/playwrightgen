@@ -35,7 +35,14 @@ function cleanJson(raw: string) {
 
 export async function POST(req: Request) {
     try {
-        const { mode, url, requirement, existingTests } = await req.json();
+        const {
+            mode,
+            url,
+            requirement,
+            existingTests,
+            uploadedFileName,
+            uploadedImageName,
+        } = await req.json();
 
         if (!url && !requirement && !existingTests) {
             return NextResponse.json(
@@ -65,8 +72,8 @@ export async function POST(req: Request) {
             temperature: 0.25,
             messages: [
                 {
- role: "system",
- content: `You are an elite AI Engineering Intelligence system for Senior Developers, Lead Developers, Staff Engineers, Senior SDETs, QA Architects, and automation platform teams.
+                    role: "system",
+                    content: `You are an elite AI Engineering Intelligence system for Senior Developers, Lead Developers, Staff Engineers, Senior SDETs, QA Architects, and automation platform teams.
 
 This is NOT a basic QA coverage tool.
 This is NOT a simple Playwright test generator.
@@ -89,7 +96,7 @@ If mode is "flaky":
 - race conditions
 - brittle locator strategies
 - retry risks
-- async instability
+- async instability  
 
 If mode is "architecture":
 - focus on duplicated setup
@@ -101,9 +108,9 @@ If mode is "architecture":
 
 If mode is "assertions":
 - focus on weak assertions
-- shallow validation
+- shallow validation   
 - false-positive risk
-- missing verification
+- missing verification 
 - missing user-visible checks
 - weak backend/frontend validation consistency
 
@@ -158,10 +165,38 @@ Return ONLY valid JSON in this exact shape:
 
 {
  "coverageScore": 0,
- "coverageGaps": ["..."],
- "missingScenarios": ["..."],
- "riskPriority": ["..."],
- "suggestedNextTests": ["..."]
+ "coverageGaps": [
+ {
+ "title": "...",
+ "impact": "Low | Medium | High | Critical",
+ "whyItMatters": "...",
+ "recommendation": "..."
+ }
+ ],
+ "missingScenarios": [
+ {
+ "title": "...",
+ "impact": "Low | Medium | High | Critical",
+ "whyItMatters": "...",
+ "recommendation": "..."
+ }
+ ],
+ "riskPriority": [
+ {
+ "title": "...",
+ "impact": "Low | Medium | High | Critical",
+ "whyItMatters": "...",
+ "recommendation": "..."
+ }
+ ],
+ "suggestedNextTests": [
+ {
+ "title": "...",
+ "impact": "Low | Medium | High | Critical",
+ "whyItMatters": "...",
+ "recommendation": "..."
+ }
+ ]
 }
 
 Output rules:
@@ -175,11 +210,12 @@ Output rules:
 - Be specific to the provided requirement or test code
 - Prioritize real product risk, engineering quality, maintainability, and automation reliability
 - suggestedNextTests must be directly usable as input for a Playwright generator later
-- coverageScore must be a realistic number from 0 to 100 based on the quality and completeness of the provided input`,
-},
-{
- role: "user",
- content: `Analysis Mode:
+- coverageScore must be a realistic number from 0 to 100 based on the quality and completeness of the provided input
+- Every item inside coverageGaps, missingScenarios, riskPriority, and suggestedNextTests must be an object with title, impact, whyItMatters, and recommendation`,
+                },
+                {
+                    role: "user",
+                    content: `Analysis Mode:
 ${mode || "coverage"}
 
 Page URL:
@@ -191,6 +227,12 @@ ${requirement || "Not provided"}
 Existing Playwright Tests:
 ${existingTests || "Not provided"}
 
+Uploaded File:
+${uploadedFileName || "Not provided"}
+
+Uploaded Screenshot / UI Image:
+${uploadedImageName || "Not provided"}
+
 Perform a senior engineering intelligence review.
 
 Return only valid JSON with:
@@ -199,7 +241,7 @@ coverageGaps,
 missingScenarios,
 riskPriority,
 suggestedNextTests.`,
-},
+                },
             ],
         });
 
