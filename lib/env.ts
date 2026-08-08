@@ -16,7 +16,7 @@ export const databaseEnvironmentSchema = z.object({
 
 export const migrationEnvironmentSchema = z.object({
   DATABASE_URL: postgresUrl,
-  DIRECT_URL: postgresUrl,
+  DIRECT_URL: postgresUrl.optional(),
 });
 
 export const testDatabaseEnvironmentSchema = z.object({

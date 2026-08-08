@@ -1,6 +1,8 @@
-import "dotenv/config";
-
+import { config as loadEnv } from "dotenv";
 import { defineConfig } from "prisma/config";
+
+loadEnv({ path: ".env.local", quiet: true });
+loadEnv({ path: ".env", quiet: true });
 
 function readOptionalEnvironmentVariable(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -17,7 +19,7 @@ function assertPostgresUrl(name: string, value: string): string {
   return value;
 }
 
-function resolvePrismaCliDatabaseUrl(): string {
+function resolvePrismaCliDatabaseUrl(): string | undefined {
   if (process.env.NODE_ENV === "test") {
     const testDatabaseUrl = readOptionalEnvironmentVariable("TEST_DATABASE_URL");
 
@@ -40,17 +42,19 @@ function resolvePrismaCliDatabaseUrl(): string {
     return assertPostgresUrl("DATABASE_URL", databaseUrl);
   }
 
-  throw new Error(
-    "Invalid Prisma environment configuration. DIRECT_URL or DATABASE_URL is required.",
-  );
+  return undefined;
 }
+
+const prismaCliDatabaseUrl = resolvePrismaCliDatabaseUrl();
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: {
     path: "prisma/migrations",
   },
-  datasource: {
-    url: resolvePrismaCliDatabaseUrl(),
-  },
+  datasource: prismaCliDatabaseUrl
+    ? {
+        url: prismaCliDatabaseUrl,
+      }
+    : undefined,
 });

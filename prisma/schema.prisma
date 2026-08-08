@@ -1,0 +1,211 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserStatus {
+  ACTIVE
+  DISABLED
+  DELETED
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum ProjectMembershipRole {
+  PROJECT_LEAD
+  MEMBER
+  VIEWER
+}
+
+enum ProjectMembershipStatus {
+  ACTIVE
+  REMOVED
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum ActivityAction {
+  ORGANIZATION_UPDATED
+  MEMBERSHIP_ROLE_CHANGED
+  MEMBERSHIP_REMOVED
+  PROJECT_CREATED
+  PROJECT_UPDATED
+  PROJECT_ARCHIVED
+  PROJECT_RESTORED
+  PROJECT_MEMBER_ASSIGNED
+  PROJECT_MEMBER_ROLE_CHANGED
+  PROJECT_MEMBER_REMOVED
+}
+
+enum ActivityTargetType {
+  ORGANIZATION
+  MEMBERSHIP
+  PROJECT
+  PROJECT_MEMBERSHIP
+}
+
+enum ActivitySource {
+  USER
+  CLERK_WEBHOOK
+  SYSTEM
+}
+
+model User {
+  id                 String     @id @default(uuid()) @db.Uuid
+  clerkUserId        String     @unique @db.VarChar(255)
+  primaryEmail       String?    @db.VarChar(320)
+  displayName        String?    @db.VarChar(200)
+  avatarUrl          String?    @db.Text
+  status             UserStatus @default(ACTIVE)
+  clerkUpdatedAt     DateTime?  @db.Timestamptz(3)
+  lastWebhookEventId String?    @db.VarChar(255)
+  lastSyncedAt       DateTime   @default(now()) @db.Timestamptz(3)
+  disabledAt         DateTime?  @db.Timestamptz(3)
+  deletedAt          DateTime?  @db.Timestamptz(3)
+  createdAt          DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
+
+  memberships      Membership[]
+  projectsCreated  Project[]    @relation("ProjectCreatedBy")
+  projectsArchived Project[]    @relation("ProjectArchivedBy")
+  activities       Activity[]   @relation("ActivityActor")
+
+  @@index([primaryEmail])
+  @@index([status])
+}
+
+model Organization {
+  id                  String             @id @default(uuid()) @db.Uuid
+  clerkOrganizationId String             @unique @db.VarChar(255)
+  name                String             @db.VarChar(200)
+  slug                String             @unique @db.VarChar(100)
+  status              OrganizationStatus @default(ACTIVE)
+  clerkUpdatedAt      DateTime?          @db.Timestamptz(3)
+  lastWebhookEventId  String?            @db.VarChar(255)
+  lastSyncedAt        DateTime           @default(now()) @db.Timestamptz(3)
+  archivedAt          DateTime?          @db.Timestamptz(3)
+  createdAt           DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime           @updatedAt @db.Timestamptz(3)
+
+  memberships        Membership[]
+  projects           Project[]
+  activities         Activity[]
+  projectMemberships ProjectMembership[]
+
+  @@index([status])
+}
+
+model Membership {
+  id                 String           @id @default(uuid()) @db.Uuid
+  organizationId     String           @db.Uuid
+  userId             String           @db.Uuid
+  clerkMembershipId  String?          @unique @db.VarChar(255)
+  clerkRole          String?          @db.VarChar(100)
+  role               MembershipRole
+  status             MembershipStatus @default(ACTIVE)
+  clerkUpdatedAt     DateTime?        @db.Timestamptz(3)
+  lastWebhookEventId String?          @db.VarChar(255)
+  lastSyncedAt       DateTime         @default(now()) @db.Timestamptz(3)
+  removedAt          DateTime?        @db.Timestamptz(3)
+  createdAt          DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime         @updatedAt @db.Timestamptz(3)
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  user               User                @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  projectMemberships ProjectMembership[]
+
+  @@unique([organizationId, userId])
+  @@index([userId, status])
+  @@index([organizationId, role, status])
+}
+
+model Project {
+  id               String        @id @default(uuid()) @db.Uuid
+  organizationId   String        @db.Uuid
+  name             String        @db.VarChar(200)
+  slug             String        @db.VarChar(100)
+  description      String?       @db.Text
+  status           ProjectStatus @default(ACTIVE)
+  createdByUserId  String        @db.Uuid
+  archivedByUserId String?       @db.Uuid
+  archivedAt       DateTime?     @db.Timestamptz(3)
+  createdAt        DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
+
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy          User                @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  archivedBy         User?               @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  projectMemberships ProjectMembership[]
+  activities         Activity[]
+
+  @@unique([organizationId, id])
+  @@unique([organizationId, slug])
+  @@index([organizationId, status, updatedAt])
+}
+
+model ProjectMembership {
+  id             String                  @id @default(uuid()) @db.Uuid
+  organizationId String                  @db.Uuid
+  projectId      String                  @db.Uuid
+  userId         String                  @db.Uuid
+  role           ProjectMembershipRole
+  status         ProjectMembershipStatus @default(ACTIVE)
+  removedAt      DateTime?               @db.Timestamptz(3)
+  createdAt      DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime                @updatedAt @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project      @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  membership   Membership   @relation(fields: [organizationId, userId], references: [organizationId, userId], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, projectId, userId])
+  @@index([organizationId, userId, status])
+  @@index([projectId, role, status])
+}
+
+model Activity {
+  id             String             @id @default(uuid()) @db.Uuid
+  organizationId String             @db.Uuid
+  projectId      String?            @db.Uuid
+  actorUserId    String?            @db.Uuid
+  source         ActivitySource
+  action         ActivityAction
+  targetType     ActivityTargetType
+  targetId       String             @db.Uuid
+  requestId      String?            @db.VarChar(255)
+  metadata       Json?              @db.JsonB
+  createdAt      DateTime           @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project?     @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  actor        User?        @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, createdAt])
+  @@index([projectId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@index([actorUserId, createdAt])
+}

@@ -12,6 +12,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:authorization": "playwright test",
+    "test:database": "vitest run tests/integration/database-schema.test.ts",
     "prisma:generate": "prisma generate --config prisma.config.ts",
     "prisma:format": "prisma format --config prisma.config.ts",
     "prisma:validate": "prisma validate --config prisma.config.ts",
