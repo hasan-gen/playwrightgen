@@ -1,16 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
-
-type ReviewFocus =
-    | "architecture"
-    | "testing"
-    | "security"
-    | "performance"
-    | "maintainability"
-    | "production";
-
-type ReviewDepth = "standard" | "deep" | "architect";
+import { KeyboardEvent, useEffect, useRef, useState } from "react";
 
 type Severity = "Critical" | "High" | "Medium" | "Low";
 
@@ -22,18 +12,12 @@ type Finding = {
     recommendation: string;
 };
 
-type Score = {
-    label: string;
-    score: number;
-    grade: string;
-};
-
 type EngineeringReviewResult = {
     overallScore: number;
     executiveSummary: string;
-    scores: Score[];
+    scores: [];
     productionReadiness: {
-        status: "Ready" | "Partially Ready" | "Not Ready";
+        status: "Partially Ready";
         reason: string;
     };
     criticalFindings: Finding[];
@@ -45,101 +29,174 @@ type EngineeringReviewResult = {
     recommendedActions: Finding[];
 };
 
-const reviewFocusOptions: {
-    id: ReviewFocus;
-    title: string;
-    description: string;
-}[] = [
-        {
-            id: "architecture",
-            title: "Architecture",
-            description: "Review structure, coupling, boundaries, scalability, and ownership.",
-        },
-        {
-            id: "testing",
-            title: "Testing",
-            description: "Review coverage, flaky risks, assertions, E2E quality, and gaps.",
-        },
-        {
-            id: "security",
-            title: "Security",
-            description: "Review secrets, unsafe patterns, exposure risks, and auth boundaries.",
-        },
-        {
-            id: "performance",
-            title: "Performance",
-            description: "Review rendering, async behavior, caching, loading, and bottlenecks.",
-        },
-        {
-            id: "maintainability",
-            title: "Maintainability",
-            description: "Review duplication, complexity, technical debt, and refactor risks.",
-        },
-        {
-            id: "production",
-            title: "Production Readiness",
-            description: "Review release confidence, observability, regression risk, and stability.",
-        },
-    ];
+type EvidenceFile = {
+    id: string;
+    name: string;
+    size: number;
+    content: string;
+};
 
-const depthOptions: {
-    id: ReviewDepth;
-    title: string;
-    description: string;
-}[] = [
-        {
-            id: "standard",
-            title: "Standard Review",
-            description: "Balanced engineering review for everyday project analysis.",
-        },
-        {
-            id: "deep",
-            title: "Deep Review",
-            description: "More detailed risk, architecture, testing, and maintainability analysis.",
-        },
-        {
-            id: "architect",
-            title: "Architect Mode",
-            description: "Staff/Principal-level review focused on long-term engineering decisions.",
-        },
-    ];
+type FeatureFlagStatus = "Yes" | "No" | "Unknown";
+
+const allowedExtensions = [
+    ".ts",
+    ".tsx",
+    ".js",
+    ".jsx",
+    ".json",
+    ".md",
+    ".txt",
+    ".yml",
+    ".yaml",
+    ".config",
+];
+
+const changeCategories = [
+    "UI / User Flow",
+    "Authentication",
+    "Authorization / Permissions",
+    "API / Contract",
+    "Database / Schema",
+    "Data Integrity",
+    "Configuration",
+    "Integration",
+    "Infrastructure",
+    "Performance",
+    "Security / Privacy",
+    "Feature Flag / Rollout",
+    "Other",
+];
+
+const suggestedRoles = [
+    "Customer",
+    "Administrator",
+    "Support Agent",
+    "Internal Employee",
+    "Partner",
+    "Anonymous User",
+    "Service Account",
+    "Other",
+];
+
+const rolloutStrategies = [
+    "Not decided",
+    "Immediate rollout",
+    "Internal users first",
+    "Percentage rollout",
+    "Role-based rollout",
+    "Region-based rollout",
+    "Feature-flag rollout",
+    "Custom",
+];
+
+const rolloutNeedsContext = new Set([
+    "Internal users first",
+    "Percentage rollout",
+    "Role-based rollout",
+    "Region-based rollout",
+    "Feature-flag rollout",
+    "Custom",
+]);
+
+const changeImpactFocus = [
+    "architecture",
+    "testing",
+    "security",
+    "performance",
+    "production",
+];
 
 export default function EngineeringReviewPage() {
     const [projectName, setProjectName] = useState("");
-    const [repositoryUrl, setRepositoryUrl] = useState("");
-    const [projectSummary, setProjectSummary] = useState("");
-    const [sourceBundle, setSourceBundle] = useState("");
-    const [selectedFocus, setSelectedFocus] = useState<ReviewFocus[]>([
-        "architecture",
-        "testing",
-        "maintainability",
-        "production",
-    ]);
-    const [depth, setDepth] = useState<ReviewDepth>("deep");
-    const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+    const [changeSummary, setChangeSummary] = useState("");
+    const [expectedBehavior, setExpectedBehavior] = useState("");
+    const [beforeBehavior, setBeforeBehavior] = useState("");
+    const [acceptanceCriteria, setAcceptanceCriteria] = useState("");
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const [customCategory, setCustomCategory] = useState("");
+    const [affectedApplications, setAffectedApplications] = useState<string[]>([]);
+    const [affectedApplicationDraft, setAffectedApplicationDraft] = useState("");
+    const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+    const [customRole, setCustomRole] = useState("");
+    const [featureFlagStatus, setFeatureFlagStatus] =
+        useState<FeatureFlagStatus>("Unknown");
+    const [featureFlagName, setFeatureFlagName] = useState("");
+    const [rolloutStrategy, setRolloutStrategy] = useState("Not decided");
+    const [rolloutContext, setRolloutContext] = useState("");
+    const [downstreamConsumers, setDownstreamConsumers] = useState<string[]>([]);
+    const [downstreamConsumerDraft, setDownstreamConsumerDraft] = useState("");
+    const [contextExpanded, setContextExpanded] = useState(false);
+    const [evidenceFiles, setEvidenceFiles] = useState<EvidenceFile[]>([]);
+    const [fieldErrors, setFieldErrors] = useState({
+        changeSummary: "",
+        expectedBehavior: "",
+    });
     const [loading, setLoading] = useState(false);
     const [remaining, setRemaining] = useState<number | null>(null);
     const [error, setError] = useState("");
     const [result, setResult] = useState<EngineeringReviewResult | null>(null);
+    const inputWorkspaceRef = useRef<HTMLElement>(null);
+    const resultSectionRef = useRef<HTMLElement>(null);
+    const firstRequiredInputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const selectedFocusText = useMemo(
-        () =>
-            reviewFocusOptions
-                .filter((item) => selectedFocus.includes(item.id))
-                .map((item) => item.title)
-                .join(", "),
-        [selectedFocus]
-    );
+    useEffect(() => {
+        if (!result) return;
 
-    const toggleFocus = (focus: ReviewFocus) => {
-        setSelectedFocus((prev) =>
-            prev.includes(focus)
-                ? prev.filter((item) => item !== focus)
-                : [...prev, focus]
-        );
+        const prefersReducedMotion = window.matchMedia(
+            "(prefers-reduced-motion: reduce)"
+        ).matches;
+
+        resultSectionRef.current?.scrollIntoView({
+            behavior: prefersReducedMotion ? "auto" : "smooth",
+            block: "start",
+        });
+    }, [result]);
+
+    const invalidateResult = () => {
         setResult(null);
         setError("");
     };
+
+    const sourceBundle = evidenceFiles
+        .map((file) => `\n\n===FILE: ${file.name}===\n${file.content}`)
+        .join("\n");
+
+    const allCategories = [
+        ...selectedCategories.filter((category) => category !== "Other"),
+        ...(selectedCategories.includes("Other") && customCategory.trim()
+            ? [customCategory.trim()]
+            : []),
+    ];
+
+    const allRoles = [
+        ...selectedRoles.filter((role) => role !== "Other"),
+        ...(selectedRoles.includes("Other") && customRole.trim()
+            ? [customRole.trim()]
+            : []),
+    ];
+
+    const projectSummary = [
+        changeSummary.trim() && `Change summary:\n${changeSummary.trim()}`,
+        expectedBehavior.trim() &&
+            `Expected behavior:\n${expectedBehavior.trim()}`,
+        beforeBehavior.trim() && `Before behavior:\n${beforeBehavior.trim()}`,
+        acceptanceCriteria.trim() &&
+            `Acceptance criteria:\n${acceptanceCriteria.trim()}`,
+        allCategories.length > 0 &&
+            `Change categories:\n${allCategories.join(", ")}`,
+        affectedApplications.length > 0 &&
+            `Affected application or service:\n${affectedApplications.join(", ")}`,
+        allRoles.length > 0 && `User roles:\n${allRoles.join(", ")}`,
+        `Feature flag status:\n${featureFlagStatus}`,
+        featureFlagName.trim() && `Feature flag name:\n${featureFlagName.trim()}`,
+        `Rollout strategy:\n${rolloutStrategy}`,
+        rolloutContext.trim() && `Rollout context:\n${rolloutContext.trim()}`,
+        downstreamConsumers.length > 0 &&
+            `Known downstream consumers:\n${downstreamConsumers.join(", ")}`,
+    ]
+        .filter(Boolean)
+        .join("\n\n");
 
     const handleFileUpload = async (files: FileList | null) => {
         if (!files || files.length === 0) return;
@@ -147,37 +204,36 @@ export default function EngineeringReviewPage() {
         const selected = Array.from(files);
         const maxFileSize = 250_000;
         const maxTotalSize = 600_000;
-
-        const totalSize = selected.reduce((sum, file) => sum + file.size, 0);
-
-        if (totalSize > maxTotalSize) {
-            setError("Uploaded files are too large. Keep total uploaded text under 600KB.");
-            return;
-        }
-
-        const allowedExtensions = [
-            ".ts",
-            ".tsx",
-            ".js",
-            ".jsx",
-            ".json",
-            ".md",
-            ".txt",
-            ".yml",
-            ".yaml",
-            ".config",
-        ];
-
         const readableFiles = selected.filter((file) =>
-            allowedExtensions.some((ext) => file.name.toLowerCase().endsWith(ext))
+            allowedExtensions.some((extension) =>
+                file.name.toLowerCase().endsWith(extension)
+            )
         );
 
         if (readableFiles.length === 0) {
-            setError("Upload readable source files such as .ts, .tsx, .js, .json, .md, .yml, or .txt.");
+            setError(
+                "Upload readable files such as .ts, .tsx, .js, .json, .md, .yml, or .txt."
+            );
             return;
         }
 
-        const chunks: string[] = [];
+        const currentTotal = evidenceFiles.reduce(
+            (sum, file) => sum + file.size,
+            0
+        );
+        const newTotal = readableFiles.reduce(
+            (sum, file) => sum + file.size,
+            0
+        );
+
+        if (currentTotal + newTotal > maxTotalSize) {
+            setError(
+                "Uploaded files are too large. Keep total uploaded text under 600KB."
+            );
+            return;
+        }
+
+        const nextFiles: EvidenceFile[] = [];
 
         for (const file of readableFiles) {
             if (file.size > maxFileSize) {
@@ -185,24 +241,92 @@ export default function EngineeringReviewPage() {
                 return;
             }
 
-            const text = await file.text();
-            chunks.push(`\n\n===FILE: ${file.name}===\n${text}`);
+            nextFiles.push({
+                id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+                name: file.name,
+                size: file.size,
+                content: await file.text(),
+            });
         }
 
-        setUploadedFiles(readableFiles);
-        setSourceBundle(chunks.join("\n"));
-        setError("");
+        setEvidenceFiles((current) => [...current, ...nextFiles]);
+        invalidateResult();
+    };
+
+    const removeFile = (id: string) => {
+        setEvidenceFiles((current) => current.filter((file) => file.id !== id));
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        invalidateResult();
+    };
+
+    const clearFiles = () => {
+        setEvidenceFiles([]);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        invalidateResult();
+    };
+
+    const scrollToInput = () => {
+        const prefersReducedMotion = window.matchMedia(
+            "(prefers-reduced-motion: reduce)"
+        ).matches;
+
+        inputWorkspaceRef.current?.scrollIntoView({
+            behavior: prefersReducedMotion ? "auto" : "smooth",
+            block: "start",
+        });
+    };
+
+    const handleAnalyzeAnother = () => {
+        setProjectName("");
+        setChangeSummary("");
+        setExpectedBehavior("");
+        setBeforeBehavior("");
+        setAcceptanceCriteria("");
+        setSelectedCategories([]);
+        setCustomCategory("");
+        setAffectedApplications([]);
+        setAffectedApplicationDraft("");
+        setSelectedRoles([]);
+        setCustomRole("");
+        setFeatureFlagStatus("Unknown");
+        setFeatureFlagName("");
+        setRolloutStrategy("Not decided");
+        setRolloutContext("");
+        setDownstreamConsumers([]);
+        setDownstreamConsumerDraft("");
+        setContextExpanded(false);
+        setEvidenceFiles([]);
+        setFieldErrors({ changeSummary: "", expectedBehavior: "" });
+        setLoading(false);
         setResult(null);
+        setError("");
+
+        if (fileInputRef.current) fileInputRef.current.value = "";
+
+        scrollToInput();
+        window.requestAnimationFrame(() =>
+            firstRequiredInputRef.current?.focus({ preventScroll: true })
+        );
     };
 
     const handleAnalyze = async () => {
-        if (!projectSummary.trim() && !sourceBundle.trim() && !repositoryUrl.trim()) {
-            setError("Add a project summary, repository URL, or source files first.");
-            return;
-        }
+        const nextFieldErrors = {
+            changeSummary: changeSummary.trim()
+                ? ""
+                : "Enter a change summary to continue.",
+            expectedBehavior: expectedBehavior.trim()
+                ? ""
+                : "Describe the expected behavior to continue.",
+        };
 
-        if (selectedFocus.length === 0) {
-            setError("Select at least one review focus.");
+        setFieldErrors(nextFieldErrors);
+
+        if (nextFieldErrors.changeSummary || nextFieldErrors.expectedBehavior) {
+            setError("");
+            const firstInvalidId = nextFieldErrors.changeSummary
+                ? "change-summary"
+                : "expected-behavior";
+            document.getElementById(firstInvalidId)?.focus();
             return;
         }
 
@@ -213,298 +337,623 @@ export default function EngineeringReviewPage() {
 
             const response = await fetch("/api/engineering-review", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     projectName,
-                    repositoryUrl,
                     projectSummary,
+                    changeSummary,
+                    expectedBehavior,
+                    beforeBehavior,
+                    afterBehavior: expectedBehavior,
+                    acceptanceCriteria,
                     sourceBundle,
-                    selectedFocus,
-                    depth,
-                    uploadedFileNames: uploadedFiles.map((file) => file.name),
+                    uploadedFileNames: evidenceFiles.map((file) => file.name),
+                    changeCategories: allCategories,
+                    affectedApplications,
+                    affectedApplication: affectedApplications.join(", "),
+                    affectedService: affectedApplications.join(", "),
+                    userRoles: allRoles,
+                    featureFlagStatus,
+                    featureFlagName,
+                    rolloutStrategy,
+                    rolloutContext,
+                    featureFlagContext:
+                        featureFlagStatus === "Yes"
+                            ? [
+                                  "Status: Yes",
+                                  featureFlagName.trim() &&
+                                      `Name: ${featureFlagName.trim()}`,
+                              ]
+                                  .filter(Boolean)
+                                  .join("; ")
+                            : "",
+                    downstreamConsumers,
+                    selectedFocus: changeImpactFocus,
+                    depth: "deep",
+                    reviewMode: "change",
                 }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                setError(data.error || "Failed to run engineering review.");
-
-                if (typeof data.remaining === "number") {
-                    setRemaining(data.remaining);
-                }
-
+                setError(data.error || "Failed to analyze change impact.");
+                if (typeof data.remaining === "number") setRemaining(data.remaining);
                 return;
             }
 
             setResult(data.result || null);
-
-            if (typeof data.remaining === "number") {
-                setRemaining(data.remaining);
-            }
-        } catch (err) {
-            console.error("Engineering Review error:", err);
-            setError("Failed to run engineering review.");
+            if (typeof data.remaining === "number") setRemaining(data.remaining);
+        } catch (requestError) {
+            console.error(
+                "AI Change Intelligence request failed:",
+                requestError instanceof Error ? requestError.message : "Unknown error"
+            );
+            setError("Failed to analyze change impact. Please try again.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <main className="min-h-screen bg-[#F8FAFC] px-4 py-10 sm:px-6 sm:py-14">
+        <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 sm:px-6 sm:py-10">
             <div className="mx-auto max-w-7xl">
-                <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white px-6 py-8 shadow-sm sm:px-8 sm:py-10">
-                    <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.22),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(99,102,241,0.14),transparent_32%)]" />
-
-                    <div className="relative max-w-4xl">
-                        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-sky-600 sm:text-sm">
-                            AI Engineering Review
-                        </p>
-
-                        <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
-                            Review architecture, testing, security, and production readiness like a Staff Engineer
-                        </h1>
-
-                        <p className="mt-5 max-w-3xl text-base leading-8 text-slate-600 sm:text-lg">
-                            Upload source files, framework files, requirements, or repository context.
-                            The AI reviews your project from Senior Dev, Lead SDET, QA Architect,
-                            and AI Engineering perspectives.
-                        </p>
-
-                        <div className="mt-6 flex flex-wrap gap-2">
-                            {["Architecture", "Testing", "Security", "Performance", "Maintainability", "Production"].map(
-                                (item) => (
-                                    <span
-                                        key={item}
-                                        className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-medium text-sky-700"
-                                    >
-                                        {item}
-                                    </span>
-                                )
-                            )}
-                        </div>
-                    </div>
+                <section className="rounded-[2rem] border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
+                    <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-sky-600">
+                        AI Change Intelligence
+                    </p>
+                    <h1 className="max-w-4xl text-3xl font-bold tracking-tight text-slate-950 sm:text-5xl">
+                        Understand what your software change affects.
+                    </h1>
+                    <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">
+                        Identify direct impact, downstream effects, uncertainty, and the
+                        engineering follow-up needed for a PR, story, requirement, or code change.
+                    </p>
                 </section>
 
-                <section className="mt-8 grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
-                    <div className="space-y-6">
-                        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-                            <h2 className="text-xl font-bold text-slate-950">Project Input</h2>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">
-                                Add enough context for the AI to review engineering quality, risk,
-                                testability, and production readiness.
+                <section
+                    ref={inputWorkspaceRef}
+                    aria-labelledby="change-input-heading"
+                    className="mx-auto mt-8 max-w-5xl scroll-mt-6 rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm sm:p-7"
+                >
+                    <header className="border-b border-slate-200 px-2 pb-6 sm:px-1">
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+                            Change Input
+                        </p>
+                        <h2
+                            id="change-input-heading"
+                            className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl"
+                        >
+                            Describe the software change
+                        </h2>
+                        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+                            Start with the required fields. Additional context improves evidence
+                            confidence and result specificity.
+                        </p>
+                        <p className="mt-3 text-sm font-medium text-slate-700">
+                            <span className="text-red-600" aria-hidden="true">*</span>{" "}
+                            Required
+                        </p>
+                    </header>
+
+                    <div className="mt-6 space-y-6">
+                        <section className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-6">
+                            <h3 className="text-xl font-bold text-slate-950">Core change details</h3>
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                                A concise summary and the intended behavior are enough to begin.
                             </p>
 
-                            <div className="mt-5 space-y-4">
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                                        Project Name
-                                    </label>
-                                    <input
-                                        value={projectName}
-                                        onChange={(e) => setProjectName(e.target.value)}
-                                        placeholder="Playwright automation platform, dashboard app, checkout service..."
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none transition focus:border-sky-500"
-                                    />
-                                </div>
+                            <div className="mt-5 space-y-5">
+                                <FieldLabel htmlFor="change-title" label="Change title" optional />
+                                <input
+                                    id="change-title"
+                                    value={projectName}
+                                    onChange={(event) => {
+                                        setProjectName(event.target.value);
+                                        invalidateResult();
+                                    }}
+                                    placeholder="Example: Add MFA to Admin Dashboard"
+                                    className="-mt-3 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                />
 
                                 <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                                        Repository URL / Context
-                                    </label>
-                                    <input
-                                        value={repositoryUrl}
-                                        onChange={(e) => setRepositoryUrl(e.target.value)}
-                                        placeholder="https://github.com/company/project or internal repo context"
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none transition focus:border-sky-500"
+                                    <FieldLabel
+                                        htmlFor="change-summary"
+                                        label="Change summary"
+                                        required
                                     />
-                                </div>
-
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                                        Project Summary / Review Goal
-                                    </label>
                                     <textarea
-                                        rows={6}
-                                        value={projectSummary}
-                                        onChange={(e) => setProjectSummary(e.target.value)}
-                                        placeholder="Describe the app, architecture, known problems, flaky tests, scaling concerns, release risk, or what you want reviewed..."
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-sky-500"
+                                        ref={firstRequiredInputRef}
+                                        id="change-summary"
+                                        rows={4}
+                                        value={changeSummary}
+                                        aria-invalid={Boolean(fieldErrors.changeSummary)}
+                                        aria-describedby={
+                                            fieldErrors.changeSummary
+                                                ? "change-summary-error"
+                                                : undefined
+                                        }
+                                        onChange={(event) => {
+                                            setChangeSummary(event.target.value);
+                                            setFieldErrors((current) => ({
+                                                ...current,
+                                                changeSummary: "",
+                                            }));
+                                            invalidateResult();
+                                        }}
+                                        placeholder="What is changing, and why?"
+                                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2 ${
+                                            fieldErrors.changeSummary
+                                                ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                                                : "border-slate-300 focus:border-sky-500 focus:ring-sky-100"
+                                        }`}
                                     />
+                                    {fieldErrors.changeSummary && (
+                                        <p
+                                            id="change-summary-error"
+                                            className="mt-2 text-sm font-medium text-red-700"
+                                        >
+                                            {fieldErrors.changeSummary}
+                                        </p>
+                                    )}
                                 </div>
 
-                                <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-4">
-                                    <label className="mb-2 block text-sm font-semibold text-slate-800">
-                                        Upload Source / Framework Files
-                                    </label>
-                                    <input
-                                        type="file"
-                                        multiple
-                                        accept=".ts,.tsx,.js,.jsx,.json,.md,.txt,.yml,.yaml,.config"
-                                        onChange={(e) => handleFileUpload(e.target.files)}
-                                        className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800"
+                                <div>
+                                    <FieldLabel
+                                        htmlFor="expected-behavior"
+                                        label="Expected behavior"
+                                        required
                                     />
-
-                                    {uploadedFiles.length > 0 && (
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            {uploadedFiles.map((file) => (
-                                                <span
-                                                    key={file.name}
-                                                    className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs text-sky-700"
-                                                >
-                                                    {file.name}
-                                                </span>
-                                            ))}
-                                        </div>
+                                    <textarea
+                                        id="expected-behavior"
+                                        rows={4}
+                                        value={expectedBehavior}
+                                        aria-invalid={Boolean(fieldErrors.expectedBehavior)}
+                                        aria-describedby={
+                                            fieldErrors.expectedBehavior
+                                                ? "expected-behavior-error"
+                                                : undefined
+                                        }
+                                        onChange={(event) => {
+                                            setExpectedBehavior(event.target.value);
+                                            setFieldErrors((current) => ({
+                                                ...current,
+                                                expectedBehavior: "",
+                                            }));
+                                            invalidateResult();
+                                        }}
+                                        placeholder="What should users or systems experience after the change?"
+                                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition focus:ring-2 ${
+                                            fieldErrors.expectedBehavior
+                                                ? "border-red-400 focus:border-red-500 focus:ring-red-100"
+                                                : "border-slate-300 focus:border-sky-500 focus:ring-sky-100"
+                                        }`}
+                                    />
+                                    {fieldErrors.expectedBehavior && (
+                                        <p
+                                            id="expected-behavior-error"
+                                            className="mt-2 text-sm font-medium text-red-700"
+                                        >
+                                            {fieldErrors.expectedBehavior}
+                                        </p>
                                     )}
+                                </div>
 
-                                    <p className="mt-3 text-xs leading-5 text-slate-500">
-                                        Best files: package.json, playwright.config.ts, fixtures,
-                                        page objects, spec files, utils, API clients, CI config.
+                                <div className="grid gap-5 md:grid-cols-2">
+                                    <div>
+                                        <FieldLabel
+                                            htmlFor="before-behavior"
+                                            label="Before behavior"
+                                            optional
+                                        />
+                                        <textarea
+                                            id="before-behavior"
+                                            rows={4}
+                                            value={beforeBehavior}
+                                            onChange={(event) => {
+                                                setBeforeBehavior(event.target.value);
+                                                invalidateResult();
+                                            }}
+                                            placeholder="How does the system behave today?"
+                                            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <FieldLabel
+                                            htmlFor="acceptance-criteria"
+                                            label="Acceptance criteria"
+                                            optional
+                                        />
+                                        <textarea
+                                            id="acceptance-criteria"
+                                            rows={4}
+                                            value={acceptanceCriteria}
+                                            onChange={(event) => {
+                                                setAcceptanceCriteria(event.target.value);
+                                                invalidateResult();
+                                            }}
+                                            placeholder="Add numbered or free-form success criteria."
+                                            className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section className="rounded-2xl border border-slate-200 bg-slate-50/50 p-5 sm:p-6">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <h3 className="text-xl font-bold text-slate-950">
+                                        Evidence files <span className="text-sm font-normal text-slate-500">(Optional)</span>
+                                    </h3>
+                                    <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+                                        Add changed files, diffs, contracts, schemas, configuration,
+                                        requirements, or dependency notes when available.
                                     </p>
                                 </div>
+                                {evidenceFiles.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={clearFiles}
+                                        className="w-fit text-sm font-semibold text-sky-700 hover:text-sky-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                    >
+                                        Clear all
+                                    </button>
+                                )}
+                            </div>
 
-                                <div>
-                                    <label className="mb-2 block text-sm font-medium text-slate-700">
-                                        Source Bundle Preview
-                                    </label>
-                                    <textarea
-                                        rows={10}
-                                        value={sourceBundle}
-                                        onChange={(e) => setSourceBundle(e.target.value)}
-                                        placeholder="Uploaded file contents will appear here. You can also paste repo snippets manually."
-                                        className="w-full rounded-xl border border-slate-300 px-4 py-3 font-mono text-xs outline-none transition focus:border-sky-500"
+                            <div className="mt-5 rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-5">
+                                <input
+                                    ref={fileInputRef}
+                                    aria-label="Upload evidence files (optional)"
+                                    type="file"
+                                    multiple
+                                    accept=".ts,.tsx,.js,.jsx,.json,.md,.txt,.yml,.yaml,.config"
+                                    onChange={(event) => handleFileUpload(event.target.files)}
+                                    className="block w-full rounded-xl text-sm text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-slate-800"
+                                />
+                                <p className="mt-3 text-xs leading-5 text-slate-500">
+                                    Relevant text files only. Maximum 250KB per file and 600KB total.
+                                </p>
+                            </div>
+
+                            {evidenceFiles.length > 0 && (
+                                <ul className="mt-4 space-y-2" aria-label="Uploaded evidence files">
+                                    {evidenceFiles.map((file) => (
+                                        <li
+                                            key={file.id}
+                                            className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3"
+                                        >
+                                            <div className="min-w-0">
+                                                <p className="truncate text-sm font-medium text-slate-800">
+                                                    {file.name}
+                                                </p>
+                                                <p className="text-xs text-slate-500">
+                                                    {(file.size / 1000).toFixed(1)}KB
+                                                </p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile(file.id)}
+                                                aria-label={`Remove ${file.name}`}
+                                                className="shrink-0 rounded-lg px-2 py-1 text-sm font-semibold text-red-700 hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                                            >
+                                                Remove
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </section>
+
+                        <section className="overflow-hidden rounded-2xl border border-sky-200 bg-sky-50/40">
+                            <button
+                                type="button"
+                                aria-expanded={contextExpanded}
+                                aria-controls="structured-change-context"
+                                onClick={() => setContextExpanded((current) => !current)}
+                                className="flex w-full items-center justify-between gap-4 p-5 text-left transition hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500 sm:p-6"
+                            >
+                                <span>
+                                    <span className="block text-lg font-bold text-slate-950">
+                                        Add context for a deeper analysis
+                                    </span>
+                                    <span className="mt-1 block text-sm text-slate-600">Optional</span>
+                                </span>
+                                <span className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1.5 text-sm font-semibold text-sky-700">
+                                    {contextExpanded ? "Hide context" : "Add more context"}
+                                </span>
+                            </button>
+
+                            {contextExpanded && (
+                                <div
+                                    id="structured-change-context"
+                                    className="space-y-7 border-t border-sky-200 bg-white p-5 sm:p-6"
+                                >
+                                    <MultiSelectChips
+                                        label="Change categories"
+                                        options={changeCategories}
+                                        selected={selectedCategories}
+                                        onChange={(next) => {
+                                            setSelectedCategories(next);
+                                            invalidateResult();
+                                        }}
+                                    />
+                                    {selectedCategories.includes("Other") && (
+                                        <CompactInput
+                                            id="custom-category"
+                                            label="Custom change category"
+                                            value={customCategory}
+                                            onChange={(value) => {
+                                                setCustomCategory(value);
+                                                invalidateResult();
+                                            }}
+                                            placeholder="Example: Billing workflow"
+                                        />
+                                    )}
+
+                                    <TagInput
+                                        id="affected-applications"
+                                        label="Affected application or service"
+                                        tags={affectedApplications}
+                                        draft={affectedApplicationDraft}
+                                        onDraftChange={setAffectedApplicationDraft}
+                                        onChange={(next) => {
+                                            setAffectedApplications(next);
+                                            invalidateResult();
+                                        }}
+                                        placeholder="Type a name, then press Enter or comma"
+                                    />
+
+                                    <MultiSelectChips
+                                        label="User roles"
+                                        options={suggestedRoles}
+                                        selected={selectedRoles}
+                                        onChange={(next) => {
+                                            setSelectedRoles(next);
+                                            invalidateResult();
+                                        }}
+                                    />
+                                    {selectedRoles.includes("Other") && (
+                                        <CompactInput
+                                            id="custom-role"
+                                            label="Custom user role"
+                                            value={customRole}
+                                            onChange={(value) => {
+                                                setCustomRole(value);
+                                                invalidateResult();
+                                            }}
+                                            placeholder="Example: Billing Analyst"
+                                        />
+                                    )}
+
+                                    <fieldset>
+                                        <legend className="text-sm font-semibold text-slate-800">
+                                            Feature flag
+                                        </legend>
+                                        <div className="mt-2 inline-flex rounded-xl border border-slate-300 bg-slate-50 p-1">
+                                            {(["Yes", "No", "Unknown"] as const).map((status) => (
+                                                <button
+                                                    key={status}
+                                                    type="button"
+                                                    aria-pressed={featureFlagStatus === status}
+                                                    onClick={() => {
+                                                        setFeatureFlagStatus(status);
+                                                        if (status !== "Yes") setFeatureFlagName("");
+                                                        invalidateResult();
+                                                    }}
+                                                    className={`rounded-lg px-4 py-2 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 ${
+                                                        featureFlagStatus === status
+                                                            ? "bg-slate-950 text-white shadow-sm"
+                                                            : "text-slate-600 hover:bg-white"
+                                                    }`}
+                                                >
+                                                    {status}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </fieldset>
+
+                                    {featureFlagStatus === "Yes" && (
+                                        <CompactInput
+                                            id="feature-flag-name"
+                                            label="Feature flag name"
+                                            optional
+                                            value={featureFlagName}
+                                            onChange={(value) => {
+                                                setFeatureFlagName(value);
+                                                invalidateResult();
+                                            }}
+                                            placeholder="Example: enable_admin_mfa"
+                                        />
+                                    )}
+
+                                    <div>
+                                        <FieldLabel
+                                            htmlFor="rollout-strategy"
+                                            label="Rollout strategy"
+                                        />
+                                        <select
+                                            id="rollout-strategy"
+                                            value={rolloutStrategy}
+                                            onChange={(event) => {
+                                                setRolloutStrategy(event.target.value);
+                                                if (!rolloutNeedsContext.has(event.target.value)) {
+                                                    setRolloutContext("");
+                                                }
+                                                invalidateResult();
+                                            }}
+                                            className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+                                        >
+                                            {rolloutStrategies.map((strategy) => (
+                                                <option key={strategy}>{strategy}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    {rolloutNeedsContext.has(rolloutStrategy) && (
+                                        <CompactInput
+                                            id="rollout-context"
+                                            label="Rollout context"
+                                            optional
+                                            value={rolloutContext}
+                                            onChange={(value) => {
+                                                setRolloutContext(value);
+                                                invalidateResult();
+                                            }}
+                                            placeholder="Add stages, roles, regions, or rollback conditions"
+                                        />
+                                    )}
+
+                                    <TagInput
+                                        id="downstream-consumers"
+                                        label="Known downstream consumers"
+                                        tags={downstreamConsumers}
+                                        draft={downstreamConsumerDraft}
+                                        onDraftChange={setDownstreamConsumerDraft}
+                                        onChange={(next) => {
+                                            setDownstreamConsumers(next);
+                                            invalidateResult();
+                                        }}
+                                        placeholder="Example: reporting service, partner API"
                                     />
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="space-y-6">
-                        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-                            <h2 className="text-xl font-bold text-slate-950">Review Focus</h2>
-                            <p className="mt-2 text-sm leading-6 text-slate-600">
-                                Select the engineering areas to review. Use Deep Review or Architect
-                                Mode for stronger senior-level analysis.
-                            </p>
-
-                            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                                {reviewFocusOptions.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        onClick={() => toggleFocus(item.id)}
-                                        className={`rounded-2xl border p-4 text-left transition ${selectedFocus.includes(item.id)
-                                                ? "border-sky-300 bg-sky-50 shadow-sm"
-                                                : "border-slate-200 bg-white hover:border-sky-200"
-                                            }`}
-                                    >
-                                        <h3 className="text-sm font-semibold text-slate-950">
-                                            {item.title}
-                                        </h3>
-                                        <p className="mt-2 text-xs leading-5 text-slate-600">
-                                            {item.description}
-                                        </p>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-                            <h2 className="text-xl font-bold text-slate-950">Analysis Depth</h2>
-
-                            <div className="mt-5 grid gap-3">
-                                {depthOptions.map((item) => (
-                                    <button
-                                        key={item.id}
-                                        type="button"
-                                        onClick={() => {
-                                            setDepth(item.id);
-                                            setResult(null);
-                                            setError("");
-                                        }}
-                                        className={`rounded-2xl border p-4 text-left transition ${depth === item.id
-                                                ? "border-indigo-300 bg-indigo-50"
-                                                : "border-slate-200 bg-white hover:border-indigo-200"
-                                            }`}
-                                    >
-                                        <h3 className="text-sm font-semibold text-slate-950">
-                                            {item.title}
-                                        </h3>
-                                        <p className="mt-2 text-xs leading-5 text-slate-600">
-                                            {item.description}
-                                        </p>
-                                    </button>
-                                ))}
-                            </div>
-
-                            {error && (
-                                <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                                    {error}
-                                </div>
                             )}
+                        </section>
 
-                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <p className="text-sm text-slate-500">
-                                    {remaining === null
-                                        ? "Free plan: 5 engineering reviews per day"
-                                        : `Free plan: ${remaining} of 5 engineering reviews left today`}
-                                </p>
-
+                        <section className="rounded-2xl border border-sky-200 bg-sky-50 p-5 sm:p-6">
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-semibold text-slate-950">
+                                        Ready to trace the impact?
+                                    </p>
+                                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                                        Start with the required fields. Additional context improves
+                                        evidence confidence and result specificity.
+                                    </p>
+                                    {remaining !== null && (
+                                        <p className="mt-2 text-xs font-semibold text-sky-800">
+                                            {remaining} free analyses remaining today
+                                        </p>
+                                    )}
+                                </div>
                                 <button
                                     type="button"
                                     onClick={handleAnalyze}
                                     disabled={loading}
-                                    className="inline-flex min-h-[46px] items-center justify-center rounded-xl bg-slate-950 px-6 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                    className="inline-flex min-h-12 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                                 >
-                                    {loading ? "Reviewing..." : "Run Engineering Review"}
+                                    {loading ? "Analyzing change..." : "Analyze Change Impact"}
                                 </button>
                             </div>
-                        </div>
 
-                        <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-sm">
-                            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-300">
-                                Review Scope
-                            </p>
-                            <h2 className="mt-2 text-2xl font-bold">
-                                {selectedFocusText || "No focus selected"}
-                            </h2>
-                            <p className="mt-3 text-sm leading-6 text-slate-300">
-                                This review is designed for Senior Dev, Lead Dev, Staff Engineer,
-                                Senior SDET, QA Architect, and AI Engineering workflows.
-                            </p>
-                        </div>
+                            {error && (
+                                <div
+                                    role="alert"
+                                    className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+                                >
+                                    {error}
+                                </div>
+                            )}
+
+                            {loading && (
+                                <div role="status" aria-live="polite" className="mt-5 border-t border-sky-200 pt-4">
+                                    <div className="mb-3 h-1.5 overflow-hidden rounded-full bg-sky-100">
+                                        <div className="h-full w-2/3 animate-pulse rounded-full bg-sky-600 motion-reduce:animate-none" />
+                                    </div>
+                                    <p className="text-sm font-medium leading-6 text-slate-700">
+                                        Reviewing evidence, tracing dependencies, and identifying
+                                        affected areas...
+                                    </p>
+                                </div>
+                            )}
+                        </section>
                     </div>
                 </section>
 
-                {loading && (
-                    <section className="mt-8 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-                        <p className="animate-pulse text-sm font-medium text-slate-600">
-                            Reviewing architecture, testing quality, risks, maintainability, and production readiness...
-                        </p>
-                    </section>
-                )}
-
                 {result && (
-                    <section className="mt-8 space-y-6">
-                        <ExecutiveSummary result={result} />
+                    <section
+                        ref={resultSectionRef}
+                        aria-labelledby="impact-analysis-heading"
+                        className="mx-auto mt-10 max-w-5xl scroll-mt-6 rounded-[2rem] border border-sky-200 bg-slate-100/80 p-4 shadow-sm sm:p-7"
+                    >
+                        <header className="rounded-2xl border border-sky-200 bg-white p-5 sm:p-6">
+                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+                                AI Impact Analysis
+                            </p>
+                            <h2
+                                id="impact-analysis-heading"
+                                className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl"
+                            >
+                                Change impact results
+                            </h2>
+                            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+                                Direct effects, downstream consequences, affected validation,
+                                uncertainty, and concrete engineering follow-up.
+                            </p>
+                        </header>
 
-                        <div className="grid gap-6 xl:grid-cols-2">
-                            <FindingCard title="Critical Findings" items={result.criticalFindings} />
-                            <FindingCard title="Architecture Intelligence" items={result.architectureIntelligence} />
-                            <FindingCard title="Test Intelligence" items={result.testIntelligence} />
-                            <FindingCard title="Security Intelligence" items={result.securityIntelligence} />
-                            <FindingCard title="Performance Intelligence" items={result.performanceIntelligence} />
-                            <FindingCard title="Maintainability Intelligence" items={result.maintainabilityIntelligence} />
+                        <div className="mt-6 space-y-5">
+                            <ImpactSummary result={result} />
+                            <FindingCard
+                                title="Directly Affected Areas"
+                                description="Systems, workflows, or behaviors directly connected to the change."
+                                items={result.criticalFindings}
+                            />
+                            {result.architectureIntelligence.length > 0 && (
+                                <FindingCard
+                                    title="Downstream and Indirect Effects"
+                                    description="Dependencies and second-order effects beyond the changed area."
+                                    items={result.architectureIntelligence}
+                                />
+                            )}
+                            <FindingCard
+                                title="Affected Validation Areas"
+                                description="Behaviors and flows requiring validation because they intersect with the change."
+                                items={result.testIntelligence}
+                            />
+                            {result.securityIntelligence.length > 0 && (
+                                <FindingCard
+                                    title="Security, Data, and Permission Effects"
+                                    description="Effects on access, sensitive data, authorization, and data integrity."
+                                    items={result.securityIntelligence}
+                                />
+                            )}
+                            {result.performanceIntelligence.length > 0 && (
+                                <FindingCard
+                                    title="Operational and Rollout Effects"
+                                    description="Runtime, deployment, monitoring, rollback, and rollout considerations."
+                                    items={result.performanceIntelligence}
+                                />
+                            )}
+                            <FindingCard
+                                title="Unknowns and Evidence Gaps"
+                                description="Missing context that limits the confidence or reach of the analysis."
+                                items={result.maintainabilityIntelligence}
+                            />
+                            <FindingCard
+                                title="Required Follow-up"
+                                description="Prioritized validation, coordination, or investigation prompted by the impact."
+                                items={result.recommendedActions}
+                            />
+
+                            <div className="flex flex-col gap-3 border-t border-slate-300 pt-5 sm:flex-row">
+                                <button
+                                    type="button"
+                                    onClick={handleAnalyzeAnother}
+                                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-800 transition hover:border-sky-300 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                >
+                                    Analyze Another Change
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={scrollToInput}
+                                    className="inline-flex min-h-11 items-center justify-center rounded-xl px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                                >
+                                    Back to Change Input
+                                </button>
+                            </div>
                         </div>
-
-                        <FindingCard
-                            title="Top Recommended Actions"
-                            items={result.recommendedActions}
-                            wide
-                        />
                     </section>
                 )}
             </div>
@@ -512,124 +961,308 @@ export default function EngineeringReviewPage() {
     );
 }
 
-function ExecutiveSummary({ result }: { result: EngineeringReviewResult }) {
+function FieldLabel({
+    htmlFor,
+    label,
+    required = false,
+    optional = false,
+}: {
+    htmlFor: string;
+    label: string;
+    required?: boolean;
+    optional?: boolean;
+}) {
     return (
-        <div className="rounded-[2rem] border border-sky-100 bg-sky-50 p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700">
-                Executive Summary
-            </p>
+        <label htmlFor={htmlFor} className="mb-2 block text-sm font-medium text-slate-700">
+            {label}{" "}
+            {required && (
+                <span className="text-red-600" aria-label="required">*</span>
+            )}
+            {optional && (
+                <span className="font-normal text-slate-500">(Optional)</span>
+            )}
+        </label>
+    );
+}
 
-            <div className="mt-4 grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-                <div>
-                    <div className="text-5xl font-bold text-slate-950">
-                        {result.overallScore}
-                    </div>
-                    <p className="mt-2 text-sm text-slate-600">Overall Engineering Score</p>
+function CompactInput({
+    id,
+    label,
+    value,
+    onChange,
+    placeholder,
+    optional = false,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    placeholder: string;
+    optional?: boolean;
+}) {
+    return (
+        <div>
+            <FieldLabel htmlFor={id} label={label} optional={optional} />
+            <input
+                id={id}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                placeholder={placeholder}
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+            />
+        </div>
+    );
+}
 
-                    <div className="mt-5 rounded-2xl bg-white p-4 shadow-sm">
-                        <p className="text-sm font-semibold text-slate-950">
-                            Production Readiness
-                        </p>
-                        <p className="mt-1 text-lg font-bold text-sky-700">
-                            {result.productionReadiness.status}
-                        </p>
-                        <p className="mt-2 text-sm leading-6 text-slate-600">
-                            {result.productionReadiness.reason}
-                        </p>
-                    </div>
+function MultiSelectChips({
+    label,
+    options,
+    selected,
+    onChange,
+}: {
+    label: string;
+    options: string[];
+    selected: string[];
+    onChange: (selected: string[]) => void;
+}) {
+    const toggle = (option: string) => {
+        onChange(
+            selected.includes(option)
+                ? selected.filter((item) => item !== option)
+                : [...selected, option]
+        );
+    };
+
+    return (
+        <fieldset>
+            <legend className="text-sm font-semibold text-slate-800">{label}</legend>
+            {selected.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2" aria-label={`Selected ${label}`}>
+                    {selected.map((item) => (
+                        <button
+                            key={item}
+                            type="button"
+                            onClick={() => toggle(item)}
+                            aria-label={`Remove ${item}`}
+                            className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        >
+                            {item} <span aria-hidden="true">×</span>
+                        </button>
+                    ))}
                 </div>
+            )}
+            <div className="mt-3 flex flex-wrap gap-2">
+                {options
+                    .filter((option) => !selected.includes(option))
+                    .map((option) => (
+                        <button
+                            key={option}
+                            type="button"
+                            onClick={() => toggle(option)}
+                            className="rounded-full border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
+                        >
+                            + {option}
+                        </button>
+                    ))}
+            </div>
+        </fieldset>
+    );
+}
 
-                <div>
-                    <p className="text-sm leading-7 text-slate-700">
-                        {result.executiveSummary}
-                    </p>
+function TagInput({
+    id,
+    label,
+    tags,
+    draft,
+    onDraftChange,
+    onChange,
+    placeholder,
+}: {
+    id: string;
+    label: string;
+    tags: string[];
+    draft: string;
+    onDraftChange: (value: string) => void;
+    onChange: (tags: string[]) => void;
+    placeholder: string;
+}) {
+    const commitDraft = () => {
+        const additions = draft
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
 
-                    <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                        {result.scores.map((score) => (
-                            <div
-                                key={score.label}
-                                className="rounded-2xl border border-sky-100 bg-white p-4"
+        if (additions.length === 0) return;
+
+        const next = [...tags];
+        for (const addition of additions) {
+            if (!next.some((item) => item.toLowerCase() === addition.toLowerCase())) {
+                next.push(addition);
+            }
+        }
+        onChange(next);
+        onDraftChange("");
+    };
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Enter" || event.key === ",") {
+            event.preventDefault();
+            commitDraft();
+        }
+        if (event.key === "Backspace" && !draft && tags.length > 0) {
+            onChange(tags.slice(0, -1));
+        }
+    };
+
+    return (
+        <div>
+            <FieldLabel htmlFor={id} label={label} />
+            <div className="rounded-xl border border-slate-300 bg-white p-2 focus-within:border-sky-500 focus-within:ring-2 focus-within:ring-sky-100">
+                {tags.length > 0 && (
+                    <div className="mb-2 flex flex-wrap gap-2">
+                        {tags.map((tag) => (
+                            <button
+                                key={tag}
+                                type="button"
+                                onClick={() => onChange(tags.filter((item) => item !== tag))}
+                                aria-label={`Remove ${tag}`}
+                                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-red-50 hover:text-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"
                             >
-                                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    {score.label}
-                                </p>
-                                <div className="mt-2 flex items-end justify-between">
-                                    <span className="text-2xl font-bold text-slate-950">
-                                        {score.score}
-                                    </span>
-                                    <span className="rounded-full bg-slate-950 px-2.5 py-1 text-xs font-semibold text-white">
-                                        {score.grade}
-                                    </span>
-                                </div>
-                            </div>
+                                {tag} <span aria-hidden="true">×</span>
+                            </button>
                         ))}
                     </div>
-                </div>
+                )}
+                <input
+                    id={id}
+                    value={draft}
+                    onChange={(event) => {
+                        onDraftChange(event.target.value);
+                        if (event.target.value.endsWith(",")) {
+                            const additions = event.target.value
+                                .split(",")
+                                .map((item) => item.trim())
+                                .filter(Boolean);
+                            if (additions.length > 0) {
+                                onChange([...tags, ...additions.filter((item) => !tags.includes(item))]);
+                                onDraftChange("");
+                            }
+                        }
+                    }}
+                    onKeyDown={handleKeyDown}
+                    onBlur={commitDraft}
+                    placeholder={placeholder}
+                    className="w-full border-0 px-2 py-1.5 text-sm outline-none"
+                />
             </div>
         </div>
     );
 }
 
+function ImpactSummary({ result }: { result: EngineeringReviewResult }) {
+    return (
+        <section className="rounded-2xl border border-sky-300 bg-sky-50 p-5 shadow-sm sm:p-6">
+            <h3 className="text-xl font-bold text-slate-950">Impact Summary</h3>
+            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto]">
+                <div className="rounded-xl border border-sky-100 bg-white p-5">
+                    <p className="text-base leading-7 text-slate-700">
+                        {result.executiveSummary}
+                    </p>
+                </div>
+                <div className="rounded-xl bg-slate-950 p-5 text-white lg:min-w-52">
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-200">
+                        Evidence Confidence
+                    </p>
+                    <p className="mt-2 text-3xl font-bold">{result.overallScore}%</p>
+                </div>
+            </div>
+            <div className="mt-4 rounded-xl border border-sky-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    Evidence quality
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                    {result.productionReadiness.reason}
+                </p>
+            </div>
+        </section>
+    );
+}
+
 function FindingCard({
     title,
+    description,
     items,
-    wide,
 }: {
     title: string;
+    description: string;
     items: Finding[];
-    wide?: boolean;
 }) {
     return (
-        <div
-            className={`rounded-2xl border border-slate-200 bg-white p-5 shadow-sm ${wide ? "xl:col-span-2" : ""
-                }`}
-        >
+        <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
-
+            <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
             <div className="mt-4 space-y-4">
-                {items.length > 0 ? (
-                    items.map((item, index) => (
-                        <div
-                            key={`${title}-${index}`}
-                            className="rounded-xl border border-slate-100 bg-slate-50 p-4"
-                        >
-                            <div className="mb-3 flex items-start justify-between gap-3">
-                                <h4 className="text-sm font-semibold text-slate-950">
-                                    {item.title}
-                                </h4>
-                                <SeverityBadge severity={item.severity} />
-                            </div>
-
-                            <div className="grid gap-3 text-sm leading-6 text-slate-700 md:grid-cols-3">
-                                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                        Impact
-                                    </p>
-                                    <p>{item.impact}</p>
-                                </div>
-
-                                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                        Evidence
-                                    </p>
-                                    <p>{item.evidence}</p>
-                                </div>
-
-                                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                        Recommendation
-                                    </p>
-                                    <p>{item.recommendation}</p>
-                                </div>
-                            </div>
+                {items.map((item, index) => (
+                    <article
+                        key={`${item.title}-${index}`}
+                        className="rounded-xl border border-slate-200 bg-slate-50/60 p-4"
+                    >
+                        <div className="mb-3 flex items-start justify-between gap-3">
+                            <h4 className="text-sm font-semibold text-slate-950">
+                                {index + 1}. {item.title}
+                            </h4>
+                            <SeverityBadge severity={item.severity} />
                         </div>
-                    ))
-                ) : (
-                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-4 text-sm text-slate-500">
-                        No findings returned.
-                    </div>
-                )}
+                        <div className="grid gap-3 text-sm leading-6 text-slate-700 md:grid-cols-3">
+                            <InfoBlock label="Impact" value={item.impact} />
+                            <EvidenceBlock value={item.evidence} />
+                            <InfoBlock
+                                label="Recommended validation / follow-up"
+                                value={item.recommendation}
+                            />
+                        </div>
+                    </article>
+                ))}
             </div>
+        </section>
+    );
+}
+
+function InfoBlock({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-xl border border-slate-200 bg-white p-3">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {label}
+            </p>
+            <p>{value}</p>
+        </div>
+    );
+}
+
+function EvidenceBlock({ value }: { value: string }) {
+    const marker = value.match(/^\[(CONFIRMED|LIKELY|POSSIBLE|UNKNOWN)\]/)?.[0];
+    const markerClassName =
+        marker === "[CONFIRMED]"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+            : marker === "[LIKELY]"
+              ? "border-sky-200 bg-sky-50 text-sky-700"
+              : marker === "[POSSIBLE]"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-slate-300 bg-slate-100 text-slate-700";
+
+    return (
+        <div className="rounded-xl border border-sky-200 bg-sky-50/70 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-sky-800">
+                Evidence
+            </p>
+            <p className="text-slate-700">
+                {marker && (
+                    <span className={`mr-2 inline-flex rounded-full border px-2 py-0.5 text-[0.7rem] font-bold tracking-wide ${markerClassName}`}>
+                        {marker}
+                    </span>
+                )}
+                {marker ? value.slice(marker.length).trimStart() : value}
+            </p>
         </div>
     );
 }
@@ -639,13 +1272,14 @@ function SeverityBadge({ severity }: { severity: Severity }) {
         severity === "Critical"
             ? "border-red-200 bg-red-50 text-red-700"
             : severity === "High"
-                ? "border-orange-200 bg-orange-50 text-orange-700"
-                : severity === "Medium"
-                    ? "border-yellow-200 bg-yellow-50 text-yellow-700"
-                    : "border-sky-200 bg-sky-50 text-sky-700";
+              ? "border-orange-200 bg-orange-50 text-orange-700"
+              : severity === "Medium"
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700";
 
     return (
         <span
+            aria-label={`Severity: ${severity}`}
             className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold ${className}`}
         >
             {severity}

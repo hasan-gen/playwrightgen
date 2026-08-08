@@ -45,7 +45,7 @@ export default function RootLayout({
                   Intelligence
                 </Link>
                 <Link href="/engineering-review" className="transition hover:text-black">
-                  Engineering Review
+                  Release Intelligence
                 </Link>
                 <Link href="/pricing" className="transition hover:text-black">
                   Pricing
@@ -73,4 +73,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}
+}     
