@@ -29,7 +29,6 @@ export const publicClerkEnvironmentSchema = z.object({
 
 export const serverClerkEnvironmentSchema = z.object({
   CLERK_SECRET_KEY: requiredValue,
-  CLERK_WEBHOOK_SIGNING_SECRET: requiredValue,
 });
 
 export class EnvironmentValidationError extends Error {
