@@ -262,6 +262,25 @@ if (!testDatabaseConfigured) {
       ).rejects.toMatchObject({ code: "P2003" });
     });
 
+    it("rejects a requirement whose project belongs to another organization", async () => {
+      const first = await createFoundationRecords();
+      const second = await createFoundationRecords();
+
+      await expect(
+        prisma.requirement.create({
+          data: {
+            organizationId: first.organization.id,
+            projectId: second.project.id,
+            title: "Cross-tenant requirement",
+            description: "Must be rejected by the composite foreign key.",
+            acceptanceCriteria: "No row is created.",
+            ownerUserId: first.user.id,
+            createdByUserId: first.user.id,
+          },
+        }),
+      ).rejects.toMatchObject({ code: "P2003" });
+    });
+
     it("archives a project without removing its row or relationships", async () => {
       const { organization, project, user } =
         await createFoundationRecords();

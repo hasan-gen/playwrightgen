@@ -105,6 +105,9 @@ export async function getProject(
     },
     dependencies,
   );
+  if (!context.project) {
+    throw new ProjectDomainError("project_not_found", 404);
+  }
   return context.project;
 }
 

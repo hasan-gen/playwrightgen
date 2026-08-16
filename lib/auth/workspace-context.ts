@@ -19,7 +19,13 @@ export type WorkspacePermission =
   | "project:read"
   | "project:update"
   | "project:archive"
-  | "project:members:manage";
+  | "project:members:manage"
+  | "requirement:read"
+  | "requirement:create"
+  | "requirement:update"
+  | "requirement:submit"
+  | "requirement:approve"
+  | "requirement:archive";
 
 export type WorkspaceAuthorizationErrorCode =
   | "unauthenticated"
@@ -117,12 +123,18 @@ function hasPermission(input: {
     return false;
   }
 
-  if (input.permission === "project:read") {
+  if (
+    input.permission === "project:read" ||
+    input.permission === "requirement:read"
+  ) {
     return true;
   }
 
   return (
-    input.permission === "project:update" &&
+    (input.permission === "project:update" ||
+      input.permission === "requirement:create" ||
+      input.permission === "requirement:update" ||
+      input.permission === "requirement:submit") &&
     input.projectRole === "PROJECT_LEAD"
   );
 }

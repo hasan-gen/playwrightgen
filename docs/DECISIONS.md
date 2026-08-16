@@ -79,3 +79,24 @@ the authenticated tenant but never establish authority.
 **Reason:** One authorization and transaction boundary keeps the initial UI
 thin, prevents browser-provided organization or project IDs from bypassing
 domain rules, and avoids duplicating an internal HTTP API before it is needed.
+
+## 010 — Separate current Requirement state from immutable snapshots
+
+**Decision:** `Requirement` is the current workflow record and every material
+draft edit creates a new `RequirementVersion` snapshot. Draft updates require
+the expected current version. Approved content cannot use the draft-update
+path.
+
+**Reason:** Queries remain practical while historical content is preserved for
+traceability. Optimistic version checks prevent a stale form from overwriting a
+newer draft.
+
+## 011 — Make Requirement workflow transitions conditional and explicit
+
+**Decision:** Draft, review, approval, change-request, and archive operations
+are named domain transitions. State changes use conditional updates and write
+Activity in the same transaction. Project Leads may draft/submit; Owner/Admin
+alone may approve/archive.
+
+**Reason:** Explicit transitions make approval authority auditable and prevent
+concurrent requests from recording duplicate effective state changes.

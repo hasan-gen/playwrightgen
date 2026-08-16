@@ -275,6 +275,8 @@ describe("tenant-safe workspace authorization", () => {
     expect(context.project?.id).toBe(workspace.project.id);
     expect(context.projectRole).toBe("VIEWER");
     expect(context.can("project:update")).toBe(false);
+    expect(context.can("requirement:read")).toBe(true);
+    expect(context.can("requirement:update")).toBe(false);
   });
 
   it("allows a Project Lead to update but not archive a project", async () => {
@@ -289,6 +291,9 @@ describe("tenant-safe workspace authorization", () => {
 
     expect(context.effectiveRole).toBe("PROJECT_LEAD");
     expect(context.can("project:archive")).toBe(false);
+    expect(context.can("requirement:create")).toBe(true);
+    expect(context.can("requirement:submit")).toBe(true);
+    expect(context.can("requirement:approve")).toBe(false);
   });
 
   it("returns 403 when a project Viewer requests update permission", async () => {
@@ -321,6 +326,8 @@ describe("tenant-safe workspace authorization", () => {
 
     expect(context.projectMembership).toBeNull();
     expect(context.can("project:archive")).toBe(true);
+    expect(context.can("requirement:approve")).toBe(true);
+    expect(context.can("requirement:archive")).toBe(true);
   });
 
   it("does not grant project mutation authority without project context", async () => {

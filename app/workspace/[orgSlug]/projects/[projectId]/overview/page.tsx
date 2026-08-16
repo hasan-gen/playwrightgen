@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 
+import { ProjectNavigation } from "@/components/workspace/project-navigation";
 import {
   archiveProject,
   getProjectOverview,
@@ -35,6 +36,7 @@ export default async function ProjectOverviewPage({
 
   return (
     <div className="mx-auto max-w-4xl">
+      <ProjectNavigation organizationSlug={orgSlug} projectId={projectId} />
       <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">Project overview</p>

@@ -49,6 +49,10 @@ npm install
 
 Checkpoint 2 adds the PostgreSQL schema and initial Prisma migration for the tenant-safe workspace. Checkpoint 4 synchronizes Clerk users, organizations, and organization memberships into those existing PostgreSQL models. Checkpoint 5 adds the server-only tenant authorization boundary, Checkpoint 6 adds tenant-scoped project and project-membership services with transactional Activity, and Checkpoint 7 adds the real database-backed workspace project list, creation, and overview experience.
 
+The first V1 slice adds project-scoped Requirements, immutable
+RequirementVersion snapshots, explicit draft/review/approve/archive workflow,
+and real permission-aware Requirements routes inside each project.
+
 Phase 1A uses these environment variable names:
 
 - `DATABASE_URL`: the PostgreSQL connection used by the application at runtime and by local development migration work when no direct connection is configured.

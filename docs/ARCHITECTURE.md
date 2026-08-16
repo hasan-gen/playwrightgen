@@ -89,6 +89,25 @@ Actions. They render real PostgreSQL names, descriptions, roles, statuses, and
 timestamps. Archive/restore controls are emitted only when the authorization
 context grants that permission; mutations are re-authorized by the service.
 
+## Requirements domain
+
+`Requirement` stores the current project-scoped working state while
+`RequirementVersion` stores append-only content snapshots. Every snapshot
+includes title, description, acceptance criteria, source, external reference,
+owner, author, and a monotonically increasing version number. Composite
+organization/project/requirement foreign keys prevent cross-tenant history.
+
+Draft edits use an expected version number and create a new snapshot in the
+same transaction as the Requirement update and Activity. Workflow transitions
+are explicit: Draft -> In Review -> Approved, with an approver-controlled path
+back to Draft and a non-destructive Archived state. Project Leads may draft and
+submit; only organization Owner/Admin may approve or archive. Conditional
+status updates ensure racing transitions produce one winner and one Activity.
+
+The project Requirements routes list real records, create drafts, edit drafts,
+show immutable history, and expose submit/review/archive actions according to
+server-derived permissions. Approved content is read-only in this slice.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

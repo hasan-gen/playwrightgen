@@ -12,6 +12,8 @@ completed, materially changed, or blocked.
 | 5. Tenant-safe authorization | Complete | Server-only `requireWorkspaceContext` resolves Clerk identity through synchronized User/Organization/Membership, scopes projects by organization, enforces roles/permissions and archived-resource allowances, and passes cross-tenant 401/403/404 integration tests. |
 | 6. Project domain services + Activity | Complete | Tenant-scoped project list/create/read/update/archive/restore and member assignment/removal/role change services; active-member checks and mutation Activity share transactions; role and cross-tenant integration tests pass. |
 | 7. Real workspace Projects experience | Complete | `/workspace/[orgSlug]`, project creation, and project overview render synchronized PostgreSQL state through tenant-safe project services; archive/restore controls are permission-aware; 78 tests, typecheck, changed-file lint, and production build pass. |
+| V1.1 Requirements + immutable versions | Complete | Tenant/project-scoped Requirement and RequirementVersion schema, migration, draft/review/approve/archive services, optimistic concurrency, transactional Activity, permission-aware real UI, and development/test migration evidence. |
+| V1.2 AI Requirement Review | Next | Evidence-linked advisory suggestions for ambiguity, missing criteria, conflicts, testability, edge cases, and unanswered questions; no silent content mutation. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -26,7 +28,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-The foundation roadmap is complete. The next vertical slice is V1 Requirements:
-tenant-scoped requirements with immutable versions, a draft/review/approve
-workflow, transactional Activity, permission enforcement, and real workspace
-UI backed only by PostgreSQL state.
+Build advisory AI Requirement Review over a selected immutable
+RequirementVersion. Suggestions must be structured, evidence-linked,
+reviewable, and unable to silently mutate Requirement content or approval state.

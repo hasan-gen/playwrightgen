@@ -47,6 +47,14 @@ After the foundation, deliver coherent vertical slices in this order:
 AI remains assistive: suggestions are reviewable, evidence-linked, validated,
 and never silently overwrite approved domain records.
 
+## Current V1 progress
+
+- Requirements and immutable RequirementVersion history: complete.
+- Draft -> review -> approve workflow with change requests and archive: complete.
+- Permission-aware real Requirements workspace UI: complete.
+- Advisory AI Requirement Review: next.
+- Test Cases, traceability, Test Runs, and later intelligence: pending.
+
 ## Product constraints
 
 - PostgreSQL is the authoritative durable domain store.
