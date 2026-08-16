@@ -10,8 +10,8 @@ completed, materially changed, or blocked.
 | 3. Clerk workspace/authentication | Complete | Commit `f8916f7`; Clerk-protected `/workspace`, onboarding, organization switching, and workspace shell. |
 | 4. Clerk -> PostgreSQL synchronization | Complete | Signed Clerk `user.deleted` delivery reached the local route through Clerk's relay and returned `200`; PostgreSQL stored a soft-deleted record; identical message replay returned `duplicate`. The real development organization, user, and membership were reconciled, followed by a zero-drift dry run. Unit, integration, typecheck, lint, and build validation are recorded in the checkpoint commit. |
 | 5. Tenant-safe authorization | Complete | Server-only `requireWorkspaceContext` resolves Clerk identity through synchronized User/Organization/Membership, scopes projects by organization, enforces roles/permissions and archived-resource allowances, and passes cross-tenant 401/403/404 integration tests. |
-| 6. Project domain services + Activity | Next | Tenant-scoped CRUD/archive/restore/member operations with transactional Activity. |
-| 7. Real workspace Projects experience | Planned | Real database-backed workspace and project routes with permission-aware controls. |
+| 6. Project domain services + Activity | Complete | Tenant-scoped project list/create/read/update/archive/restore and member assignment/removal/role change services; active-member checks and mutation Activity share transactions; role and cross-tenant integration tests pass. |
+| 7. Real workspace Projects experience | Next | Real database-backed workspace and project routes with permission-aware controls. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -26,7 +26,7 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Checkpoint 6 is complete only when project list/create/read/update/archive/
-restore and project member assignment/removal/role changes are tenant-scoped,
-permission-protected, transactionally paired with append-only Activity, and
-covered by cross-tenant and role negative tests.
+Checkpoint 7 is complete only when `/workspace/[orgSlug]`, project creation,
+and project overview routes use real database state and Checkpoint 6 services,
+show real roles/timestamps/status, expose only authorized archive controls, and
+contain no fake counts, data, or dead navigation.

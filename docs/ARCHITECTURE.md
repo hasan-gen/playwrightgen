@@ -67,6 +67,20 @@ check for organization and project operations. New tenant domain APIs must use
 this boundary. The current workspace shell predates project APIs and remains a
 transitional authenticated view until Checkpoint 7.
 
+## Project domain services
+
+`lib/services/projects.ts` implements project list/create/read/update/archive/
+restore and project member assignment/removal/role changes. Every Project query
+contains `organizationId`; regular members list only active assignments.
+Effective mutations and append-only Activity are written in one Prisma
+transaction. Archive/removal are state transitions. Target project members are
+validated as active organization members inside the assignment transaction.
+
+Owner/Admin have organization-wide project authority. An assigned Project Lead
+may update its project, while project archive and membership administration
+remain Owner/Admin operations. Project APIs and the real workspace UI are the
+next presentation layer over these services.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

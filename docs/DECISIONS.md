@@ -60,3 +60,12 @@ narrow that authenticated context.
 **Reason:** This prevents caller-controlled tenant selection, email-based
 authorization, and unscoped project lookup while providing consistent
 401/403/404 semantics for future APIs and Server Actions.
+
+## 008 — Keep project mutations and Activity atomic
+
+**Decision:** Project state transitions and their Activity records execute in
+the same Prisma transaction. Project and ProjectMembership lookups include the
+organization boundary; archive and removal update status rather than delete.
+
+**Reason:** Audit history must describe committed state exactly, and composite
+tenant scoping prevents guessed or foreign identifiers from crossing tenants.
