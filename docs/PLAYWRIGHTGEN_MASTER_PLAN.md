@@ -55,7 +55,8 @@ and never silently overwrite approved domain records.
 - Advisory AI Requirement Review: complete.
 - Versioned Test Cases, review workflow, and Requirement traceability: complete.
 - Test Runs and immutable execution evidence: complete.
-- Failure Intelligence over failed attempt evidence: next.
+- Failure Intelligence over failed attempt evidence: complete.
+- Versioned Playwright Browser and API automation artifacts: next.
 - Separate Playwright browser/API automation engines and later intelligence: pending.
 
 ## Product constraints

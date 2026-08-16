@@ -162,6 +162,22 @@ enum TestBrowser {
   WEBKIT
 }
 
+enum FailureCategory {
+  PRODUCT_DEFECT
+  TEST_DEFECT
+  ENVIRONMENT
+  TEST_DATA
+  DEPENDENCY
+  FLAKY_TIMING
+  UNKNOWN
+}
+
+enum FailureFindingStatus {
+  OPEN
+  CONFIRMED
+  DISMISSED
+}
+
 enum ActivityAction {
   ORGANIZATION_UPDATED
   MEMBERSHIP_ROLE_CHANGED
@@ -193,6 +209,9 @@ enum ActivityAction {
   TEST_RUN_CREATED
   TEST_RUN_ATTEMPT_RECORDED
   TEST_RUN_CANCELED
+  FAILURE_ANALYSIS_COMPLETED
+  FAILURE_FINDING_CONFIRMED
+  FAILURE_FINDING_DISMISSED
 }
 
 enum ActivityTargetType {
@@ -207,6 +226,8 @@ enum ActivityTargetType {
   REQUIREMENT_TEST_CASE
   TEST_RUN
   TEST_RUN_ATTEMPT
+  FAILURE_ANALYSIS
+  FAILURE_FINDING
 }
 
 enum ActivitySource {
@@ -248,6 +269,8 @@ model User {
   testRunsCreated             TestRun[]             @relation("TestRunCreatedBy")
   testRunsCanceled            TestRun[]             @relation("TestRunCanceledBy")
   testRunAttemptsExecuted     TestRunAttempt[]      @relation("TestRunAttemptExecutedBy")
+  failureAnalysesCreated      FailureAnalysis[]     @relation("FailureAnalysisCreatedBy")
+  failureFindingsResolved     FailureFinding[]      @relation("FailureFindingResolvedBy")
 
   @@index([primaryEmail])
   @@index([status])
@@ -277,6 +300,8 @@ model Organization {
   requirementTestCases RequirementTestCase[]
   testRuns             TestRun[]
   testRunAttempts      TestRunAttempt[]
+  failureAnalyses      FailureAnalysis[]
+  failureFindings      FailureFinding[]
 
   @@index([status])
 }
@@ -330,6 +355,8 @@ model Project {
   requirementTestCases RequirementTestCase[]
   testRuns             TestRun[]
   testRunAttempts      TestRunAttempt[]
+  failureAnalyses      FailureAnalysis[]
+  failureFindings      FailureFinding[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, slug])
@@ -582,13 +609,14 @@ model TestRun {
   createdAt           DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime        @updatedAt @db.Timestamptz(3)
 
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  project         Project          @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
-  testCase        TestCase         @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
-  testCaseVersion TestCaseVersion  @relation(fields: [organizationId, projectId, testCaseId, testCaseVersionId], references: [organizationId, projectId, testCaseId, id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy       User             @relation("TestRunCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  canceledBy      User?            @relation("TestRunCanceledBy", fields: [canceledByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project         Project           @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCase        TestCase          @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCaseVersion TestCaseVersion   @relation(fields: [organizationId, projectId, testCaseId, testCaseVersionId], references: [organizationId, projectId, testCaseId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy       User              @relation("TestRunCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  canceledBy      User?             @relation("TestRunCanceledBy", fields: [canceledByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   attempts        TestRunAttempt[]
+  failureAnalyses FailureAnalysis[]
 
   @@unique([organizationId, projectId, id])
   @@index([organizationId, projectId, status, updatedAt])
@@ -615,13 +643,76 @@ model TestRunAttempt {
   executedByUserId String          @db.Uuid
   executedAt       DateTime        @default(now()) @db.Timestamptz(3)
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  project      Project      @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
-  testRun      TestRun      @relation(fields: [organizationId, projectId, testRunId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
-  executedBy   User         @relation("TestRunAttemptExecutedBy", fields: [executedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project         Project           @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  testRun         TestRun           @relation(fields: [organizationId, projectId, testRunId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  executedBy      User              @relation("TestRunAttemptExecutedBy", fields: [executedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  failureAnalyses FailureAnalysis[]
+  failureFindings FailureFinding[]
 
   @@unique([organizationId, projectId, testRunId, attemptNumber])
+  @@unique([organizationId, projectId, testRunId, id])
   @@index([testRunId, executedAt])
+}
+
+model FailureAnalysis {
+  id               String      @id @default(uuid()) @db.Uuid
+  organizationId   String      @db.Uuid
+  projectId        String      @db.Uuid
+  testRunId        String      @db.Uuid
+  testRunAttemptId String      @db.Uuid
+  status           AiRunStatus @default(RUNNING)
+  model            String      @db.VarChar(100)
+  promptVersion    String      @db.VarChar(100)
+  schemaVersion    String      @db.VarChar(100)
+  summary          String?     @db.Text
+  inputTokens      Int?
+  outputTokens     Int?
+  totalTokens      Int?
+  failureCode      String?     @db.VarChar(100)
+  createdByUserId  String      @db.Uuid
+  startedAt        DateTime    @default(now()) @db.Timestamptz(3)
+  completedAt      DateTime?   @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project          @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  testRun      TestRun          @relation(fields: [organizationId, projectId, testRunId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  attempt      TestRunAttempt   @relation(fields: [organizationId, projectId, testRunId, testRunAttemptId], references: [organizationId, projectId, testRunId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User             @relation("FailureAnalysisCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  findings     FailureFinding[]
+
+  @@unique([organizationId, projectId, id])
+  @@index([organizationId, projectId, testRunAttemptId, startedAt])
+  @@index([status, startedAt])
+}
+
+model FailureFinding {
+  id                String               @id @default(uuid()) @db.Uuid
+  organizationId    String               @db.Uuid
+  projectId         String               @db.Uuid
+  testRunId         String               @db.Uuid
+  testRunAttemptId  String               @db.Uuid
+  failureAnalysisId String               @db.Uuid
+  category          FailureCategory
+  confidence        Int
+  title             String               @db.VarChar(300)
+  explanation       String               @db.Text
+  evidenceField     String               @db.VarChar(100)
+  evidenceQuote     String               @db.Text
+  recommendation    String               @db.Text
+  status            FailureFindingStatus @default(OPEN)
+  resolvedByUserId  String?              @db.Uuid
+  resolvedAt        DateTime?            @db.Timestamptz(3)
+  createdAt         DateTime             @default(now()) @db.Timestamptz(3)
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project         @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  attempt      TestRunAttempt  @relation(fields: [organizationId, projectId, testRunId, testRunAttemptId], references: [organizationId, projectId, testRunId, id], onDelete: Restrict, onUpdate: Restrict)
+  analysis     FailureAnalysis @relation(fields: [organizationId, projectId, failureAnalysisId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  resolvedBy   User?           @relation("FailureFindingResolvedBy", fields: [resolvedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, projectId, testRunAttemptId, status])
+  @@index([failureAnalysisId, createdAt])
 }
 
 model Activity {

@@ -151,6 +151,8 @@ export async function getTestRunDetail(
     testRun,
     canRecord: context.can("testrun:record"),
     canCancel: context.can("testrun:cancel"),
+    canAnalyzeFailure: context.can("failure:analyze"),
+    canResolveFailure: context.can("failure:resolve"),
   };
 }
 

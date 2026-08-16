@@ -1,6 +1,11 @@
 import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
+import {
+  listFailureAnalyses,
+  resolveFailureFinding,
+  runFailureAnalysis,
+} from "@/lib/services/failure-intelligence";
 import { readTestCaseList } from "@/lib/services/test-cases";
 import {
   cancelTestRun,
@@ -22,7 +27,10 @@ export default async function TestRunDetailPage({
   params: Promise<{ orgSlug: string; projectId: string; testRunId: string }>;
 }) {
   const { orgSlug, projectId, testRunId } = await params;
-  const detail = await getTestRunDetail({ orgSlug, projectId, testRunId });
+  const [detail, analyses] = await Promise.all([
+    getTestRunDetail({ orgSlug, projectId, testRunId }),
+    listFailureAnalyses({ orgSlug, projectId, testRunId }),
+  ]);
   const { testRun } = detail;
   const path = `/workspace/${orgSlug}/projects/${projectId}/test-runs/${testRunId}`;
   const listPath = `/workspace/${orgSlug}/projects/${projectId}/test-runs`;
@@ -54,6 +62,31 @@ export default async function TestRunDetailPage({
     "use server";
     await cancelTestRun({ orgSlug, projectId, testRunId });
     revalidatePath(path); revalidatePath(listPath);
+  }
+  async function analyzeFailureAction(formData: FormData) {
+    "use server";
+    await runFailureAnalysis({
+      orgSlug,
+      projectId,
+      testRunId,
+      testRunAttemptId: String(formData.get("testRunAttemptId") ?? ""),
+    });
+    revalidatePath(path);
+  }
+  async function resolveFindingAction(formData: FormData) {
+    "use server";
+    const resolution = formData.get("resolution");
+    if (resolution !== "CONFIRMED" && resolution !== "DISMISSED") {
+      throw new Error("Invalid failure finding resolution");
+    }
+    await resolveFailureFinding({
+      orgSlug,
+      projectId,
+      testRunId,
+      findingId: String(formData.get("findingId") ?? ""),
+      resolution,
+    });
+    revalidatePath(path);
   }
 
   return (
@@ -87,6 +120,19 @@ export default async function TestRunDetailPage({
           <button className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white">Record immutable attempt</button>
         </form>
       ) : null}
+
+      <section className="mt-8 rounded-2xl border border-fuchsia-200 bg-fuchsia-50/30 p-6 shadow-sm sm:p-8">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-fuchsia-700">Advisory analysis</p>
+          <h2 className="mt-2 text-lg font-semibold">AI Failure Intelligence</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Classifies failed or blocked attempts using only their immutable evidence. Every finding cites an exact stored quote. Analysis never edits the attempt or decides the final root cause.
+          </p>
+        </div>
+        {detail.canAnalyzeFailure ? <div className="mt-5 flex flex-wrap gap-2">{testRun.attempts.filter((attempt) => attempt.result !== "PASSED").map((attempt) => <form key={attempt.id} action={analyzeFailureAction}><input type="hidden" name="testRunAttemptId" value={attempt.id} /><button className="rounded-lg bg-fuchsia-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-fuchsia-900">Analyze attempt {attempt.attemptNumber}</button></form>)}</div> : null}
+        {testRun.attempts.every((attempt) => attempt.result === "PASSED") ? <p className="mt-5 rounded-xl border border-dashed border-fuchsia-200 bg-white p-4 text-sm text-slate-500">Record a failed or blocked attempt to enable evidence-based analysis.</p> : null}
+        {analyses.length ? <div className="mt-6 space-y-5">{analyses.map((analysis) => <article key={analysis.id} className="rounded-xl border border-slate-200 bg-white p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-sm font-semibold">Attempt {analysis.attempt.attemptNumber} · {analysis.attempt.result}</p><p className="mt-1 text-xs text-slate-400">{analysis.model} · {analysis.promptVersion} · {analysis.createdBy.displayName || "Workspace member"} · {analysis.startedAt.toLocaleString()}</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{analysis.status}</span></div>{analysis.summary ? <p className="mt-4 text-sm leading-6 text-slate-700">{analysis.summary}</p> : null}{analysis.status === "FAILED" ? <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800">Analysis failed safely: {analysis.failureCode || "provider failure"}. The Test Run evidence was not changed.</p> : null}<div className="mt-4 space-y-3">{analysis.findings.map((finding) => <div key={finding.id} className="rounded-lg border border-slate-200 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-fuchsia-700">{finding.category.replaceAll("_", " ")} · {finding.confidence}% confidence</p><h3 className="mt-1 text-sm font-semibold">{finding.title}</h3></div><span className="text-xs font-semibold text-slate-400">{finding.status}</span></div><p className="mt-3 text-sm leading-6 text-slate-700">{finding.explanation}</p><div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600"><span className="font-semibold">Evidence · {finding.evidenceField.replaceAll("_", " ")}: </span>“{finding.evidenceQuote}”</div><p className="mt-3 text-sm leading-6 text-slate-700"><span className="font-semibold">Recommended next check: </span>{finding.recommendation}</p>{finding.status === "OPEN" && detail.canResolveFailure ? <div className="mt-4 flex gap-2">{(["CONFIRMED", "DISMISSED"] as const).map((resolution) => <form key={resolution} action={resolveFindingAction}><input type="hidden" name="findingId" value={finding.id} /><input type="hidden" name="resolution" value={resolution} /><button className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold hover:bg-slate-50">{resolution === "CONFIRMED" ? "Confirm finding" : "Dismiss"}</button></form>)}</div> : null}</div>)}</div></article>)}</div> : null}
+      </section>
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <h2 className="text-lg font-semibold">Attempt history</h2><p className="mt-1 text-sm text-slate-500">Newest first. Stored evidence cannot be edited or deleted.</p>

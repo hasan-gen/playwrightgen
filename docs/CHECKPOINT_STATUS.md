@@ -16,7 +16,8 @@ completed, materially changed, or blocked.
 | V1.2 AI Requirement Review | Complete | Structured OpenAI output, exact-version evidence validation, persistent model/prompt/schema/usage metadata, safe failure records, reviewable suggestions, non-mutating accept/dismiss actions, tenant/role tests, and real Requirement UI. |
 | V1.3 Test Cases + traceability | Complete | Tenant/project-scoped TestCase and immutable TestCaseVersion schema; review workflow; optimistic concurrency; composite RequirementTestCase traceability; transactional Activity; real UI; 102 tests and development/test migration evidence. |
 | V1.4 Test Runs + execution evidence | Complete | Runs pin an approved immutable TestCaseVersion; append-only attempts capture result, mode, environment, browser, duration, per-step outcomes, failure details, and evidence links; aggregate concurrency, roles, Activity, tenant constraints, real UI, 110 tests, and development/test migrations pass. |
-| V1.5 Failure Intelligence | Next | Evidence-backed failure classification, confidence and cited run evidence, reviewable resolution, and non-mutating AI analysis. |
+| V1.5 Failure Intelligence | Complete | OpenAI Responses API Structured Outputs classify failed/blocked immutable attempts; local exact-quote evidence validation, model/prompt/schema/token metadata, safe failure records, human confirm/dismiss, tenant/role enforcement, real Test Run UI, 118 tests, and development/test migrations pass. |
+| V1.6 Automation artifacts + engines | Next | Versioned reviewable Playwright Browser and API automation drafts generated from approved immutable Test Case versions. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -31,6 +32,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Build Failure Intelligence over failed immutable attempts, with structured
-classification, cited evidence, safe provider failures, explicit human
-resolution, and no mutation of the stored execution record.
+Build separate Playwright Browser and API automation engines that generate
+versioned reviewable artifacts from approved Test Case versions, with no
+automatic execution or silent changes to approved test intent.

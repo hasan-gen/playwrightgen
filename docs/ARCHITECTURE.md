@@ -160,6 +160,21 @@ Project Members and Leads may create and execute runs, Viewers are read-only,
 and cancellation is restricted to Leads and organization Owner/Admin. Every
 effective create, attempt, and cancellation writes Activity atomically.
 
+## Evidence-bound AI Failure Intelligence
+
+`FailureAnalysis` references one immutable `TestRunAttempt` and records model,
+prompt/schema versions, usage, safe status/failure code, actor, and timing.
+`FailureFinding` stores a category, confidence, explanation, recommendation,
+and one exact evidence quote with explicit Open, Confirmed, or Dismissed state.
+
+The provider uses the OpenAI Responses API with Zod Structured Outputs and
+`store: false`. Attempt data is treated as untrusted content. A deterministic
+local evidence map covers run result, summary, failure details, step results,
+evidence links, objective, steps, and expected results. Every model citation
+must be an exact normalized substring of its selected immutable field before
+anything is persisted. Failed/refused/invalid outputs create a safe failed
+analysis record and no findings. Human resolution never edits the attempt.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

@@ -68,6 +68,12 @@ Browser, and API modes store environment/browser metadata and append immutable
 attempts with overall/per-step results, duration, failure details, and evidence
 links. Retrying creates another attempt instead of overwriting history.
 
+V1.5 adds advisory AI Failure Intelligence for failed and blocked attempts. It
+uses the OpenAI Responses API with Structured Outputs, validates every cited
+quote against immutable stored evidence, records model/prompt/schema/token
+metadata, and requires a Lead or Owner/Admin to confirm or dismiss findings.
+`OPENAI_FAILURE_ANALYSIS_MODEL` optionally overrides the default analysis model.
+
 Phase 1A uses these environment variable names:
 
 - `DATABASE_URL`: the PostgreSQL connection used by the application at runtime and by local development migration work when no direct connection is configured.

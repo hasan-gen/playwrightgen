@@ -36,7 +36,10 @@ export type WorkspacePermission =
   | "testrun:read"
   | "testrun:create"
   | "testrun:record"
-  | "testrun:cancel";
+  | "testrun:cancel"
+  | "failure:read"
+  | "failure:analyze"
+  | "failure:resolve";
 
 export type WorkspaceAuthorizationErrorCode =
   | "unauthenticated"
@@ -138,14 +141,16 @@ function hasPermission(input: {
     input.permission === "project:read" ||
     input.permission === "requirement:read" ||
     input.permission === "testcase:read" ||
-    input.permission === "testrun:read"
+    input.permission === "testrun:read" ||
+    input.permission === "failure:read"
   ) {
     return true;
   }
 
   if (
     input.permission === "testrun:create" ||
-    input.permission === "testrun:record"
+    input.permission === "testrun:record" ||
+    input.permission === "failure:analyze"
   ) {
     return input.projectRole !== "VIEWER";
   }
@@ -159,7 +164,8 @@ function hasPermission(input: {
       input.permission === "testcase:update" ||
       input.permission === "testcase:submit" ||
       input.permission === "testcase:traceability" ||
-      input.permission === "testrun:cancel") &&
+      input.permission === "testrun:cancel" ||
+      input.permission === "failure:resolve") &&
     input.projectRole === "PROJECT_LEAD"
   );
 }

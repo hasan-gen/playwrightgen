@@ -156,3 +156,14 @@ attempt counter serializes concurrent writes; retries create new evidence.
 
 **Reason:** Failed and passing results are operational evidence. Preserving
 every attempt enables trustworthy failure analysis, audit, and trend history.
+
+## 018 — Require evidence-bound, reviewable failure classification
+
+**Decision:** Failure Intelligence analyzes exactly one immutable failed or
+blocked attempt through Structured Outputs. Every finding must cite an exact
+stored evidence quote; local validation runs before persistence. Findings are
+advisory until a Lead or Owner/Admin confirms or dismisses them.
+
+**Reason:** A valid JSON schema cannot prevent invented root causes. Evidence
+validation, provider metadata, safe failures, and human resolution make AI
+analysis inspectable without corrupting execution history.

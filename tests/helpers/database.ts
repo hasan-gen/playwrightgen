@@ -58,6 +58,8 @@ export async function cleanPhase1ATables(
 
   await client.$transaction([
     client.activity.deleteMany(),
+    client.failureFinding.deleteMany(),
+    client.failureAnalysis.deleteMany(),
     client.testRunAttempt.deleteMany(),
     client.testRun.deleteMany(),
     client.requirementTestCase.deleteMany(),
