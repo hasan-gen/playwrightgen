@@ -31,6 +31,10 @@ export const serverClerkEnvironmentSchema = z.object({
   CLERK_SECRET_KEY: requiredValue,
 });
 
+export const clerkWebhookEnvironmentSchema = z.object({
+  CLERK_WEBHOOK_SIGNING_SECRET: requiredValue,
+});
+
 export class EnvironmentValidationError extends Error {
   readonly variableNames: readonly string[];
 
@@ -117,5 +121,15 @@ export function validateServerClerkEnvironment(
     serverClerkEnvironmentSchema,
     source,
     "server Clerk",
+  );
+}
+
+export function validateClerkWebhookEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    clerkWebhookEnvironmentSchema,
+    source,
+    "Clerk webhook",
   );
 }

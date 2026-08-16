@@ -47,7 +47,7 @@ npm install
 
 ## Phase 1A workspace foundation
 
-Checkpoint 2 adds the PostgreSQL schema and initial Prisma migration for the future tenant-safe workspace. PostgreSQL is now required for database development. Clerk integration, organizations UI, workspace pages, workspace APIs, and application authorization are not implemented yet.
+Checkpoint 2 adds the PostgreSQL schema and initial Prisma migration for the tenant-safe workspace. Checkpoint 4 synchronizes Clerk users, organizations, and organization memberships into those existing PostgreSQL models. Application authorization is not implemented yet.
 
 Phase 1A uses these environment variable names:
 
@@ -58,7 +58,23 @@ Phase 1A uses these environment variable names:
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SIGNING_SECRET`
 
-Clerk work will require a Clerk account and application in a later checkpoint.
+Configure a Clerk Dashboard webhook endpoint at `/api/webhooks/clerk` and set `CLERK_WEBHOOK_SIGNING_SECRET` locally and in the deployment environment. Subscribe it to:
+
+- `user.created`, `user.updated`, `user.deleted`
+- `organization.created`, `organization.updated`, `organization.deleted`
+- `organizationMembership.created`, `organizationMembership.updated`, `organizationMembership.deleted`
+
+Local webhook delivery requires a secure tunnel to the local application. Do not place webhook secret values in documentation or source control.
+
+Reconcile one Clerk organization without writing by default:
+
+```bash
+npm run clerk:reconcile -- --organization-id org_example
+# or
+npm run clerk:reconcile -- --slug workspace-slug
+```
+
+After reviewing the dry-run counts, explicitly add `--apply` to write the scoped reconciliation. The command never sweeps all organizations by default.
 
 Database commands:
 

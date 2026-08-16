@@ -13,6 +13,7 @@
     "test:coverage": "vitest run --coverage",
     "test:authorization": "playwright test",
     "test:database": "vitest run tests/integration/database-schema.test.ts",
+    "clerk:reconcile": "node --conditions=react-server --import tsx scripts/reconcile-clerk.ts",
     "prisma:generate": "prisma generate --config prisma.config.ts",
     "prisma:format": "prisma format --config prisma.config.ts",
     "prisma:validate": "prisma validate --config prisma.config.ts",
@@ -20,6 +21,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy --config prisma.config.ts"
   },
   "dependencies": {
+    "@clerk/backend": "3.16.1",
     "@clerk/nextjs": "7.7.1",
     "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.1",
