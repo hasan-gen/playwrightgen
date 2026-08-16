@@ -38,6 +38,12 @@ export default function RootLayout({
               </Link>
 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
+                <Link
+                  href="/workspace"
+                  className="rounded-lg bg-black px-3 py-2 font-semibold text-white transition hover:bg-gray-800"
+                >
+                  Open Workspace
+                </Link>
                 <Link href="/generator" className="transition hover:text-black">
                   Generator
                 </Link>
@@ -73,4 +79,4 @@ export default function RootLayout({
       </body>
     </html>
   );
-}     
+}
