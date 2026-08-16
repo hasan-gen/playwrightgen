@@ -54,7 +54,8 @@ and never silently overwrite approved domain records.
 - Permission-aware real Requirements workspace UI: complete.
 - Advisory AI Requirement Review: complete.
 - Versioned Test Cases, review workflow, and Requirement traceability: complete.
-- Test Runs and immutable execution evidence: next.
+- Test Runs and immutable execution evidence: complete.
+- Failure Intelligence over failed attempt evidence: next.
 - Separate Playwright browser/API automation engines and later intelligence: pending.
 
 ## Product constraints

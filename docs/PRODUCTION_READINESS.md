@@ -8,8 +8,9 @@ for production.
 **Not production-ready.** Authentication, tenant schema, verified Clerk
 synchronization, server authorization, project workflows, and the first
 versioned Requirements workflow, advisory AI Requirement Review, and versioned
-Test Cases with Requirement traceability exist. Test Runs, production
-billing/operations, and deployment validation remain.
+Test Cases with Requirement traceability and immutable Test Runs exist.
+Failure Intelligence, production billing/operations, and deployment validation
+remain.
 
 ## Gates
 
@@ -21,11 +22,11 @@ billing/operations, and deployment validation remain.
 | Projects | Foundation UI complete | Add authenticated browser E2E for real data, roles, archive/restore, validation failures, and tenant isolation. |
 | Requirements | Workflow + advisory AI review complete | Add authenticated browser E2E, approved-content revision, provider evals, budget/rate limits, and preview evidence. |
 | Test Cases | Workflow complete | Add authenticated browser E2E, approved-content revision policy, automation artifact lifecycle, and preview evidence. |
-| Test Runs | Missing | Immutable version-bound execution attempts, evidence/history, environment metadata, role tests, and browser E2E. |
+| Test Runs | Workflow complete | Add authenticated browser E2E, artifact upload/storage and retention, automated runner ingestion/authentication, and preview evidence. |
 | AI workflows | First project-aware workflow complete | Requirement Review has structured output, evidence validation, safe failure state, prompt/schema/model metadata, and token visibility. Add evals, rate/budget controls, monitoring, and later project-aware workflows. |
 | Billing | Legacy/incomplete | Organization ownership, Stripe lifecycle webhooks, entitlements, idempotency, and test-mode E2E. |
-| Database changes | Development/test current | Four reviewed migrations are applied to development and test. Before production: backup/PITR validation, `prisma migrate deploy` in preview, smoke test, rollback decision, then production deploy approval. |
-| CI and quality | Foundation + V1.3 gates pass; legacy lint debt | 102 tests, typecheck, changed-file lint, and production build pass locally. Full-project lint still has six pre-existing errors in untouched legacy pages; resolve them before enforcing the full lint gate in CI. Add preview E2E, dependency review, and branch protection. |
+| Database changes | Development/test current | Five reviewed migrations are applied to development and test. Before production: backup/PITR validation, `prisma migrate deploy` in preview, smoke test, rollback decision, then production deploy approval. |
+| CI and quality | Foundation + V1.4 gates pass; legacy lint debt | 110 tests, typecheck, changed-file lint, and production build pass locally. Full-project lint still has six pre-existing errors in untouched legacy pages; resolve them before enforcing the full lint gate in CI. Add preview E2E, dependency review, and branch protection. |
 | Observability | Missing | Structured safe errors, monitoring, alerting, webhook failure visibility, and incident ownership. |
 | Security/privacy | In progress | Authorization review, upload/URL-fetch controls, secret audit, retention/privacy/legal review. |
 | Deployment | Missing | Preview/staging, environment validation, smoke tests, production approval, and rollback procedure. |

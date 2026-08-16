@@ -139,3 +139,20 @@ an approved TestCaseVersion and produce separate reviewable artifacts.
 **Reason:** Different engines need different inputs, validation, and artifacts.
 Separation supports distinct functionality/versioning without mutating test
 intent.
+
+## 016 — Pin Test Runs to immutable approved intent
+
+**Decision:** A Test Run references both a Test Case and one exact immutable
+TestCaseVersion. Creation is allowed only while that Test Case is approved.
+
+**Reason:** Later edits or archival must not change what an historical run was
+intended to verify, and mismatched versions must be rejected by the database.
+
+## 017 — Append execution attempts instead of editing evidence
+
+**Decision:** Overall Run status is a query-friendly aggregate, while each
+manual, Playwright Browser, or API attempt is append-only. A conditional
+attempt counter serializes concurrent writes; retries create new evidence.
+
+**Reason:** Failed and passing results are operational evidence. Preserving
+every attempt enables trustworthy failure analysis, audit, and trend history.

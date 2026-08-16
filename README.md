@@ -63,6 +63,11 @@ and expected results, review/approval, and direct Requirement traceability.
 Automation status is separate so future Playwright browser, API, and
 integration engines can create reviewable artifacts from approved versions.
 
+V1.4 adds Test Runs pinned to an approved TestCaseVersion. Manual, Playwright
+Browser, and API modes store environment/browser metadata and append immutable
+attempts with overall/per-step results, duration, failure details, and evidence
+links. Retrying creates another attempt instead of overwriting history.
+
 Phase 1A uses these environment variable names:
 
 - `DATABASE_URL`: the PostgreSQL connection used by the application at runtime and by local development migration work when no direct connection is configured.

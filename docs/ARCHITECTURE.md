@@ -142,6 +142,24 @@ Automation status stores no generated code. Browser, API, and integration
 automation will be separate engines consuming an approved, immutable
 TestCaseVersion so engine changes never rewrite approved test intent.
 
+## Test Runs and immutable execution evidence
+
+`TestRun` pins one approved `TestCaseVersion` using a composite tenant foreign
+key and stores the execution mode, environment, browser, base URL, current
+aggregate result, and latest attempt number. A run can represent manual,
+Playwright Browser, or API execution without changing its pinned test intent.
+
+`TestRunAttempt` is append-only execution evidence. Each attempt snapshots the
+run configuration and stores result, duration, per-step outcomes, summary,
+failure/blocker details, evidence links, executor, and timestamp. Recording an
+attempt conditionally increments the aggregate attempt number in the same
+transaction, preventing concurrent attempts from claiming the same sequence.
+Retrying appends a new attempt; services expose no edit or delete operation.
+
+Project Members and Leads may create and execute runs, Viewers are read-only,
+and cancellation is restricted to Leads and organization Owner/Admin. Every
+effective create, attempt, and cancellation writes Activity atomically.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

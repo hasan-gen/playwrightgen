@@ -329,6 +329,54 @@ if (!testDatabaseConfigured) {
       ).rejects.toMatchObject({ code: "P2003" });
     });
 
+    it("rejects a Test Run pinned to another Test Case version", async () => {
+      const { organization, project, user } = await createFoundationRecords();
+      async function createCase(title: string) {
+        const testCase = await prisma.testCase.create({ data: {
+          organizationId: organization.id,
+          projectId: project.id,
+          title,
+          objective: "Verify behavior.",
+          preconditions: "",
+          steps: ["Act"],
+          expectedResults: ["Observe"],
+          status: "APPROVED",
+          ownerUserId: user.id,
+          createdByUserId: user.id,
+        } });
+        const version = await prisma.testCaseVersion.create({ data: {
+          organizationId: organization.id,
+          projectId: project.id,
+          testCaseId: testCase.id,
+          versionNumber: 1,
+          title,
+          objective: "Verify behavior.",
+          preconditions: "",
+          steps: ["Act"],
+          expectedResults: ["Observe"],
+          priority: "MEDIUM",
+          type: "FUNCTIONAL",
+          source: "MANUAL",
+          tags: [],
+          automationStatus: "MANUAL",
+          ownerUserId: user.id,
+          createdByUserId: user.id,
+        } });
+        return { testCase, version };
+      }
+      const first = await createCase("First case");
+      const second = await createCase("Second case");
+
+      await expect(prisma.testRun.create({ data: {
+        organizationId: organization.id,
+        projectId: project.id,
+        testCaseId: first.testCase.id,
+        testCaseVersionId: second.version.id,
+        name: "Mismatched version",
+        createdByUserId: user.id,
+      } })).rejects.toMatchObject({ code: "P2003" });
+    });
+
     it("archives a project without removing its row or relationships", async () => {
       const { organization, project, user } =
         await createFoundationRecords();

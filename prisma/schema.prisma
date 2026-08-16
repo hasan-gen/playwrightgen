@@ -127,6 +127,41 @@ enum AutomationStatus {
   AUTOMATED
 }
 
+enum TestRunStatus {
+  NOT_STARTED
+  PASSED
+  FAILED
+  BLOCKED
+  CANCELED
+}
+
+enum TestRunResult {
+  PASSED
+  FAILED
+  BLOCKED
+}
+
+enum TestRunMode {
+  MANUAL
+  PLAYWRIGHT_BROWSER
+  API
+}
+
+enum TestEnvironment {
+  LOCAL
+  DEVELOPMENT
+  STAGING
+  PRODUCTION
+  OTHER
+}
+
+enum TestBrowser {
+  NONE
+  CHROMIUM
+  FIREFOX
+  WEBKIT
+}
+
 enum ActivityAction {
   ORGANIZATION_UPDATED
   MEMBERSHIP_ROLE_CHANGED
@@ -155,6 +190,9 @@ enum ActivityAction {
   TEST_CASE_ARCHIVED
   TEST_CASE_REQUIREMENT_LINKED
   TEST_CASE_REQUIREMENT_UNLINKED
+  TEST_RUN_CREATED
+  TEST_RUN_ATTEMPT_RECORDED
+  TEST_RUN_CANCELED
 }
 
 enum ActivityTargetType {
@@ -167,6 +205,8 @@ enum ActivityTargetType {
   AI_SUGGESTION
   TEST_CASE
   REQUIREMENT_TEST_CASE
+  TEST_RUN
+  TEST_RUN_ATTEMPT
 }
 
 enum ActivitySource {
@@ -205,6 +245,9 @@ model User {
   testCaseVersionsCreated     TestCaseVersion[]     @relation("TestCaseVersionCreatedBy")
   testCaseVersionsOwned       TestCaseVersion[]     @relation("TestCaseVersionOwner")
   requirementTestCasesCreated RequirementTestCase[] @relation("RequirementTestCaseCreatedBy")
+  testRunsCreated             TestRun[]             @relation("TestRunCreatedBy")
+  testRunsCanceled            TestRun[]             @relation("TestRunCanceledBy")
+  testRunAttemptsExecuted     TestRunAttempt[]      @relation("TestRunAttemptExecutedBy")
 
   @@index([primaryEmail])
   @@index([status])
@@ -232,6 +275,8 @@ model Organization {
   aiSuggestions        AiSuggestion[]
   testCases            TestCase[]
   requirementTestCases RequirementTestCase[]
+  testRuns             TestRun[]
+  testRunAttempts      TestRunAttempt[]
 
   @@index([status])
 }
@@ -283,6 +328,8 @@ model Project {
   aiSuggestions        AiSuggestion[]
   testCases            TestCase[]
   requirementTestCases RequirementTestCase[]
+  testRuns             TestRun[]
+  testRunAttempts      TestRunAttempt[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, slug])
@@ -460,6 +507,7 @@ model TestCase {
   createdBy        User                  @relation("TestCaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   versions         TestCaseVersion[]
   requirementLinks RequirementTestCase[]
+  testRuns         TestRun[]
 
   @@unique([organizationId, projectId, id])
   @@index([organizationId, projectId, status, updatedAt])
@@ -486,11 +534,13 @@ model TestCaseVersion {
   createdByUserId  String           @db.Uuid
   createdAt        DateTime         @default(now()) @db.Timestamptz(3)
 
-  testCase  TestCase @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
-  owner     User     @relation("TestCaseVersionOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy User     @relation("TestCaseVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  testCase  TestCase  @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner     User      @relation("TestCaseVersionOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy User      @relation("TestCaseVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  testRuns  TestRun[]
 
   @@unique([organizationId, projectId, testCaseId, versionNumber])
+  @@unique([organizationId, projectId, testCaseId, id])
   @@index([testCaseId, createdAt])
 }
 
@@ -511,6 +561,67 @@ model RequirementTestCase {
   @@id([organizationId, projectId, requirementId, testCaseId])
   @@index([testCaseId, createdAt])
   @@index([requirementId, createdAt])
+}
+
+model TestRun {
+  id                  String          @id @default(uuid()) @db.Uuid
+  organizationId      String          @db.Uuid
+  projectId           String          @db.Uuid
+  testCaseId          String          @db.Uuid
+  testCaseVersionId   String          @db.Uuid
+  name                String          @db.VarChar(300)
+  status              TestRunStatus   @default(NOT_STARTED)
+  mode                TestRunMode     @default(MANUAL)
+  environment         TestEnvironment @default(DEVELOPMENT)
+  browser             TestBrowser     @default(NONE)
+  baseUrl             String?         @db.Text
+  latestAttemptNumber Int             @default(0)
+  createdByUserId     String          @db.Uuid
+  canceledByUserId    String?         @db.Uuid
+  canceledAt          DateTime?       @db.Timestamptz(3)
+  createdAt           DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime        @updatedAt @db.Timestamptz(3)
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project         Project          @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCase        TestCase         @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCaseVersion TestCaseVersion  @relation(fields: [organizationId, projectId, testCaseId, testCaseVersionId], references: [organizationId, projectId, testCaseId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy       User             @relation("TestRunCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  canceledBy      User?            @relation("TestRunCanceledBy", fields: [canceledByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  attempts        TestRunAttempt[]
+
+  @@unique([organizationId, projectId, id])
+  @@index([organizationId, projectId, status, updatedAt])
+  @@index([testCaseId, createdAt])
+  @@index([testCaseVersionId, createdAt])
+}
+
+model TestRunAttempt {
+  id               String          @id @default(uuid()) @db.Uuid
+  organizationId   String          @db.Uuid
+  projectId        String          @db.Uuid
+  testRunId        String          @db.Uuid
+  attemptNumber    Int
+  result           TestRunResult
+  mode             TestRunMode
+  environment      TestEnvironment
+  browser          TestBrowser
+  baseUrl          String?         @db.Text
+  durationMs       Int?
+  summary          String          @db.Text
+  failureDetails   String          @db.Text
+  stepResults      Json            @db.JsonB
+  evidence         Json            @db.JsonB
+  executedByUserId String          @db.Uuid
+  executedAt       DateTime        @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project      @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  testRun      TestRun      @relation(fields: [organizationId, projectId, testRunId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  executedBy   User         @relation("TestRunAttemptExecutedBy", fields: [executedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, projectId, testRunId, attemptNumber])
+  @@index([testRunId, executedAt])
 }
 
 model Activity {

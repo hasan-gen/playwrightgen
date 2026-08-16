@@ -15,7 +15,8 @@ completed, materially changed, or blocked.
 | V1.1 Requirements + immutable versions | Complete | Tenant/project-scoped Requirement and RequirementVersion schema, migration, draft/review/approve/archive services, optimistic concurrency, transactional Activity, permission-aware real UI, and development/test migration evidence. |
 | V1.2 AI Requirement Review | Complete | Structured OpenAI output, exact-version evidence validation, persistent model/prompt/schema/usage metadata, safe failure records, reviewable suggestions, non-mutating accept/dismiss actions, tenant/role tests, and real Requirement UI. |
 | V1.3 Test Cases + traceability | Complete | Tenant/project-scoped TestCase and immutable TestCaseVersion schema; review workflow; optimistic concurrency; composite RequirementTestCase traceability; transactional Activity; real UI; 102 tests and development/test migration evidence. |
-| V1.4 Test Runs + execution evidence | Next | Version-bound runs, immutable attempt evidence, status transitions, environment/browser metadata, and Test Case execution history. |
+| V1.4 Test Runs + execution evidence | Complete | Runs pin an approved immutable TestCaseVersion; append-only attempts capture result, mode, environment, browser, duration, per-step outcomes, failure details, and evidence links; aggregate concurrency, roles, Activity, tenant constraints, real UI, 110 tests, and development/test migrations pass. |
+| V1.5 Failure Intelligence | Next | Evidence-backed failure classification, confidence and cited run evidence, reviewable resolution, and non-mutating AI analysis. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -30,6 +31,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Build immutable Test Runs against approved Test Case versions, including
-environment/browser metadata, attempt status, execution evidence, and
-auditable retry/history semantics.
+Build Failure Intelligence over failed immutable attempts, with structured
+classification, cited evidence, safe provider failures, explicit human
+resolution, and no mutation of the stored execution record.
