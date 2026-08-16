@@ -9,8 +9,8 @@ completed, materially changed, or blocked.
 | 2. PostgreSQL/Prisma tenant foundation | Complete | Commit `92da6dc`; tenant schema, migration, and database constraint tests. |
 | 3. Clerk workspace/authentication | Complete | Commit `f8916f7`; Clerk-protected `/workspace`, onboarding, organization switching, and workspace shell. |
 | 4. Clerk -> PostgreSQL synchronization | Complete | Signed Clerk `user.deleted` delivery reached the local route through Clerk's relay and returned `200`; PostgreSQL stored a soft-deleted record; identical message replay returned `duplicate`. The real development organization, user, and membership were reconciled, followed by a zero-drift dry run. Unit, integration, typecheck, lint, and build validation are recorded in the checkpoint commit. |
-| 5. Tenant-safe authorization | Next | Implement server-only `requireWorkspaceContext`, effective roles/permissions, 401/403/404 behavior, and cross-tenant negative tests. |
-| 6. Project domain services + Activity | Planned | Tenant-scoped CRUD/archive/restore/member operations with transactional Activity. |
+| 5. Tenant-safe authorization | Complete | Server-only `requireWorkspaceContext` resolves Clerk identity through synchronized User/Organization/Membership, scopes projects by organization, enforces roles/permissions and archived-resource allowances, and passes cross-tenant 401/403/404 integration tests. |
+| 6. Project domain services + Activity | Next | Tenant-scoped CRUD/archive/restore/member operations with transactional Activity. |
 | 7. Real workspace Projects experience | Planned | Real database-backed workspace and project routes with permission-aware controls. |
 
 ## Checkpoint 4 delivered behavior
@@ -26,8 +26,7 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Checkpoint 5 is complete only when server code derives authority from the
-authenticated Clerk user and active organization plus synchronized PostgreSQL
-Membership; foreign tenant identifiers return 404, inactive membership and
-insufficient permission return 403, unauthenticated APIs return 401, and all
-tenant/project lookups are scoped and covered by negative tests.
+Checkpoint 6 is complete only when project list/create/read/update/archive/
+restore and project member assignment/removal/role changes are tenant-scoped,
+permission-protected, transactionally paired with append-only Activity, and
+covered by cross-tenant and role negative tests.

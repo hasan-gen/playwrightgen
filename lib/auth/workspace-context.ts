@@ -1,0 +1,276 @@
+import "server-only";
+
+import { auth } from "@clerk/nextjs/server";
+
+import type {
+  Membership,
+  Organization,
+  PrismaClient,
+  Project,
+  ProjectMembership,
+  User,
+} from "@/generated/prisma/client";
+import { getPrismaClient } from "@/lib/db/prisma";
+
+export type WorkspacePermission =
+  | "organization:read"
+  | "organization:manage"
+  | "project:create"
+  | "project:read"
+  | "project:update"
+  | "project:archive"
+  | "project:members:manage";
+
+export type WorkspaceAuthorizationErrorCode =
+  | "unauthenticated"
+  | "organization_required"
+  | "workspace_forbidden"
+  | "workspace_not_found"
+  | "permission_denied";
+
+export class WorkspaceAuthorizationError extends Error {
+  readonly code: WorkspaceAuthorizationErrorCode;
+  readonly status: 401 | 403 | 404;
+
+  constructor(
+    code: WorkspaceAuthorizationErrorCode,
+    status: 401 | 403 | 404,
+  ) {
+    super(code);
+    this.name = "WorkspaceAuthorizationError";
+    this.code = code;
+    this.status = status;
+  }
+}
+
+type WorkspaceAuthState = {
+  userId: string | null;
+  orgId: string | null;
+};
+
+export type WorkspaceContextDependencies = {
+  authenticate: () => Promise<WorkspaceAuthState>;
+  prisma: PrismaClient;
+};
+
+export type RequireWorkspaceContextInput = {
+  organizationId?: string;
+  orgSlug?: string;
+  projectId?: string;
+  permission?: WorkspacePermission;
+  allowArchivedOrganization?: boolean;
+  allowArchivedProject?: boolean;
+};
+
+export type WorkspaceContext = {
+  user: User;
+  organization: Organization;
+  membership: Membership;
+  project: Project | null;
+  projectMembership: ProjectMembership | null;
+  organizationRole: Membership["role"];
+  projectRole: ProjectMembership["role"] | null;
+  effectiveRole: Membership["role"] | ProjectMembership["role"];
+  can: (permission: WorkspacePermission) => boolean;
+};
+
+function notFound(): never {
+  throw new WorkspaceAuthorizationError("workspace_not_found", 404);
+}
+
+function forbidden(
+  code: Extract<
+    WorkspaceAuthorizationErrorCode,
+    "organization_required" | "workspace_forbidden" | "permission_denied"
+  > = "workspace_forbidden",
+): never {
+  throw new WorkspaceAuthorizationError(code, 403);
+}
+
+function hasPermission(input: {
+  permission: WorkspacePermission;
+  organizationRole: Membership["role"];
+  projectRole: ProjectMembership["role"] | null;
+  hasProject: boolean;
+}): boolean {
+  if (
+    input.permission !== "organization:read" &&
+    input.permission !== "organization:manage" &&
+    input.permission !== "project:create" &&
+    !input.hasProject
+  ) {
+    return false;
+  }
+
+  if (
+    input.organizationRole === "OWNER" ||
+    input.organizationRole === "ADMIN"
+  ) {
+    return true;
+  }
+
+  if (input.permission === "organization:read") {
+    return true;
+  }
+
+  if (!input.hasProject || !input.projectRole) {
+    return false;
+  }
+
+  if (input.permission === "project:read") {
+    return true;
+  }
+
+  return (
+    input.permission === "project:update" &&
+    input.projectRole === "PROJECT_LEAD"
+  );
+}
+
+async function defaultAuthenticate(): Promise<WorkspaceAuthState> {
+  const authState = await auth();
+  return {
+    userId: authState.userId ?? null,
+    orgId: authState.orgId ?? null,
+  };
+}
+
+export async function requireWorkspaceContext(
+  input: RequireWorkspaceContextInput = {},
+  dependencies?: WorkspaceContextDependencies,
+): Promise<WorkspaceContext> {
+  const authState = await (
+    dependencies?.authenticate ?? defaultAuthenticate
+  )();
+
+  if (!authState.userId) {
+    throw new WorkspaceAuthorizationError("unauthenticated", 401);
+  }
+  if (!authState.orgId) {
+    forbidden("organization_required");
+  }
+
+  const prisma = dependencies?.prisma ?? getPrismaClient();
+
+  const [user, organization] = await Promise.all([
+    prisma.user.findUnique({
+      where: { clerkUserId: authState.userId },
+    }),
+    prisma.organization.findUnique({
+      where: { clerkOrganizationId: authState.orgId },
+    }),
+  ]);
+
+  if (!organization) {
+    notFound();
+  }
+  if (
+    input.organizationId &&
+    input.organizationId !== organization.id
+  ) {
+    notFound();
+  }
+  if (input.orgSlug && input.orgSlug !== organization.slug) {
+    notFound();
+  }
+  if (
+    organization.status === "ARCHIVED" &&
+    !input.allowArchivedOrganization
+  ) {
+    notFound();
+  }
+  if (organization.status === "SUSPENDED") {
+    forbidden();
+  }
+  if (!user || user.status !== "ACTIVE") {
+    forbidden();
+  }
+
+  const membership = await prisma.membership.findUnique({
+    where: {
+      organizationId_userId: {
+        organizationId: organization.id,
+        userId: user.id,
+      },
+    },
+  });
+
+  if (!membership || membership.status !== "ACTIVE") {
+    forbidden();
+  }
+
+  let project: Project | null = null;
+  let projectMembership: ProjectMembership | null = null;
+
+  if (input.projectId) {
+    project = await prisma.project.findUnique({
+      where: {
+        organizationId_id: {
+          organizationId: organization.id,
+          id: input.projectId,
+        },
+      },
+    });
+
+    if (!project) {
+      notFound();
+    }
+    if (project.status === "ARCHIVED" && !input.allowArchivedProject) {
+      notFound();
+    }
+
+    if (membership.role !== "OWNER" && membership.role !== "ADMIN") {
+      projectMembership =
+        await prisma.projectMembership.findUnique({
+          where: {
+            organizationId_projectId_userId: {
+              organizationId: organization.id,
+              projectId: project.id,
+              userId: user.id,
+            },
+          },
+        });
+
+      if (!projectMembership || projectMembership.status !== "ACTIVE") {
+        forbidden();
+      }
+    }
+  }
+
+  const can = (permission: WorkspacePermission) =>
+    hasPermission({
+      permission,
+      organizationRole: membership.role,
+      projectRole: projectMembership?.role ?? null,
+      hasProject: Boolean(project),
+    });
+
+  if (input.permission && !can(input.permission)) {
+    forbidden("permission_denied");
+  }
+
+  return {
+    user,
+    organization,
+    membership,
+    project,
+    projectMembership,
+    organizationRole: membership.role,
+    projectRole: projectMembership?.role ?? null,
+    effectiveRole: projectMembership?.role ?? membership.role,
+    can,
+  };
+}
+
+export function workspaceAuthorizationErrorResponse(
+  error: unknown,
+): Response | null {
+  if (!(error instanceof WorkspaceAuthorizationError)) {
+    return null;
+  }
+
+  return Response.json(
+    { status: "error", code: error.code },
+    { status: error.status },
+  );
+}

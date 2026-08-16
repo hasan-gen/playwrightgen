@@ -49,3 +49,14 @@ testing. Keep the relay URL and endpoint signing secret out of source control.
 **Reason:** It avoids publishing the entire local application through a generic
 tunnel and limits external-account work to endpoint configuration and test
 delivery.
+
+## 007 — Derive domain authority from synchronized server state
+
+**Decision:** `requireWorkspaceContext` starts from Clerk's authenticated user
+and active organization, then resolves local User, Organization, Membership,
+optional Project, and optional ProjectMembership. Caller IDs and slugs can only
+narrow that authenticated context.
+
+**Reason:** This prevents caller-controlled tenant selection, email-based
+authorization, and unscoped project lookup while providing consistent
+401/403/404 semantics for future APIs and Server Actions.

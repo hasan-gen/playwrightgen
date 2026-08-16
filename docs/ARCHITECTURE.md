@@ -52,13 +52,20 @@ storing raw provider payloads.
 path. It is dry-run by default and requires either a Clerk organization ID or
 slug. `--apply` is explicit; there is no unscoped sweep mode.
 
-## Known boundary before Checkpoint 5
+## Server authorization boundary
 
-Authentication exists, but application authorization is not yet implemented.
-The workspace currently trusts Clerk's active organization to render its shell
-and does not yet resolve the synchronized local Membership. Checkpoint 5 must
-introduce a server-only `requireWorkspaceContext` boundary before tenant domain
-APIs or real Projects UI are added.
+`requireWorkspaceContext` derives authority from Clerk's authenticated user and
+active organization, then resolves the synchronized local User, Organization,
+and active Membership. Optional organization IDs and slugs are constraints,
+never tenant selectors. Optional project lookup uses the composite
+`organizationId + projectId` key. Owner/Admin receive organization-wide project
+access; other roles require active ProjectMembership. Archived resources are
+hidden unless the caller explicitly allows them.
+
+The boundary returns sanitized 401/403/404 errors and exposes a typed permission
+check for organization and project operations. New tenant domain APIs must use
+this boundary. The current workspace shell predates project APIs and remains a
+transitional authenticated view until Checkpoint 7.
 
 ## Validation strategy
 
