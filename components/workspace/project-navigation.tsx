@@ -23,6 +23,12 @@ export function ProjectNavigation({
       >
         Requirements
       </Link>
+      <Link
+        href={`${base}/test-cases`}
+        className="border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-950"
+      >
+        Test Cases
+      </Link>
     </nav>
   );
 }

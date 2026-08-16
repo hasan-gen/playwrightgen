@@ -92,6 +92,41 @@ enum AiSuggestionStatus {
   DISMISSED
 }
 
+enum TestCaseStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+enum TestCasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TestCaseType {
+  FUNCTIONAL
+  END_TO_END
+  API
+  INTEGRATION
+  REGRESSION
+}
+
+enum TestCaseSource {
+  MANUAL
+  IMPORTED
+  AI_SUGGESTED
+}
+
+enum AutomationStatus {
+  MANUAL
+  CANDIDATE
+  DRAFT
+  AUTOMATED
+}
+
 enum ActivityAction {
   ORGANIZATION_UPDATED
   MEMBERSHIP_ROLE_CHANGED
@@ -112,6 +147,14 @@ enum ActivityAction {
   REQUIREMENT_REVIEW_COMPLETED
   AI_SUGGESTION_ACCEPTED
   AI_SUGGESTION_DISMISSED
+  TEST_CASE_CREATED
+  TEST_CASE_UPDATED
+  TEST_CASE_SUBMITTED_FOR_REVIEW
+  TEST_CASE_CHANGES_REQUESTED
+  TEST_CASE_APPROVED
+  TEST_CASE_ARCHIVED
+  TEST_CASE_REQUIREMENT_LINKED
+  TEST_CASE_REQUIREMENT_UNLINKED
 }
 
 enum ActivityTargetType {
@@ -122,6 +165,8 @@ enum ActivityTargetType {
   REQUIREMENT
   AI_RUN
   AI_SUGGESTION
+  TEST_CASE
+  REQUIREMENT_TEST_CASE
 }
 
 enum ActivitySource {
@@ -145,16 +190,21 @@ model User {
   createdAt          DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
 
-  memberships                Membership[]
-  projectsCreated            Project[]            @relation("ProjectCreatedBy")
-  projectsArchived           Project[]            @relation("ProjectArchivedBy")
-  activities                 Activity[]           @relation("ActivityActor")
-  requirementsCreated        Requirement[]        @relation("RequirementCreatedBy")
-  requirementsOwned          Requirement[]        @relation("RequirementOwner")
-  requirementVersionsCreated RequirementVersion[] @relation("RequirementVersionCreatedBy")
-  requirementVersionsOwned   RequirementVersion[] @relation("RequirementVersionOwner")
-  aiRunsCreated              AiRun[]              @relation("AiRunCreatedBy")
-  aiSuggestionsResolved      AiSuggestion[]       @relation("AiSuggestionResolvedBy")
+  memberships                 Membership[]
+  projectsCreated             Project[]             @relation("ProjectCreatedBy")
+  projectsArchived            Project[]             @relation("ProjectArchivedBy")
+  activities                  Activity[]            @relation("ActivityActor")
+  requirementsCreated         Requirement[]         @relation("RequirementCreatedBy")
+  requirementsOwned           Requirement[]         @relation("RequirementOwner")
+  requirementVersionsCreated  RequirementVersion[]  @relation("RequirementVersionCreatedBy")
+  requirementVersionsOwned    RequirementVersion[]  @relation("RequirementVersionOwner")
+  aiRunsCreated               AiRun[]               @relation("AiRunCreatedBy")
+  aiSuggestionsResolved       AiSuggestion[]        @relation("AiSuggestionResolvedBy")
+  testCasesCreated            TestCase[]            @relation("TestCaseCreatedBy")
+  testCasesOwned              TestCase[]            @relation("TestCaseOwner")
+  testCaseVersionsCreated     TestCaseVersion[]     @relation("TestCaseVersionCreatedBy")
+  testCaseVersionsOwned       TestCaseVersion[]     @relation("TestCaseVersionOwner")
+  requirementTestCasesCreated RequirementTestCase[] @relation("RequirementTestCaseCreatedBy")
 
   @@index([primaryEmail])
   @@index([status])
@@ -173,13 +223,15 @@ model Organization {
   createdAt           DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime           @updatedAt @db.Timestamptz(3)
 
-  memberships        Membership[]
-  projects           Project[]
-  activities         Activity[]
-  projectMemberships ProjectMembership[]
-  requirements       Requirement[]
-  aiRuns             AiRun[]
-  aiSuggestions      AiSuggestion[]
+  memberships          Membership[]
+  projects             Project[]
+  activities           Activity[]
+  projectMemberships   ProjectMembership[]
+  requirements         Requirement[]
+  aiRuns               AiRun[]
+  aiSuggestions        AiSuggestion[]
+  testCases            TestCase[]
+  requirementTestCases RequirementTestCase[]
 
   @@index([status])
 }
@@ -221,14 +273,16 @@ model Project {
   createdAt        DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
 
-  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy          User                @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  archivedBy         User?               @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  projectMemberships ProjectMembership[]
-  activities         Activity[]
-  requirements       Requirement[]
-  aiRuns             AiRun[]
-  aiSuggestions      AiSuggestion[]
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy            User                  @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  archivedBy           User?                 @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  projectMemberships   ProjectMembership[]
+  activities           Activity[]
+  requirements         Requirement[]
+  aiRuns               AiRun[]
+  aiSuggestions        AiSuggestion[]
+  testCases            TestCase[]
+  requirementTestCases RequirementTestCase[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, slug])
@@ -274,13 +328,14 @@ model Requirement {
   createdAt            DateTime          @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime          @updatedAt @db.Timestamptz(3)
 
-  organization  Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  project       Project              @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
-  owner         User                 @relation("RequirementOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy     User                 @relation("RequirementCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project       Project               @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner         User                  @relation("RequirementOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy     User                  @relation("RequirementCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   versions      RequirementVersion[]
   aiRuns        AiRun[]
   aiSuggestions AiSuggestion[]
+  testCaseLinks RequirementTestCase[]
 
   @@unique([organizationId, projectId, id])
   @@index([organizationId, projectId, status, updatedAt])
@@ -373,6 +428,89 @@ model AiSuggestion {
 
   @@index([organizationId, projectId, requirementId, status])
   @@index([aiRunId, createdAt])
+}
+
+model TestCase {
+  id                   String           @id @default(uuid()) @db.Uuid
+  organizationId       String           @db.Uuid
+  projectId            String           @db.Uuid
+  title                String           @db.VarChar(300)
+  objective            String           @db.Text
+  preconditions        String           @db.Text
+  steps                Json             @db.JsonB
+  expectedResults      Json             @db.JsonB
+  priority             TestCasePriority @default(MEDIUM)
+  type                 TestCaseType     @default(FUNCTIONAL)
+  status               TestCaseStatus   @default(DRAFT)
+  source               TestCaseSource   @default(MANUAL)
+  tags                 String[]         @default([])
+  automationStatus     AutomationStatus @default(MANUAL)
+  ownerUserId          String           @db.Uuid
+  createdByUserId      String           @db.Uuid
+  currentVersionNumber Int              @default(1)
+  submittedForReviewAt DateTime?        @db.Timestamptz(3)
+  approvedAt           DateTime?        @db.Timestamptz(3)
+  archivedAt           DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+
+  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project          Project               @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner            User                  @relation("TestCaseOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy        User                  @relation("TestCaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions         TestCaseVersion[]
+  requirementLinks RequirementTestCase[]
+
+  @@unique([organizationId, projectId, id])
+  @@index([organizationId, projectId, status, updatedAt])
+  @@index([ownerUserId, status])
+}
+
+model TestCaseVersion {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @db.Uuid
+  projectId        String           @db.Uuid
+  testCaseId       String           @db.Uuid
+  versionNumber    Int
+  title            String           @db.VarChar(300)
+  objective        String           @db.Text
+  preconditions    String           @db.Text
+  steps            Json             @db.JsonB
+  expectedResults  Json             @db.JsonB
+  priority         TestCasePriority
+  type             TestCaseType
+  source           TestCaseSource
+  tags             String[]
+  automationStatus AutomationStatus
+  ownerUserId      String           @db.Uuid
+  createdByUserId  String           @db.Uuid
+  createdAt        DateTime         @default(now()) @db.Timestamptz(3)
+
+  testCase  TestCase @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner     User     @relation("TestCaseVersionOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy User     @relation("TestCaseVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, projectId, testCaseId, versionNumber])
+  @@index([testCaseId, createdAt])
+}
+
+model RequirementTestCase {
+  organizationId  String   @db.Uuid
+  projectId       String   @db.Uuid
+  requirementId   String   @db.Uuid
+  testCaseId      String   @db.Uuid
+  createdByUserId String   @db.Uuid
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project      @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  requirement  Requirement  @relation(fields: [organizationId, projectId, requirementId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCase     TestCase     @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User         @relation("RequirementTestCaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@id([organizationId, projectId, requirementId, testCaseId])
+  @@index([testCaseId, createdAt])
+  @@index([requirementId, createdAt])
 }
 
 model Activity {

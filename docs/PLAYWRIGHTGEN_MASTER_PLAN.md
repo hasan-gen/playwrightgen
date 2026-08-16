@@ -53,8 +53,9 @@ and never silently overwrite approved domain records.
 - Draft -> review -> approve workflow with change requests and archive: complete.
 - Permission-aware real Requirements workspace UI: complete.
 - Advisory AI Requirement Review: complete.
-- Test Cases and Requirement traceability: next.
-- Test Runs and later intelligence: pending.
+- Versioned Test Cases, review workflow, and Requirement traceability: complete.
+- Test Runs and immutable execution evidence: next.
+- Separate Playwright browser/API automation engines and later intelligence: pending.
 
 ## Product constraints
 

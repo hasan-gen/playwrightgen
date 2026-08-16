@@ -58,6 +58,11 @@ immutable version. Suggestions can be accepted or dismissed but never mutate
 Requirement content. `OPENAI_REQUIREMENT_REVIEW_MODEL` optionally overrides the
 default review model; `OPENAI_API_KEY` remains server-only.
 
+V1.3 adds versioned Test Cases with objective, preconditions, structured steps
+and expected results, review/approval, and direct Requirement traceability.
+Automation status is separate so future Playwright browser, API, and
+integration engines can create reviewable artifacts from approved versions.
+
 Phase 1A uses these environment variable names:
 
 - `DATABASE_URL`: the PostgreSQL connection used by the application at runtime and by local development migration work when no direct connection is configured.

@@ -120,3 +120,22 @@ recorded.
 
 **Reason:** Schema adherence alone cannot prove factual grounding. Local
 evidence checks and version references make suggestions inspectable and safer.
+
+## 014 — Version test intent independently from workflow state
+
+**Decision:** `TestCase` holds current workflow state and every material draft
+edit creates an immutable `TestCaseVersion`. Requirement traceability is a
+composite organization/project relationship with database enforcement.
+
+**Reason:** Approved intent, historical edits, and coverage links must remain
+auditable without mutable history or application-only tenant checks.
+
+## 015 — Keep automation engines separate from Test Case intent
+
+**Decision:** Playwright browser, API, and future integration engines consume
+an approved TestCaseVersion and produce separate reviewable artifacts.
+`automationStatus` tracks lifecycle but stores no generated code.
+
+**Reason:** Different engines need different inputs, validation, and artifacts.
+Separation supports distinct functionality/versioning without mutating test
+intent.

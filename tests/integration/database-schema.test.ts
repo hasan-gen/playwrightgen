@@ -281,6 +281,54 @@ if (!testDatabaseConfigured) {
       ).rejects.toMatchObject({ code: "P2003" });
     });
 
+    it("rejects Requirement traceability across projects at the database boundary", async () => {
+      const { organization, project, user } = await createFoundationRecords();
+      const secondProject = await prisma.project.create({
+        data: {
+          organizationId: organization.id,
+          name: "Second project",
+          slug: uniqueValue("second-project"),
+          createdByUserId: user.id,
+        },
+      });
+      const requirement = await prisma.requirement.create({
+        data: {
+          organizationId: organization.id,
+          projectId: project.id,
+          title: "First-project requirement",
+          description: "Must remain in its project.",
+          acceptanceCriteria: "Cross-project links are rejected.",
+          ownerUserId: user.id,
+          createdByUserId: user.id,
+        },
+      });
+      const testCase = await prisma.testCase.create({
+        data: {
+          organizationId: organization.id,
+          projectId: secondProject.id,
+          title: "Second-project test",
+          objective: "Must remain in its project.",
+          preconditions: "",
+          steps: ["Act"],
+          expectedResults: ["Observe"],
+          ownerUserId: user.id,
+          createdByUserId: user.id,
+        },
+      });
+
+      await expect(
+        prisma.requirementTestCase.create({
+          data: {
+            organizationId: organization.id,
+            projectId: project.id,
+            requirementId: requirement.id,
+            testCaseId: testCase.id,
+            createdByUserId: user.id,
+          },
+        }),
+      ).rejects.toMatchObject({ code: "P2003" });
+    });
+
     it("archives a project without removing its row or relationships", async () => {
       const { organization, project, user } =
         await createFoundationRecords();

@@ -14,7 +14,8 @@ completed, materially changed, or blocked.
 | 7. Real workspace Projects experience | Complete | `/workspace/[orgSlug]`, project creation, and project overview render synchronized PostgreSQL state through tenant-safe project services; archive/restore controls are permission-aware; 78 tests, typecheck, changed-file lint, and production build pass. |
 | V1.1 Requirements + immutable versions | Complete | Tenant/project-scoped Requirement and RequirementVersion schema, migration, draft/review/approve/archive services, optimistic concurrency, transactional Activity, permission-aware real UI, and development/test migration evidence. |
 | V1.2 AI Requirement Review | Complete | Structured OpenAI output, exact-version evidence validation, persistent model/prompt/schema/usage metadata, safe failure records, reviewable suggestions, non-mutating accept/dismiss actions, tenant/role tests, and real Requirement UI. |
-| V1.3 Test Cases + traceability | Next | Immutable TestCaseVersion workflow with Requirement links, permission enforcement, Activity, and real project UI. |
+| V1.3 Test Cases + traceability | Complete | Tenant/project-scoped TestCase and immutable TestCaseVersion schema; review workflow; optimistic concurrency; composite RequirementTestCase traceability; transactional Activity; real UI; 102 tests and development/test migration evidence. |
+| V1.4 Test Runs + execution evidence | Next | Version-bound runs, immutable attempt evidence, status transitions, environment/browser metadata, and Test Case execution history. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -29,6 +30,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Build versioned project Test Cases with objective, preconditions, steps,
-expected results, priority, type, status, tags, owner, automation status, and
-Requirement traceability. Generated candidates must remain reviewable drafts.
+Build immutable Test Runs against approved Test Case versions, including
+environment/browser metadata, attempt status, execution evidence, and
+auditable retry/history semantics.

@@ -124,6 +124,24 @@ Activity transactionally; failure stores a safe failed-run record. Accepting a
 suggestion acknowledges it and writes Activity but never changes Requirement
 content or approval state.
 
+## Test Cases and Requirement traceability
+
+`TestCase` stores current project-scoped test intent while `TestCaseVersion`
+stores immutable snapshots of objective, preconditions, structured steps,
+expected results, priority, type, tags, source, owner, and automation status.
+Draft edits use optimistic version checks. Submission requires an objective,
+at least one step, and at least one expected result. Project Leads may author
+and submit; Owner/Admin alone may approve or archive.
+
+`RequirementTestCase` is a composite-tenant join. Database foreign keys and
+services both require the Requirement and Test Case to belong to the same
+organization and project. Link/unlink operations write Activity only when the
+effective relationship changes.
+
+Automation status stores no generated code. Browser, API, and integration
+automation will be separate engines consuming an approved, immutable
+TestCaseVersion so engine changes never rewrite approved test intent.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,
