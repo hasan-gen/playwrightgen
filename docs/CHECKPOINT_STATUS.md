@@ -11,7 +11,7 @@ completed, materially changed, or blocked.
 | 4. Clerk -> PostgreSQL synchronization | Complete | Signed Clerk `user.deleted` delivery reached the local route through Clerk's relay and returned `200`; PostgreSQL stored a soft-deleted record; identical message replay returned `duplicate`. The real development organization, user, and membership were reconciled, followed by a zero-drift dry run. Unit, integration, typecheck, lint, and build validation are recorded in the checkpoint commit. |
 | 5. Tenant-safe authorization | Complete | Server-only `requireWorkspaceContext` resolves Clerk identity through synchronized User/Organization/Membership, scopes projects by organization, enforces roles/permissions and archived-resource allowances, and passes cross-tenant 401/403/404 integration tests. |
 | 6. Project domain services + Activity | Complete | Tenant-scoped project list/create/read/update/archive/restore and member assignment/removal/role change services; active-member checks and mutation Activity share transactions; role and cross-tenant integration tests pass. |
-| 7. Real workspace Projects experience | Next | Real database-backed workspace and project routes with permission-aware controls. |
+| 7. Real workspace Projects experience | Complete | `/workspace/[orgSlug]`, project creation, and project overview render synchronized PostgreSQL state through tenant-safe project services; archive/restore controls are permission-aware; 78 tests, typecheck, changed-file lint, and production build pass. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -26,7 +26,7 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Checkpoint 7 is complete only when `/workspace/[orgSlug]`, project creation,
-and project overview routes use real database state and Checkpoint 6 services,
-show real roles/timestamps/status, expose only authorized archive controls, and
-contain no fake counts, data, or dead navigation.
+The foundation roadmap is complete. The next vertical slice is V1 Requirements:
+tenant-scoped requirements with immutable versions, a draft/review/approve
+workflow, transactional Activity, permission enforcement, and real workspace
+UI backed only by PostgreSQL state.

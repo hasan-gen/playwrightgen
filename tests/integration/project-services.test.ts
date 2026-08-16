@@ -20,6 +20,7 @@ import {
   changeProjectMemberRole,
   createProject,
   getProject,
+  getProjectOverview,
   listProjects,
   ProjectDomainError,
   removeProjectMember,
@@ -207,6 +208,21 @@ describe("tenant-safe project domain services", () => {
         dependencies(workspace),
       ),
     ).rejects.toMatchObject({ status: 404, code: "workspace_not_found" });
+  });
+
+  it("returns a tenant-scoped project overview with real permissions", async () => {
+    const workspace = await createWorkspace();
+    const overview = await getProjectOverview(
+      { projectId: workspace.project.id },
+      dependencies(workspace),
+    );
+
+    expect(overview.project.id).toBe(workspace.project.id);
+    expect(overview.project.organizationId).toBe(workspace.organization.id);
+    expect(overview.project.createdBy.id).toBe(workspace.user.id);
+    expect(overview.role).toBe("OWNER");
+    expect(overview.canArchive).toBe(true);
+    expect(overview.canUpdate).toBe(true);
   });
 
   it("lets an assigned Project Lead update with Activity", async () => {

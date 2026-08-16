@@ -69,3 +69,13 @@ organization boundary; archive and removal update status rather than delete.
 
 **Reason:** Audit history must describe committed state exactly, and composite
 tenant scoping prevents guessed or foreign identifiers from crossing tenants.
+
+## 009 — Put the first workspace UI directly over domain services
+
+**Decision:** Server components read through tenant-safe project services and
+Server Actions mutate through the same services. Route parameters constrain
+the authenticated tenant but never establish authority.
+
+**Reason:** One authorization and transaction boundary keeps the initial UI
+thin, prevents browser-provided organization or project IDs from bypassing
+domain rules, and avoids duplicating an internal HTTP API before it is needed.

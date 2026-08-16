@@ -108,6 +108,46 @@ export async function getProject(
   return context.project;
 }
 
+export async function getProjectOverview(
+  input: {
+    projectId: string;
+    orgSlug?: string;
+    allowArchived?: boolean;
+  },
+  dependencies?: ProjectServiceDependencies,
+) {
+  const projectId = parseOrThrow(uuidSchema, input.projectId);
+  const context = await requireWorkspaceContext(
+    {
+      orgSlug: input.orgSlug,
+      projectId,
+      permission: "project:read",
+      allowArchivedProject: input.allowArchived,
+    },
+    dependencies,
+  );
+  const project = await client(dependencies).project.findUniqueOrThrow({
+    where: {
+      organizationId_id: {
+        organizationId: context.organization.id,
+        id: projectId,
+      },
+    },
+    include: {
+      createdBy: {
+        select: { id: true, displayName: true },
+      },
+    },
+  });
+
+  return {
+    project,
+    role: context.projectRole ?? context.organizationRole,
+    canArchive: context.can("project:archive"),
+    canUpdate: context.can("project:update"),
+  };
+}
+
 export async function createProject(
   input: {
     name: string;

@@ -63,9 +63,8 @@ access; other roles require active ProjectMembership. Archived resources are
 hidden unless the caller explicitly allows them.
 
 The boundary returns sanitized 401/403/404 errors and exposes a typed permission
-check for organization and project operations. New tenant domain APIs must use
-this boundary. The current workspace shell predates project APIs and remains a
-transitional authenticated view until Checkpoint 7.
+check for organization and project operations. New tenant domain APIs and
+Server Actions must use this boundary.
 
 ## Project domain services
 
@@ -78,8 +77,17 @@ validated as active organization members inside the assignment transaction.
 
 Owner/Admin have organization-wide project authority. An assigned Project Lead
 may update its project, while project archive and membership administration
-remain Owner/Admin operations. Project APIs and the real workspace UI are the
-next presentation layer over these services.
+remain Owner/Admin operations.
+
+## Workspace presentation layer
+
+`/workspace` preserves Clerk onboarding when no organization is active and
+otherwise redirects to the synchronized local organization slug. The
+`/workspace/[orgSlug]` project list, project creation route, and project
+overview route call the project services from server components and Server
+Actions. They render real PostgreSQL names, descriptions, roles, statuses, and
+timestamps. Archive/restore controls are emitted only when the authorization
+context grants that permission; mutations are re-authorized by the service.
 
 ## Validation strategy
 

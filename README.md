@@ -47,7 +47,7 @@ npm install
 
 ## Phase 1A workspace foundation
 
-Checkpoint 2 adds the PostgreSQL schema and initial Prisma migration for the tenant-safe workspace. Checkpoint 4 synchronizes Clerk users, organizations, and organization memberships into those existing PostgreSQL models. Checkpoint 5 adds the server-only tenant authorization boundary, and Checkpoint 6 adds tenant-scoped project and project-membership services with transactional Activity.
+Checkpoint 2 adds the PostgreSQL schema and initial Prisma migration for the tenant-safe workspace. Checkpoint 4 synchronizes Clerk users, organizations, and organization memberships into those existing PostgreSQL models. Checkpoint 5 adds the server-only tenant authorization boundary, Checkpoint 6 adds tenant-scoped project and project-membership services with transactional Activity, and Checkpoint 7 adds the real database-backed workspace project list, creation, and overview experience.
 
 Phase 1A uses these environment variable names:
 
