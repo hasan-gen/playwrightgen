@@ -2,6 +2,11 @@ import { revalidatePath } from "next/cache";
 import Link from "next/link";
 
 import {
+  listRequirementReviews,
+  resolveAiSuggestion,
+  runRequirementReview,
+} from "@/lib/services/requirement-reviews";
+import {
   approveRequirement,
   archiveRequirement,
   getRequirementDetail,
@@ -27,12 +32,15 @@ export default async function RequirementDetailPage({
   }>;
 }) {
   const { orgSlug, projectId, requirementId } = await params;
-  const detail = await getRequirementDetail({
-    orgSlug,
-    projectId,
-    requirementId,
-    allowArchived: true,
-  });
+  const [detail, reviews] = await Promise.all([
+    getRequirementDetail({
+      orgSlug,
+      projectId,
+      requirementId,
+      allowArchived: true,
+    }),
+    listRequirementReviews({ orgSlug, projectId, requirementId }),
+  ]);
   const { requirement } = detail;
   const requirementPath = `/workspace/${orgSlug}/projects/${projectId}/requirements/${requirementId}`;
   const listPath = `/workspace/${orgSlug}/projects/${projectId}/requirements`;
@@ -74,6 +82,28 @@ export default async function RequirementDetailPage({
     }
     revalidatePath(requirementPath);
     revalidatePath(listPath);
+  }
+
+  async function runReviewAction() {
+    "use server";
+    await runRequirementReview({ orgSlug, projectId, requirementId });
+    revalidatePath(requirementPath);
+  }
+
+  async function resolveSuggestionAction(formData: FormData) {
+    "use server";
+    const resolution = formData.get("resolution");
+    if (resolution !== "ACCEPTED" && resolution !== "DISMISSED") {
+      throw new Error("Invalid suggestion resolution");
+    }
+    await resolveAiSuggestion({
+      orgSlug,
+      projectId,
+      requirementId,
+      suggestionId: String(formData.get("suggestionId") ?? ""),
+      resolution,
+    });
+    revalidatePath(requirementPath);
   }
 
   return (
@@ -223,6 +253,96 @@ export default async function RequirementDetailPage({
           </p>
         </section>
       )}
+
+      <section className="mt-8 rounded-2xl border border-sky-200 bg-sky-50/40 p-6 shadow-sm sm:p-8">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-sky-700">
+              Advisory analysis
+            </p>
+            <h2 className="mt-2 text-lg font-semibold">AI Requirement Review</h2>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Reviews one immutable version for ambiguity, testability, missing criteria,
+              conflicts, edge cases, and unanswered questions. Suggestions never edit or
+              approve the requirement.
+            </p>
+          </div>
+          {detail.canUpdate && requirement.status !== "ARCHIVED" ? (
+            <form action={runReviewAction}>
+              <button className="rounded-lg bg-sky-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-sky-900">
+                Run AI review
+              </button>
+            </form>
+          ) : null}
+        </div>
+
+        {reviews.length === 0 ? (
+          <p className="mt-6 rounded-xl border border-dashed border-sky-200 bg-white px-4 py-5 text-sm text-slate-500">
+            No AI review has been run for this requirement.
+          </p>
+        ) : (
+          <div className="mt-6 space-y-5">
+            {reviews.map((review) => (
+              <article key={review.id} className="rounded-xl border border-slate-200 bg-white p-5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Version {requirement.versions.find((version) => version.id === review.requirementVersionId)?.versionNumber ?? "?"}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {review.model} · {review.createdBy.displayName || "Workspace member"} ·{" "}
+                      {review.startedAt.toLocaleString()}
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">
+                    {review.status}
+                  </span>
+                </div>
+                {review.summary ? (
+                  <p className="mt-4 text-sm leading-6 text-slate-700">{review.summary}</p>
+                ) : null}
+                <div className="mt-4 space-y-3">
+                  {review.suggestions.map((suggestion) => (
+                    <div key={suggestion.id} className="rounded-lg border border-slate-200 p-4">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">
+                            {suggestion.category.replaceAll("_", " ")} · {suggestion.severity}
+                          </p>
+                          <h3 className="mt-1 text-sm font-semibold">{suggestion.title}</h3>
+                        </div>
+                        <span className="text-xs font-medium text-slate-400">{suggestion.status}</span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-700">{suggestion.observation}</p>
+                      <div className="mt-3 rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">
+                        <span className="font-semibold">Evidence · {suggestion.evidenceField.replaceAll("_", " ")}: </span>
+                        {suggestion.evidenceQuote || "The referenced information is missing."}
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-700">
+                        <span className="font-semibold">Recommendation: </span>
+                        {suggestion.recommendation}
+                      </p>
+                      {suggestion.status === "OPEN" && detail.canUpdate ? (
+                        <div className="mt-4 flex gap-2">
+                          {(["ACCEPTED", "DISMISSED"] as const).map((resolution) => (
+                            <form key={resolution} action={resolveSuggestionAction}>
+                              <input type="hidden" name="suggestionId" value={suggestion.id} />
+                              <input type="hidden" name="resolution" value={resolution} />
+                              <button className="rounded-lg border border-slate-300 px-3 py-2 text-xs font-semibold hover:bg-slate-50">
+                                {resolution === "ACCEPTED" ? "Accept suggestion" : "Dismiss"}
+                              </button>
+                            </form>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">

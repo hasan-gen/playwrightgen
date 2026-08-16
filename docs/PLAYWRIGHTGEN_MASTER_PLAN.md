@@ -52,8 +52,9 @@ and never silently overwrite approved domain records.
 - Requirements and immutable RequirementVersion history: complete.
 - Draft -> review -> approve workflow with change requests and archive: complete.
 - Permission-aware real Requirements workspace UI: complete.
-- Advisory AI Requirement Review: next.
-- Test Cases, traceability, Test Runs, and later intelligence: pending.
+- Advisory AI Requirement Review: complete.
+- Test Cases and Requirement traceability: next.
+- Test Runs and later intelligence: pending.
 
 ## Product constraints
 

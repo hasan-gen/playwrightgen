@@ -100,3 +100,23 @@ alone may approve/archive.
 
 **Reason:** Explicit transitions make approval authority auditable and prevent
 concurrent requests from recording duplicate effective state changes.
+
+## 012 — Persist AI advice separately from authoritative domain content
+
+**Decision:** Requirement review writes generic `AiRun` and `AiSuggestion`
+records tied to one immutable RequirementVersion. Accept/Dismiss changes only
+suggestion state. Requirement content changes remain explicit versioned user
+actions.
+
+**Reason:** AI remains assistive and auditable. Model output cannot silently
+rewrite or approve the authoritative requirement.
+
+## 013 — Require structured output and locally verifiable evidence
+
+**Decision:** The provider uses OpenAI Structured Outputs with a Zod schema,
+handles refusals, and validates quoted evidence against the selected immutable
+version before persistence. Model, prompt/schema versions, and token usage are
+recorded.
+
+**Reason:** Schema adherence alone cannot prove factual grounding. Local
+evidence checks and version references make suggestions inspectable and safer.

@@ -13,7 +13,8 @@ completed, materially changed, or blocked.
 | 6. Project domain services + Activity | Complete | Tenant-scoped project list/create/read/update/archive/restore and member assignment/removal/role change services; active-member checks and mutation Activity share transactions; role and cross-tenant integration tests pass. |
 | 7. Real workspace Projects experience | Complete | `/workspace/[orgSlug]`, project creation, and project overview render synchronized PostgreSQL state through tenant-safe project services; archive/restore controls are permission-aware; 78 tests, typecheck, changed-file lint, and production build pass. |
 | V1.1 Requirements + immutable versions | Complete | Tenant/project-scoped Requirement and RequirementVersion schema, migration, draft/review/approve/archive services, optimistic concurrency, transactional Activity, permission-aware real UI, and development/test migration evidence. |
-| V1.2 AI Requirement Review | Next | Evidence-linked advisory suggestions for ambiguity, missing criteria, conflicts, testability, edge cases, and unanswered questions; no silent content mutation. |
+| V1.2 AI Requirement Review | Complete | Structured OpenAI output, exact-version evidence validation, persistent model/prompt/schema/usage metadata, safe failure records, reviewable suggestions, non-mutating accept/dismiss actions, tenant/role tests, and real Requirement UI. |
+| V1.3 Test Cases + traceability | Next | Immutable TestCaseVersion workflow with Requirement links, permission enforcement, Activity, and real project UI. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -28,6 +29,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Build advisory AI Requirement Review over a selected immutable
-RequirementVersion. Suggestions must be structured, evidence-linked,
-reviewable, and unable to silently mutate Requirement content or approval state.
+Build versioned project Test Cases with objective, preconditions, steps,
+expected results, priority, type, status, tags, owner, automation status, and
+Requirement traceability. Generated candidates must remain reviewable drafts.

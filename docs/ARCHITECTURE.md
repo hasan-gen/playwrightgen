@@ -108,6 +108,22 @@ The project Requirements routes list real records, create drafts, edit drafts,
 show immutable history, and expose submit/review/archive actions according to
 server-derived permissions. Approved content is read-only in this slice.
 
+## Advisory AI Requirement Review
+
+`AiRun` records the immutable RequirementVersion, model, prompt/schema
+versions, status, safe failure code, token usage, actor, and timing.
+`AiSuggestion` stores structured evidence-linked findings with explicit Open,
+Accepted, or Dismissed state. Composite foreign keys bind both records to one
+organization, project, requirement, and version.
+
+The OpenAI provider uses Zod-backed Structured Outputs and handles refusals
+explicitly. A second local validator requires each non-empty evidence quote to
+exist in the named RequirementVersion field before persistence. Provider calls
+occur only after authorization. Success persists the run, suggestions, and
+Activity transactionally; failure stores a safe failed-run record. Accepting a
+suggestion acknowledges it and writes Activity but never changes Requirement
+content or approval state.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

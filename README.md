@@ -53,6 +53,11 @@ The first V1 slice adds project-scoped Requirements, immutable
 RequirementVersion snapshots, explicit draft/review/approve/archive workflow,
 and real permission-aware Requirements routes inside each project.
 
+AI Requirement Review stores advisory, evidence-linked suggestions against one
+immutable version. Suggestions can be accepted or dismissed but never mutate
+Requirement content. `OPENAI_REQUIREMENT_REVIEW_MODEL` optionally overrides the
+default review model; `OPENAI_API_KEY` remains server-only.
+
 Phase 1A uses these environment variable names:
 
 - `DATABASE_URL`: the PostgreSQL connection used by the application at runtime and by local development migration work when no direct connection is configured.
