@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
@@ -65,6 +66,12 @@ const emptyResult: IntelligenceResult = {
     suggestedNextTests: [],
 };
 
+function asRecord(value: unknown): Record<string, unknown> {
+    return typeof value === "object" && value !== null
+        ? value as Record<string, unknown>
+        : {};
+}
+
 export default function CoveragePage() {
     const [mode, setMode] = useState<IntelligenceMode>("coverage");
     const [url, setUrl] = useState("");
@@ -82,39 +89,44 @@ export default function CoveragePage() {
         [mode]
     );
 
-    const normalizeItems = (items: any[]): IntelligenceFinding[] => {
+    const normalizeItems = (items: unknown): IntelligenceFinding[] => {
         if (!Array.isArray(items)) {
             return [];
         }
 
-        return items.map((item: any) => ({
+        return items.map((itemValue) => {
+            const item = asRecord(itemValue);
+            const impact = item.impact;
+
+            return {
             title:
-                typeof item?.title === "string"
+                typeof item.title === "string"
                     ? item.title
                     : "Untitled finding",
 
             impact:
-                item?.impact === "Critical" ||
-                    item?.impact === "High" ||
-                    item?.impact === "Medium" ||
-                    item?.impact === "Low"
-                    ? item.impact
+                impact === "Critical" ||
+                    impact === "High" ||
+                    impact === "Medium" ||
+                    impact === "Low"
+                    ? impact
                     : "Medium",
 
             whyItMatters:
-                typeof item?.whyItMatters === "string"
+                typeof item.whyItMatters === "string"
                     ? item.whyItMatters
                     : "No impact explanation provided.",
 
             recommendation:
-                typeof item?.recommendation === "string"
+                typeof item.recommendation === "string"
                     ? item.recommendation
                     : "No recommendation provided.",
-        }));
+            };
+        });
     };
 
-    const normalizeResult = (data: any): IntelligenceResult => {
-        const raw = data?.result || {};
+    const normalizeResult = (data: unknown): IntelligenceResult => {
+        const raw = asRecord(asRecord(data).result);
 
         return {
             coverageScore:
@@ -123,27 +135,27 @@ export default function CoveragePage() {
                     : 72,
 
             coverageGaps: normalizeItems(
-                raw.coverageGaps ||
-                raw.highRiskAreas ||
-                raw.coreFlows ||
+                raw.coverageGaps ??
+                raw.highRiskAreas ??
+                raw.coreFlows ??
                 emptyResult.coverageGaps
             ),
 
             missingScenarios: normalizeItems(
-                raw.missingScenarios ||
-                raw.validationCases ||
+                raw.missingScenarios ??
+                raw.validationCases ??
                 emptyResult.missingScenarios
             ),
 
             riskPriority: normalizeItems(
-                raw.riskPriority ||
-                raw.edgeCases ||
+                raw.riskPriority ??
+                raw.edgeCases ??
                 emptyResult.riskPriority
             ),
 
             suggestedNextTests: normalizeItems(
-                raw.suggestedNextTests ||
-                raw.coreFlows ||
+                raw.suggestedNextTests ??
+                raw.coreFlows ??
                 emptyResult.suggestedNextTests
             ),
         };
@@ -204,20 +216,27 @@ export default function CoveragePage() {
                 <section className="relative overflow-hidden rounded-[2rem] border border-sky-100 bg-white px-6 py-8 shadow-sm sm:px-8 sm:py-10">
                     <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.20),transparent_30%),radial-gradient(circle_at_bottom_left,rgba(14,165,233,0.12),transparent_28%)]" />
 
-                    <div className="relative max-w-3xl">
+                    <div className="relative max-w-4xl">
                         <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-sky-600 sm:text-sm">
-                            Test Intelligence
+                            Free Tool · Coverage Review
                         </p>
 
                         <h1 className="text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl">
-                            Find coverage gaps before writing more tests
+                            Find the gaps your current tests may miss
                         </h1>
 
                         <p className="mt-4 text-base leading-8 text-slate-600 sm:text-lg">
                             Analyze requirements, URLs, and existing Playwright tests to find
                             missing scenarios, risky flows, and the next highest-value tests
-                            to automate.
+                            to automate. This is a preliminary review; Workspace intelligence
+                            will use saved, versioned project evidence.
                         </p>
+                        <Link
+                            href="/workspace"
+                            className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-sky-600"
+                        >
+                            Open evidence-backed Workspace →
+                        </Link>
                     </div>
                 </section>
 

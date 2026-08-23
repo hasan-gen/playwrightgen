@@ -1,6 +1,7 @@
 "use client";
 
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 type Severity = "Critical" | "High" | "Medium" | "Low";
 
@@ -400,15 +401,22 @@ export default function EngineeringReviewPage() {
             <div className="mx-auto max-w-7xl">
                 <section className="rounded-[2rem] border border-sky-100 bg-white p-6 shadow-sm sm:p-8">
                     <p className="mb-3 text-xs font-semibold uppercase tracking-[0.24em] text-sky-600">
-                        AI Change Intelligence
+                        Free Tool · Release Review
                     </p>
                     <h1 className="max-w-4xl text-3xl font-bold tracking-tight text-slate-950 sm:text-5xl">
-                        Understand what your software change affects.
+                        Review change risk before calling it release-ready
                     </h1>
                     <p className="mt-4 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">
                         Identify direct impact, downstream effects, uncertainty, and the
-                        engineering follow-up needed for a PR, story, requirement, or code change.
+                        engineering follow-up needed for a PR, story, requirement, or code
+                        change. Workspace connects this analysis to real tests and run evidence.
                     </p>
+                    <Link
+                        href="/workspace"
+                        className="mt-6 inline-flex min-h-11 items-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-sky-600"
+                    >
+                        Continue with project evidence →
+                    </Link>
                 </section>
 
                 <section

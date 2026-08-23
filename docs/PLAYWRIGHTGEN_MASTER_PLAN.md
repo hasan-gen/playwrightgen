@@ -6,6 +6,9 @@ Evolve the existing Playwright generator into an AI-native test management,
 quality intelligence, and delivery confidence platform that answers: **Can
 this change be delivered safely?**
 
+The market, positioning, target user, product-surface model, delivery sequence,
+and success metrics are defined in `docs/PRODUCT_STRATEGY_2026.md`.
+
 The product is for SDETs, QA engineers and leads, developers, engineering
 managers, and release managers. It must create daily workflow value from real
 project state rather than present a generic AI demo.

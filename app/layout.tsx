@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Link from "next/link";
+
+import { SiteNavigation } from "@/components/site-navigation";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -28,40 +29,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <div className="min-h-screen bg-[#fafafa] text-black">
-          <nav className="sticky top-0 z-40 border-b border-gray-200 bg-white/90 backdrop-blur">
-            <div className="mx-auto flex max-w-6xl flex-col gap-2 px-4 py-3 sm:px-6 md:flex-row md:items-center md:justify-between">
-              <Link
-                href="/"
-                className="text-2xl font-bold tracking-tight text-black"
-              >
-                PlaywrightGen
-              </Link>
-
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600">
-                <Link
-                  href="/workspace"
-                  className="rounded-lg bg-black px-3 py-2 font-semibold text-white transition hover:bg-gray-800"
-                >
-                  Open Workspace
-                </Link>
-                <Link href="/generator" className="transition hover:text-black">
-                  Generator
-                </Link>
-                <Link href="/intelligence" className="transition hover:text-black">
-                  Intelligence
-                </Link>
-                <Link href="/engineering-review" className="transition hover:text-black">
-                  Release Intelligence
-                </Link>
-                <Link href="/pricing" className="transition hover:text-black">
-                  Pricing
-                </Link>
-                <Link href="/" className="transition hover:text-black">
-                  Home
-                </Link>
-              </div>
-            </div>
-          </nav>
+          <SiteNavigation />
 
           {children}
 

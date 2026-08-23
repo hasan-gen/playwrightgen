@@ -179,3 +179,16 @@ The current draft and last approved version are tracked independently.
 Separate Browser/API engines, deterministic blocking rules, preserved approval
 history, and explicit human transitions prevent AI output from silently
 becoming trusted or executable automation.
+
+## 020 — Keep interactive authentication on first-party application routes
+
+**Decision:** PlaywrightGen mounts Clerk's supported SignIn and SignUp
+components at `/sign-in` and `/sign-up`. Protected workspace requests preserve
+their return URL but redirect to the local sign-in route instead of depending
+on the hosted Account Portal for the complete interactive flow.
+
+**Reason:** A first-party route keeps the user inside the product, provides a
+recoverable branded experience, and avoids making workspace access depend on
+browser-specific behavior at a cross-site hosted sign-in page. Clerk still
+proves identity; PostgreSQL authorization and organization scoping are
+unchanged.

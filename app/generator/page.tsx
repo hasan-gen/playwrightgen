@@ -1212,10 +1212,13 @@ return (
       >
         <main className="overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
           <div className="mx-auto max-w-7xl">
-            <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div className="mb-8 rounded-[2rem] border border-cyan-100 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_32%),linear-gradient(135deg,#ffffff,#f8fafc)] p-6 shadow-sm sm:p-8 xl:flex xl:items-end xl:justify-between xl:gap-8">
               <div>
+                <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
+                  Free Tool · Quick Generate
+                </p>
                 <h1 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
-                  PlaywrightGen Generator
+                  Create a reviewable Playwright starting point
                 </h1>
                 {paymentSuccess && (
                   <div className="mx-auto mb-6 max-w-2xl rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
@@ -1225,14 +1228,21 @@ return (
                   </div>
                 )}
                 <p className="mt-2 max-w-3xl text-gray-600">
-                  Generate, analyze, and improve Playwright test coverage from prompts,
-                  components, HTML snippets, APIs, and page URLs.
+                  Turn a requirement, component, HTML snippet, API description, or
+                  page URL into a disposable first draft. Use Workspace when the
+                  test needs versions, review, traceability, and execution evidence.
                 </p>
                 <p className="mt-2 text-sm text-gray-500">
-                  Built for developers, automation engineers, and SDETs.
+                  Best for a quick experiment—not a release-readiness decision.
                 </p>
               </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:mt-0 xl:justify-end">
+                <Link
+                  href="/workspace"
+                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-cyan-600"
+                >
+                  Continue in Workspace →
+                </Link>
                 {isProVerified ? (
                   <span className="text-sm text-gray-500 text-left sm:text-right">
                     Pro plan active
@@ -1262,21 +1272,21 @@ transition hover:bg-black"
                 className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "generate" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
                   }`}
               >
-                Generate Test
+                Quick Generate
               </button>
               <button
                 onClick={() => setActiveTab("debug")}
                 className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "debug" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
                   }`}
               >
-                Debug Assistant
+                Debug Lab
               </button>
               <button
                 onClick={() => setActiveTab("figma")}
                 className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "figma" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
                   }`}
               >
-                Figma to Code
+                Design Lab
               </button>
             </div>
             <div className="mb-6 flex flex-wrap gap-3">
