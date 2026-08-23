@@ -167,3 +167,15 @@ advisory until a Lead or Owner/Admin confirms or dismisses them.
 **Reason:** A valid JSON schema cannot prevent invented root causes. Evidence
 validation, provider metadata, safe failures, and human resolution make AI
 analysis inspectable without corrupting execution history.
+
+## 019 — Version generated automation independently from approved test intent
+
+**Decision:** One engine-specific `AutomationArtifact` pins an approved
+`TestCaseVersion`. Every generation appends an immutable artifact version with
+structured plan/code/configuration, provider metadata, and local validation.
+The current draft and last approved version are tracked independently.
+
+**Reason:** Generated code changes more frequently than approved test intent.
+Separate Browser/API engines, deterministic blocking rules, preserved approval
+history, and explicit human transitions prevent AI output from silently
+becoming trusted or executable automation.

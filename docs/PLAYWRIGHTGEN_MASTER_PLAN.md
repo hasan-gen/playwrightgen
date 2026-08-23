@@ -56,8 +56,9 @@ and never silently overwrite approved domain records.
 - Versioned Test Cases, review workflow, and Requirement traceability: complete.
 - Test Runs and immutable execution evidence: complete.
 - Failure Intelligence over failed attempt evidence: complete.
-- Versioned Playwright Browser and API automation artifacts: next.
-- Separate Playwright browser/API automation engines and later intelligence: pending.
+- Versioned Playwright Browser and API automation artifacts: complete.
+- Project-aware coverage, change, regression, and delivery intelligence: next.
+- Controlled automation execution and production hardening: pending.
 
 ## Product constraints
 

@@ -175,6 +175,34 @@ must be an exact normalized substring of its selected immutable field before
 anything is persisted. Failed/refused/invalid outputs create a safe failed
 analysis record and no findings. Human resolution never edits the attempt.
 
+## Versioned Playwright automation artifacts
+
+`AutomationArtifact` is a tenant/project-scoped lifecycle record pinned to one
+approved immutable `TestCaseVersion` and one explicit engine: Playwright
+Browser or Playwright API. The engines share review controls but remain
+separate because their fixtures, validation rules, and execution behavior are
+different. One artifact is unique per Test Case version and engine.
+
+`AutomationArtifactVersion` is append-only generated content. It stores a
+structured plan, TypeScript Playwright code, configuration, dependencies,
+assumptions, model/prompt/schema/token metadata, and deterministic validation
+findings. Provider failures append a safe failed version with no executable
+content. The artifact tracks the current version and an independently retained
+approved version, so regeneration never destroys an earlier approval.
+
+The OpenAI provider uses the Responses API with Zod Structured Outputs and
+`store: false`. A local validator blocks Markdown-wrapped code, missing tests
+or assertions, focused tests, unsafe execution primitives, sensitive logging,
+disallowed Node capabilities, unsupported dependencies, and engine/fixture
+mismatches. Hard waits, brittle selectors, and weak assertions are review
+warnings. Generated code is never executed in this milestone.
+
+Assigned Members may generate drafts, Project Leads may submit them, and only
+organization Owner/Admin may approve or request changes. Every creation,
+version generation, and workflow transition writes Activity in the same
+transaction as its effective domain change. Approval updates the Test Case's
+query-friendly automation summary without modifying its immutable version.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

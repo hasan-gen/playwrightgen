@@ -185,6 +185,7 @@ export async function getTestCaseDetail(
     canArchive: context.can("testcase:archive"),
     canManageTraceability: context.can("testcase:traceability"),
     canCreateRun: context.can("testrun:create"),
+    canGenerateAutomation: context.can("automation:generate"),
   };
 }
 

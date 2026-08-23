@@ -17,7 +17,8 @@ completed, materially changed, or blocked.
 | V1.3 Test Cases + traceability | Complete | Tenant/project-scoped TestCase and immutable TestCaseVersion schema; review workflow; optimistic concurrency; composite RequirementTestCase traceability; transactional Activity; real UI; 102 tests and development/test migration evidence. |
 | V1.4 Test Runs + execution evidence | Complete | Runs pin an approved immutable TestCaseVersion; append-only attempts capture result, mode, environment, browser, duration, per-step outcomes, failure details, and evidence links; aggregate concurrency, roles, Activity, tenant constraints, real UI, 110 tests, and development/test migrations pass. |
 | V1.5 Failure Intelligence | Complete | OpenAI Responses API Structured Outputs classify failed/blocked immutable attempts; local exact-quote evidence validation, model/prompt/schema/token metadata, safe failure records, human confirm/dismiss, tenant/role enforcement, real Test Run UI, 118 tests, and development/test migrations pass. |
-| V1.6 Automation artifacts + engines | Next | Versioned reviewable Playwright Browser and API automation drafts generated from approved immutable Test Case versions. |
+| V1.6 Automation artifacts + engines | Complete | Separate Playwright Browser/API engines create append-only artifacts pinned to approved immutable Test Case versions; OpenAI Responses Structured Outputs, deterministic safety/quality validation, safe failed generations, preserved approved revisions, human review/approval, tenant/role enforcement, real Automation Studio UI, 128 tests, and development/test migrations pass. |
+| V1.7 Project quality intelligence | Next | Evidence-derived coverage, regression, change-impact, and delivery-confidence views over real Requirements, Test Cases, Automation artifacts, and Test Runs. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -32,6 +33,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Build separate Playwright Browser and API automation engines that generate
-versioned reviewable artifacts from approved Test Case versions, with no
-automatic execution or silent changes to approved test intent.
+Build project-aware quality intelligence from versioned Requirements, Test
+Cases, approved Automation artifacts, and immutable Test Run evidence. Every
+coverage or delivery claim must expose its source records and uncertainty.

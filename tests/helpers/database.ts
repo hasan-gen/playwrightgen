@@ -62,6 +62,8 @@ export async function cleanPhase1ATables(
     client.failureAnalysis.deleteMany(),
     client.testRunAttempt.deleteMany(),
     client.testRun.deleteMany(),
+    client.automationArtifactVersion.deleteMany(),
+    client.automationArtifact.deleteMany(),
     client.requirementTestCase.deleteMany(),
     client.testCaseVersion.deleteMany(),
     client.testCase.deleteMany(),

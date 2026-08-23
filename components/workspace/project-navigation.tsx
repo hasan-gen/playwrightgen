@@ -30,6 +30,12 @@ export function ProjectNavigation({
         Test Cases
       </Link>
       <Link
+        href={`${base}/automation`}
+        className="border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-950"
+      >
+        Automation
+      </Link>
+      <Link
         href={`${base}/test-runs`}
         className="border-b-2 border-transparent px-3 py-3 text-sm font-medium text-slate-600 hover:border-slate-300 hover:text-slate-950"
       >

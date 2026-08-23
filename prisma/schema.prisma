@@ -127,6 +127,24 @@ enum AutomationStatus {
   AUTOMATED
 }
 
+enum AutomationEngine {
+  PLAYWRIGHT_BROWSER
+  PLAYWRIGHT_API
+}
+
+enum AutomationArtifactStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  ARCHIVED
+}
+
+enum AutomationValidationStatus {
+  PASSED
+  WARNINGS
+  BLOCKED
+}
+
 enum TestRunStatus {
   NOT_STARTED
   PASSED
@@ -212,6 +230,11 @@ enum ActivityAction {
   FAILURE_ANALYSIS_COMPLETED
   FAILURE_FINDING_CONFIRMED
   FAILURE_FINDING_DISMISSED
+  AUTOMATION_ARTIFACT_CREATED
+  AUTOMATION_VERSION_GENERATED
+  AUTOMATION_SUBMITTED_FOR_REVIEW
+  AUTOMATION_CHANGES_REQUESTED
+  AUTOMATION_APPROVED
 }
 
 enum ActivityTargetType {
@@ -228,6 +251,8 @@ enum ActivityTargetType {
   TEST_RUN_ATTEMPT
   FAILURE_ANALYSIS
   FAILURE_FINDING
+  AUTOMATION_ARTIFACT
+  AUTOMATION_ARTIFACT_VERSION
 }
 
 enum ActivitySource {
@@ -252,25 +277,28 @@ model User {
   updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
 
   memberships                 Membership[]
-  projectsCreated             Project[]             @relation("ProjectCreatedBy")
-  projectsArchived            Project[]             @relation("ProjectArchivedBy")
-  activities                  Activity[]            @relation("ActivityActor")
-  requirementsCreated         Requirement[]         @relation("RequirementCreatedBy")
-  requirementsOwned           Requirement[]         @relation("RequirementOwner")
-  requirementVersionsCreated  RequirementVersion[]  @relation("RequirementVersionCreatedBy")
-  requirementVersionsOwned    RequirementVersion[]  @relation("RequirementVersionOwner")
-  aiRunsCreated               AiRun[]               @relation("AiRunCreatedBy")
-  aiSuggestionsResolved       AiSuggestion[]        @relation("AiSuggestionResolvedBy")
-  testCasesCreated            TestCase[]            @relation("TestCaseCreatedBy")
-  testCasesOwned              TestCase[]            @relation("TestCaseOwner")
-  testCaseVersionsCreated     TestCaseVersion[]     @relation("TestCaseVersionCreatedBy")
-  testCaseVersionsOwned       TestCaseVersion[]     @relation("TestCaseVersionOwner")
-  requirementTestCasesCreated RequirementTestCase[] @relation("RequirementTestCaseCreatedBy")
-  testRunsCreated             TestRun[]             @relation("TestRunCreatedBy")
-  testRunsCanceled            TestRun[]             @relation("TestRunCanceledBy")
-  testRunAttemptsExecuted     TestRunAttempt[]      @relation("TestRunAttemptExecutedBy")
-  failureAnalysesCreated      FailureAnalysis[]     @relation("FailureAnalysisCreatedBy")
-  failureFindingsResolved     FailureFinding[]      @relation("FailureFindingResolvedBy")
+  projectsCreated             Project[]                   @relation("ProjectCreatedBy")
+  projectsArchived            Project[]                   @relation("ProjectArchivedBy")
+  activities                  Activity[]                  @relation("ActivityActor")
+  requirementsCreated         Requirement[]               @relation("RequirementCreatedBy")
+  requirementsOwned           Requirement[]               @relation("RequirementOwner")
+  requirementVersionsCreated  RequirementVersion[]        @relation("RequirementVersionCreatedBy")
+  requirementVersionsOwned    RequirementVersion[]        @relation("RequirementVersionOwner")
+  aiRunsCreated               AiRun[]                     @relation("AiRunCreatedBy")
+  aiSuggestionsResolved       AiSuggestion[]              @relation("AiSuggestionResolvedBy")
+  testCasesCreated            TestCase[]                  @relation("TestCaseCreatedBy")
+  testCasesOwned              TestCase[]                  @relation("TestCaseOwner")
+  testCaseVersionsCreated     TestCaseVersion[]           @relation("TestCaseVersionCreatedBy")
+  testCaseVersionsOwned       TestCaseVersion[]           @relation("TestCaseVersionOwner")
+  requirementTestCasesCreated RequirementTestCase[]       @relation("RequirementTestCaseCreatedBy")
+  testRunsCreated             TestRun[]                   @relation("TestRunCreatedBy")
+  testRunsCanceled            TestRun[]                   @relation("TestRunCanceledBy")
+  testRunAttemptsExecuted     TestRunAttempt[]            @relation("TestRunAttemptExecutedBy")
+  failureAnalysesCreated      FailureAnalysis[]           @relation("FailureAnalysisCreatedBy")
+  failureFindingsResolved     FailureFinding[]            @relation("FailureFindingResolvedBy")
+  automationArtifactsCreated  AutomationArtifact[]        @relation("AutomationArtifactCreatedBy")
+  automationArtifactsApproved AutomationArtifact[]        @relation("AutomationArtifactApprovedBy")
+  automationVersionsCreated   AutomationArtifactVersion[] @relation("AutomationArtifactVersionCreatedBy")
 
   @@index([primaryEmail])
   @@index([status])
@@ -302,6 +330,8 @@ model Organization {
   testRunAttempts      TestRunAttempt[]
   failureAnalyses      FailureAnalysis[]
   failureFindings      FailureFinding[]
+  automationArtifacts  AutomationArtifact[]
+  automationVersions   AutomationArtifactVersion[]
 
   @@index([status])
 }
@@ -343,9 +373,9 @@ model Project {
   createdAt        DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
 
-  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy            User                  @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  archivedBy           User?                 @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  organization         Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy            User                        @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  archivedBy           User?                       @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   projectMemberships   ProjectMembership[]
   activities           Activity[]
   requirements         Requirement[]
@@ -357,6 +387,8 @@ model Project {
   testRunAttempts      TestRunAttempt[]
   failureAnalyses      FailureAnalysis[]
   failureFindings      FailureFinding[]
+  automationArtifacts  AutomationArtifact[]
+  automationVersions   AutomationArtifactVersion[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, slug])
@@ -528,13 +560,14 @@ model TestCase {
   createdAt            DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
 
-  organization     Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  project          Project               @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
-  owner            User                  @relation("TestCaseOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy        User                  @relation("TestCaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  versions         TestCaseVersion[]
-  requirementLinks RequirementTestCase[]
-  testRuns         TestRun[]
+  organization        Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project             Project               @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner               User                  @relation("TestCaseOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy           User                  @relation("TestCaseCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions            TestCaseVersion[]
+  requirementLinks    RequirementTestCase[]
+  testRuns            TestRun[]
+  automationArtifacts AutomationArtifact[]
 
   @@unique([organizationId, projectId, id])
   @@index([organizationId, projectId, status, updatedAt])
@@ -561,14 +594,85 @@ model TestCaseVersion {
   createdByUserId  String           @db.Uuid
   createdAt        DateTime         @default(now()) @db.Timestamptz(3)
 
-  testCase  TestCase  @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
-  owner     User      @relation("TestCaseVersionOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy User      @relation("TestCaseVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  testRuns  TestRun[]
+  testCase            TestCase             @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  owner               User                 @relation("TestCaseVersionOwner", fields: [ownerUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy           User                 @relation("TestCaseVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  testRuns            TestRun[]
+  automationArtifacts AutomationArtifact[]
 
   @@unique([organizationId, projectId, testCaseId, versionNumber])
   @@unique([organizationId, projectId, testCaseId, id])
   @@index([testCaseId, createdAt])
+}
+
+model AutomationArtifact {
+  id                    String                   @id @default(uuid()) @db.Uuid
+  organizationId        String                   @db.Uuid
+  projectId             String                   @db.Uuid
+  testCaseId            String                   @db.Uuid
+  testCaseVersionId     String                   @db.Uuid
+  engine                AutomationEngine
+  name                  String                   @db.VarChar(300)
+  status                AutomationArtifactStatus @default(DRAFT)
+  currentVersionNumber  Int                      @default(0)
+  approvedVersionNumber Int?
+  createdByUserId       String                   @db.Uuid
+  approvedByUserId      String?                  @db.Uuid
+  submittedForReviewAt  DateTime?                @db.Timestamptz(3)
+  approvedAt            DateTime?                @db.Timestamptz(3)
+  archivedAt            DateTime?                @db.Timestamptz(3)
+  createdAt             DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime                 @updatedAt @db.Timestamptz(3)
+
+  organization    Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project         Project                     @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCase        TestCase                    @relation(fields: [organizationId, projectId, testCaseId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  testCaseVersion TestCaseVersion             @relation(fields: [organizationId, projectId, testCaseId, testCaseVersionId], references: [organizationId, projectId, testCaseId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy       User                        @relation("AutomationArtifactCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  approvedBy      User?                       @relation("AutomationArtifactApprovedBy", fields: [approvedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  versions        AutomationArtifactVersion[]
+
+  @@unique([organizationId, projectId, id])
+  @@unique([organizationId, projectId, testCaseVersionId, engine])
+  @@index([organizationId, projectId, status, updatedAt])
+  @@index([testCaseId, engine, updatedAt])
+}
+
+model AutomationArtifactVersion {
+  id                   String                     @id @default(uuid()) @db.Uuid
+  organizationId       String                     @db.Uuid
+  projectId            String                     @db.Uuid
+  automationArtifactId String                     @db.Uuid
+  versionNumber        Int
+  generationStatus     AiRunStatus                @default(RUNNING)
+  validationStatus     AutomationValidationStatus @default(BLOCKED)
+  summary              String                     @db.Text
+  plan                 Json                       @db.JsonB
+  code                 String                     @db.Text
+  configuration        String                     @db.Text
+  dependencies         String[]                   @default([])
+  assumptions          String[]                   @default([])
+  validationFindings   Json                       @db.JsonB
+  model                String                     @db.VarChar(100)
+  promptVersion        String                     @db.VarChar(100)
+  schemaVersion        String                     @db.VarChar(100)
+  inputTokens          Int?
+  outputTokens         Int?
+  totalTokens          Int?
+  failureCode          String?                    @db.VarChar(100)
+  createdByUserId      String                     @db.Uuid
+  startedAt            DateTime                   @default(now()) @db.Timestamptz(3)
+  completedAt          DateTime?                  @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project            @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  artifact     AutomationArtifact @relation(fields: [organizationId, projectId, automationArtifactId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User               @relation("AutomationArtifactVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, projectId, automationArtifactId, versionNumber], map: "automation_version_number_unique")
+  @@unique([organizationId, projectId, automationArtifactId, id], map: "automation_version_tenant_id_unique")
+  @@index([automationArtifactId, versionNumber])
+  @@index([generationStatus, startedAt])
 }
 
 model RequirementTestCase {
