@@ -3,6 +3,10 @@
 This is the authoritative roadmap ledger. Update it whenever a milestone is
 completed, materially changed, or blocked.
 
+The durable next-session handoff is maintained in
+[`docs/NEXT_SESSION_ROADMAP.md`](./NEXT_SESSION_ROADMAP.md). Read it before
+starting the next checkpoint and update it at the end of every work session.
+
 | Checkpoint | Status | Evidence |
 | --- | --- | --- |
 | 1. Dependencies/environment | Complete | Commit `3691461`; dependency and environment baseline established. |
