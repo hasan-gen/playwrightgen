@@ -1,444 +1,501 @@
 import Link from "next/link";
 
-const coreFeatures = [
-  {
-    title: "Figma → Code",
-    description:
-      "Turn screenshots and design references into developer-ready Angular, React, HTML, or Playwright output with clean multi-file structure.",
-    icon: (
-      <div className="relative h-12 w-12">
-        <div className="absolute left-1 top-1 h-8 w-8 rounded-xl border border-sky-300 bg-white shadow-sm" />
-        <div className="absolute left-4 top-4 h-8 w-8 rounded-xl border border-sky-400 bg-sky-50 shadow-sm" />
-        <div className="absolute -right-1 -bottom-1 flex h-6 w-6 items-center justify-center rounded-lg bg-sky-400 text-[10px] font-bold text-white">
-          {"</>"}
-        </div>
-      </div>
-    ),
-  },
-  {
-    title: "Debug Assistant",
-    description:
-      "Analyze test failures, UI issues, and flaky flows with root-cause guidance, safer fixes, and production-minded debugging output.",
-    icon: (
-      <div className="relative flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-200 bg-sky-50">
-        <div className="absolute h-5 w-5 rounded-full border-2 border-sky-500" />
-        <div className="absolute right-2 top-7 h-2.5 w-2.5 rotate-45 rounded-sm bg-sky-500" />
-        <div className="absolute left-5 top-4 h-1.5 w-1.5 rounded-full bg-sky-500" />
-      </div>
-    ),
-  },
-  {
-    title: "AI Mode",
-    description:
-      "Switch between standard output and enhanced reasoning for deeper coverage, stronger engineering suggestions, and smarter generation.",
-    icon: (
-      <div className="relative h-12 w-12 rounded-2xl border border-sky-200 bg-sky-50 p-2">
-        <div className="absolute left-2 top-5 h-3 w-8 rounded-full bg-sky-200" />
-        <div className="absolute left-6 top-[1.05rem] h-5 w-5 rounded-full bg-sky-500 shadow-sm" />
-        <div className="absolute left-3 top-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-500">
-          AI
-        </div>
-      </div>
-    ),
-  },
-];
-
-const workflowSteps = [
+const evidenceFlow = [
   {
     step: "01",
-    title: "Choose a workflow",
-    description: "Generate tests, debug failures, or turn Figma into structured code.",
+    label: "Requirement",
+    title: "Define approved intent",
+    description:
+      "Keep acceptance criteria, ownership, review state, and every material revision inspectable.",
+    status: "Versioned",
   },
   {
     step: "02",
-    title: "Add your input",
-    description: "Use prompts, components, screenshots, URLs, or uploaded files.",
+    label: "Test Case",
+    title: "Make coverage explicit",
+    description:
+      "Link business intent to structured scenarios, expected outcomes, priority, and review history.",
+    status: "Traceable",
   },
   {
     step: "03",
-    title: "Get structured output",
-    description: "Receive tests, fixes, multi-file code, and developer-ready results.",
+    label: "Automation",
+    title: "Generate reviewable code",
+    description:
+      "Create separate Browser and API artifacts with deterministic validation and human approval.",
+    status: "Reviewable",
   },
-];
+  {
+    step: "04",
+    label: "Run Evidence",
+    title: "Preserve what happened",
+    description:
+      "Keep each result, step outcome, environment, failure detail, and evidence link immutable.",
+    status: "Evidence-bound",
+  },
+  {
+    step: "05",
+    label: "Release Decision",
+    title: "Act on the real gaps",
+    description:
+      "See missing coverage, unresolved failures, stale evidence, and the next highest-value action.",
+    status: "Explainable",
+  },
+] as const;
 
-const whatsNext = [
-  "Agentic AI workflows that can plan, generate, and refine automation across multiple steps",
-  "Deeper design-to-code intelligence inspired by next-generation AI assistants like Claude-style reasoning",
-  "Project-level memory for reusable test patterns, component history, and smarter long-term generation",
-];
+const freeTools = [
+  {
+    number: "01",
+    title: "Quick Generate",
+    description:
+      "Turn a requirement, component, API description, HTML snippet, or URL into a disposable Playwright starting point.",
+    href: "/generator",
+    action: "Generate a first draft",
+  },
+  {
+    number: "02",
+    title: "Coverage Review",
+    description:
+      "Review pasted requirements and tests for likely gaps, brittle patterns, weak assertions, and missing scenarios.",
+    href: "/intelligence",
+    action: "Review test coverage",
+  },
+  {
+    number: "03",
+    title: "Release Review",
+    description:
+      "Inspect supplied change evidence for likely impact, uncertainty, and the engineering follow-up a release may need.",
+    href: "/engineering-review",
+    action: "Review a change",
+  },
+] as const;
 
-const whyPlaywrightGen = [
+const workspaceCapabilities = [
+  "Organization and project isolation",
+  "Immutable Requirement and Test Case versions",
+  "Requirement-to-Test Case traceability",
+  "Separate Browser and API automation engines",
+  "Append-only run attempts and failure evidence",
+  "Roles, approvals, and activity history",
+] as const;
+
+const principles = [
   {
-    title: "Real multi-file output",
+    title: "Evidence before confidence",
     description:
-      "Output looks closer to real project files, not just one giant AI response block.",
+      "Every durable quality claim should link back to the Requirement, Test Case, artifact, run, or finding that supports it.",
   },
   {
-    title: "Structured debugging",
+    title: "AI proposes. Teams approve.",
     description:
-      "Debug output is designed to identify root cause, safer fixes, and what to test next.",
+      "AI can review, generate, and diagnose. It cannot silently change approved intent or turn generated output into trusted automation.",
   },
   {
-    title: "Built for real engineering work",
+    title: "History stays inspectable",
     description:
-      "Made for developers, automation engineers, and SDETs who care about usable output.",
+      "Versions and execution attempts are preserved so a later edit never changes what the team previously reviewed or ran.",
   },
-];
+] as const;
+
+const audiences = [
+  {
+    role: "QA and SDET leads",
+    outcome:
+      "Connect planning, automation, execution, and failure review without maintaining separate evidence spreadsheets.",
+  },
+  {
+    role: "Developers",
+    outcome:
+      "Get a clear next test, inspect generated Playwright code, and understand failures without losing engineering context.",
+  },
+  {
+    role: "Engineering managers",
+    outcome:
+      "See what is covered, what is unresolved, and which evidence is still missing before a release decision.",
+  },
+] as const;
+
+function ArrowIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+      <path
+        d="M4 10h11m-4-4 4 4-4 4"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+      <path
+        d="m5 10 3 3 7-7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#F8FAFC] px-4 py-10 sm:px-6 sm:py-14">
-      <div className="mx-auto max-w-6xl">
-        {/* Hero */}
-        <section className="relative overflow-hidden rounded-[2rem] border border-slate-200 bg-white px-5 py-4 shadow-sm sm:px-7 sm:py-4 lg:px-8 lg:py-4">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_left_center,rgba(56,189,248,0.10),transparent_24%)]" />
-          <div className="relative grid gap-6 lg:grid-cols-[1.04fr_0.96fr] lg:items-start">
-            <div>
-              <div className="mb-3 flex items-center gap-3">
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-600 border border-blue-200">
-                  AI Powered
-                </span>
+    <main className="overflow-hidden bg-slate-50 text-slate-950">
+      <section className="relative isolate border-b border-slate-200 bg-slate-950 px-4 py-16 text-white sm:px-6 sm:py-20 lg:px-8 lg:py-24">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute left-[-10rem] top-[-14rem] h-[32rem] w-[32rem] rounded-full bg-cyan-400/15 blur-3xl" />
+          <div className="absolute bottom-[-18rem] right-[-8rem] h-[38rem] w-[38rem] rounded-full bg-blue-500/15 blur-3xl" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.035)_1px,transparent_1px)] bg-[size:42px_42px]" />
+        </div>
 
-                <span className="h-2 w-2 rounded-full bg-blue-500 animate-pulse"></span>
-                <span className="text-xs text-gray-500">
-                  Live AI workflows enabled
+        <div className="mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.18em] text-cyan-200">
+              <span className="h-2 w-2 rounded-full bg-cyan-300 shadow-[0_0_14px_rgba(103,232,249,0.85)]" />
+              Evidence-backed quality for Playwright teams
+            </div>
+
+            <h1 className="mt-7 max-w-4xl text-5xl font-semibold leading-[0.98] tracking-[-0.055em] sm:text-6xl lg:text-7xl">
+              Know what to test.
+              <span className="block text-cyan-300">Know whether to ship.</span>
+            </h1>
+
+            <p className="mt-7 max-w-2xl text-lg leading-8 text-slate-300 sm:text-xl">
+              PlaywrightGen connects requirements, test intent, reviewable
+              automation, execution evidence, and failure intelligence so your
+              team can act on quality risk instead of guessing from disconnected
+              AI output.
+            </p>
+
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <Link
+                href="/workspace"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-200"
+              >
+                Open your Workspace
+                <ArrowIcon />
+              </Link>
+              <Link
+                href="/intelligence"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 text-sm font-semibold text-white transition hover:border-white/30 hover:bg-white/10"
+              >
+                Try Coverage Review
+                <ArrowIcon />
+              </Link>
+            </div>
+
+            <div className="mt-9 flex flex-wrap gap-x-6 gap-y-3 text-sm text-slate-400">
+              {[
+                "Versioned intent",
+                "Reviewable automation",
+                "Immutable run evidence",
+              ].map((item) => (
+                <span key={item} className="inline-flex items-center gap-2">
+                  <span className="text-cyan-300"><CheckIcon /></span>
+                  {item}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div className="relative mx-auto w-full max-w-2xl lg:max-w-none">
+            <div className="absolute -inset-4 rounded-[2.2rem] bg-cyan-300/10 blur-2xl" />
+            <div className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-slate-900/90 p-4 shadow-2xl shadow-black/40 backdrop-blur sm:p-6">
+              <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">
+                    Quality evidence map
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">Illustrative project workflow</p>
+                </div>
+                <span className="rounded-full border border-amber-300/20 bg-amber-300/10 px-3 py-1 text-xs font-semibold text-amber-200">
+                  Decision needs evidence
                 </span>
               </div>
 
-              <h1 className="max-w-3xl -mt-2 text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-[3.6rem] lg:leading-[1.05]">
-                AI workflows for testing, debugging, and{" "}
-                <span className="text-sky-500">Figma-to-code</span>
-              </h1>
+              <div className="mt-5 space-y-3">
+                {[
+                  ["Requirement", "Approved intent", "Version 4", "bg-emerald-300"],
+                  ["Test Cases", "Linked scenarios", "Traceable", "bg-cyan-300"],
+                  ["Automation", "Browser + API", "In review", "bg-blue-300"],
+                  ["Run Evidence", "Immutable attempts", "Failure found", "bg-rose-300"],
+                ].map(([label, detail, status, color], index) => (
+                  <div key={label} className="relative">
+                    {index < 3 ? (
+                      <span className="absolute left-[1.15rem] top-10 h-5 w-px bg-white/10" />
+                    ) : null}
+                    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] p-3.5">
+                      <span className={`h-2.5 w-2.5 rounded-full ${color}`} />
+                      <div>
+                        <p className="text-sm font-semibold text-white">{label}</p>
+                        <p className="mt-0.5 text-xs text-slate-400">{detail}</p>
+                      </div>
+                      <span className="rounded-lg bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-slate-300">
+                        {status}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
 
-              <p className="mt-4 max-w-2xl text-base leading-8 text-slate-600 sm:text-lg">
-                Generate production-ready Playwright tests, debug real failures,
-                and convert UI designs into developer-ready code from one workspace.
+              <div className="mt-5 rounded-2xl border border-rose-300/20 bg-rose-300/[0.07] p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-rose-200">
+                      Highest-value action
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-200">
+                      Review the failed run and its evidence before approving the
+                      automation or making a release decision.
+                    </p>
+                  </div>
+                  <span className="mt-1 grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-rose-300/10 text-rose-200">
+                    <ArrowIcon />
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="product" className="scroll-mt-24 px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
+              One product, two ways to start
+            </p>
+            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] text-slate-950 sm:text-5xl">
+              Explore freely. Build trust in Workspace.
+            </h2>
+            <p className="mt-5 text-lg leading-8 text-slate-600">
+              Free tools help you reach a useful first result quickly. Workspace
+              turns that one-time result into versioned, reviewable project evidence.
+            </p>
+          </div>
+
+          <div className="mt-12 grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-400">Free tools</p>
+                  <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em]">
+                    Fast, preliminary analysis
+                  </h3>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+                  No project history
+                </span>
+              </div>
+              <p className="mt-4 leading-7 text-slate-600">
+                Use a focused tool when you want a disposable draft or a quick
+                second opinion. These results do not claim durable project coverage.
               </p>
-
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-                <Link
-                  href="/login?next=/generator"
-                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-slate-950 px-6 py-3 text-base font-medium text-white transition hover:opacity-90 sm:min-w-[190px] sm:w-auto"
-                >
-                  Start Free ⚡
-                </Link>
-
-                <Link
-                  href="/pricing"
-                  className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-sky-200 bg-sky-50 px-6 py-3 text-base font-medium text-sky-700 transition hover:bg-sky-100 sm:min-w-[150px] sm:w-auto"
-                >
-                  View Pricing $
-                </Link>
-              </div>
-
-              <div className="mt-6 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center font-medium text-slate-700">
-                  Prompt → Test
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center font-medium text-slate-700">
-                  Figma → Multi-file
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center font-medium text-slate-700">
-                  Debug → Root Cause
-                </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-center font-medium text-slate-700">
-                  Free Plan: 5/day
-                </div>
-              </div>
-
-              <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50/70 px-4 py-3 shadow-sm">
-                <div className="mt-4 rounded-[1.5rem] border border-slate-200 bg-slate-50/70 px-6 py-5 shadow-sm">
-                  <div className="relative h-28">
-                    {/* 主流程线 */}
-                    <div className="absolute left-[14%] right-[14%] top-1/2 h-px -translate-y-1/2 bg-gradient-to-r from-sky-200 via-blue-200 to-sky-200"></div>
-
-                    {/* 发光扫线 */}
-                    <div
-                      className="absolute left-[14%] top-1/2 h-10 w-20 -translate-y-1/2 rounded-full bg-sky-200/40 blur-xl"
-                      style={{ animation: "pipelineScan 4s linear infinite" }}
-                    ></div>
-
-                    {/* 左：人 */}
-                    <div className="absolute left-[4%] top-1/2 -translate-y-1/2">
-                      <div className="relative h-20 w-20 rounded-full border border-slate-200 bg-white shadow-sm">
-                        <div className="absolute left-1/2 top-[1.15rem] h-5 w-5 -translate-x-1/2 rounded-full bg-slate-400"></div>
-                        <div className="absolute left-1/2 top-[2.65rem] h-8 w-10 -translate-x-1/2 rounded-t-[999px] bg-slate-300"></div>
-                        <div className="absolute inset-0 rounded-full border border-sky-100"></div>
+              <div className="mt-7 space-y-3">
+                {freeTools.map((tool) => (
+                  <Link
+                    key={tool.href}
+                    href={tool.href}
+                    className="group flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 transition hover:border-cyan-300 hover:bg-cyan-50/60"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-xs font-bold text-cyan-700 shadow-sm">
+                        {tool.number}
+                      </span>
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{tool.title}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">{tool.action}</p>
                       </div>
                     </div>
-
-                    {/* 中：AI Core */}
-                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                      <div className="relative flex h-24 w-24 items-center justify-center rounded-[1.75rem] border border-sky-200 bg-gradient-to-br from-sky-50 to-white shadow-sm">
-                        <div className="absolute h-14 w-14 rounded-full bg-sky-200/50 blur-xl animate-pulse"></div>
-                        <div className="absolute h-10 w-10 rounded-2xl border border-sky-300 bg-sky-100"></div>
-                        <div className="absolute h-4 w-4 rounded-full bg-sky-500 shadow-[0_0_16px_rgba(14,165,233,0.65)] animate-pulse"></div>
-
-                        <div className="absolute h-16 w-16 rounded-full border border-sky-200/70"></div>
-                        <div className="absolute h-20 w-20 rounded-full border border-sky-100/70"></div>
-
-                        <div className="absolute -left-2 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-sky-300 animate-pulse"></div>
-                        <div className="absolute -right-2 top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-sky-300 animate-pulse"></div>
-                        <div className="absolute left-1/2 -top-2 h-3 w-3 -translate-x-1/2 rounded-full bg-sky-300 animate-pulse"></div>
-                        <div className="absolute left-1/2 -bottom-2 h-3 w-3 -translate-x-1/2 rounded-full bg-sky-300 animate-pulse"></div>
-                      </div>
-                    </div>
-
-                    {/* 右：电脑 */}
-                    <div className="absolute right-[4%] top-1/2 -translate-y-1/2">
-                      <div className="relative h-20 w-24 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="absolute left-1/2 top-3 h-10 w-16 -translate-x-1/2 rounded-lg border border-sky-100 bg-slate-50"></div>
-                        <div className="absolute left-1/2 top-[4.15rem] h-3 w-3 -translate-x-1/2 rounded-sm bg-slate-300"></div>
-                        <div className="absolute left-1/2 top-[4.9rem] h-1.5 w-10 -translate-x-1/2 rounded-full bg-slate-300"></div>
-
-                        <div className="absolute left-1/2 top-6 h-1 w-10 -translate-x-1/2 rounded-full bg-sky-200"></div>
-                        <div className="absolute left-1/2 top-[2.15rem] h-1 w-8 -translate-x-1/2 rounded-full bg-sky-300"></div>
-                      </div>
-                    </div>
-
-                    {/* 流动粒子 1 */}
-                    <div
-                      className="absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-sky-400 shadow-[0_0_12px_rgba(56,189,248,0.65)]"
-                      style={{ animation: "pipelineFlow 3.2s linear infinite" }}
-                    ></div>
-
-                    {/* 流动粒子 2 */}
-                    <div
-                      className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-sky-500 shadow-[0_0_16px_rgba(14,165,233,0.7)]"
-                      style={{ animation: "pipelineFlow 3.2s linear infinite", animationDelay: "1.1s" }}
-                    ></div>
-
-                    {/* 流动粒子 3 */}
-                    <div
-                      className="absolute top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-blue-400 shadow-[0_0_12px_rgba(59,130,246,0.55)]"
-                      style={{ animation: "pipelineFlow 3.2s linear infinite", animationDelay: "2.1s" }}
-                    ></div>
-
-                    {/* 微粒装饰 */}
-                    <div className="absolute left-[22%] top-[28%] h-1.5 w-1.5 rounded-full bg-sky-200"></div>
-                    <div className="absolute left-[40%] top-[72%] h-1.5 w-1.5 rounded-full bg-slate-200"></div>
-                    <div className="absolute left-[63%] top-[26%] h-1.5 w-1.5 rounded-full bg-sky-200"></div>
-                    <div className="absolute left-[79%] top-[70%] h-1.5 w-1.5 rounded-full bg-slate-200"></div>
-                  </div>
-                </div>
-
+                    <span className="text-slate-400 transition group-hover:translate-x-0.5 group-hover:text-cyan-700">
+                      <ArrowIcon />
+                    </span>
+                  </Link>
+                ))}
               </div>
-
             </div>
 
-            <div className="rounded-[1.75rem] border border-slate-200 bg-slate-950 p-4 shadow-sm sm:p-5">
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-slate-500" />
-                  <div className="h-3 w-3 rounded-full bg-slate-500" />
-                  <div className="h-3 w-3 rounded-full bg-slate-500" />
-                </div>
-                <div className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-[10px] font-medium uppercase tracking-[0.22em] text-sky-300">
-                  Live Preview
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-slate-900 p-4">
-                <div className="mb-4 flex flex-wrap gap-2">
-                  <span className="rounded-full bg-sky-500 px-3 py-1 text-[11px] font-medium text-white">
-                    Component.tsx
-                  </span>
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-slate-300">
-                    Component.css
-                  </span>
-                  <span className="rounded-full border border-white/10 px-3 py-1 text-[11px] font-medium text-slate-300">
-                    Component.test.tsx
+            <div className="relative overflow-hidden rounded-[2rem] bg-slate-950 p-6 text-white shadow-xl sm:p-8">
+              <div className="pointer-events-none absolute right-[-8rem] top-[-8rem] h-72 w-72 rounded-full bg-cyan-400/15 blur-3xl" />
+              <div className="relative">
+                <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-300">Workspace</p>
+                    <h3 className="mt-3 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
+                      The system of record for quality
+                    </h3>
+                  </div>
+                  <span className="w-fit rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-200">
+                    Durable team workflow
                   </span>
                 </div>
+                <p className="mt-5 max-w-2xl leading-7 text-slate-300">
+                  Use Workspace when evidence must survive beyond one prompt: assign
+                  ownership, preserve versions, review automation, record execution,
+                  and keep every decision inside the correct organization and project.
+                </p>
 
-                <pre className="overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-slate-200 sm:text-sm">{`export function LoginCard() {
-return (
-<section className="login-card">
-<h1>Welcome back</h1>
-<p>Sign in to continue your workflow.</p>
+                <div className="mt-7 grid gap-3 sm:grid-cols-2">
+                  {workspaceCapabilities.map((capability) => (
+                    <div
+                      key={capability}
+                      className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] px-3.5 py-3 text-sm text-slate-200"
+                    >
+                      <span className="text-cyan-300"><CheckIcon /></span>
+                      {capability}
+                    </div>
+                  ))}
+                </div>
 
-<form>
-<input type="email" placeholder="Enter email" />
-<input type="password" placeholder="Enter password" />
-<button type="submit">Sign in</button>
-</form>
-</section>
-);
-}`}</pre>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-sky-300">
-                    Figma
-                  </div>
-                  <p className="text-sm text-slate-300">
-                    Multi-file output for Angular, React, and HTML/CSS.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-sky-300">
-                    Debug
-                  </div>
-                  <p className="text-sm text-slate-300">
-                    Root cause, safer fixes, and what to test next.
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="mb-2 text-xs font-medium uppercase tracking-[0.18em] text-sky-300">
-                    AI Mode
-                  </div>
-                  <p className="text-sm text-slate-300">
-                    Switch between fast output and enhanced reasoning.
-                  </p>
-                </div>
+                <Link
+                  href="/workspace"
+                  className="mt-8 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-bold text-slate-950 transition hover:bg-cyan-100"
+                >
+                  Enter Workspace
+                  <ArrowIcon />
+                </Link>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* Core Features */}
-        <section className="mt-4">
-          <div className="mb-8">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.24em] text-slate-500 sm:text-sm">
-              Core workflows
-            </p>
+      <section className="border-y border-slate-200 bg-white px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-8 lg:grid-cols-[0.78fr_1.22fr] lg:gap-16">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
+                The quality evidence loop
+              </p>
+              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+                From approved intent to an explainable release decision
+              </h2>
+              <p className="mt-5 text-lg leading-8 text-slate-600">
+                Each stage produces a record the next stage can reference. Nothing
+                important has to live only in a chat transcript or a copied code block.
+              </p>
+            </div>
 
-            <h2 className="text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-              Three workflows built for real engineering work
-            </h2>
-
-            <p className="mt-3 max-w-3xl text-slate-600">
-              PlaywrightGen is strongest when it helps you move faster without
-              losing structure, readability, or developer trust.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {coreFeatures.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-              >
-                <div className="mb-5 flex items-center justify-between">
-                  {item.icon}
-                  <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-sky-400/10 to-sky-500/5" />
+            <div className="space-y-3">
+              {evidenceFlow.map((item, index) => (
+                <div
+                  key={item.step}
+                  className="group grid gap-4 rounded-2xl border border-slate-200 bg-slate-50 p-5 transition hover:border-cyan-300 hover:bg-white sm:grid-cols-[auto_1fr_auto] sm:items-center"
+                >
+                  <div className="flex items-center gap-3 sm:block">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-950 text-xs font-bold text-white">
+                      {item.step}
+                    </span>
+                    <span className="text-xs font-bold uppercase tracking-[0.14em] text-cyan-700 sm:mt-2 sm:block">
+                      {item.label}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-[-0.02em] text-slate-950">{item.title}</h3>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
+                  </div>
+                  <div className="flex items-center gap-3 sm:flex-col sm:items-end">
+                    <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                      {item.status}
+                    </span>
+                    {index < evidenceFlow.length - 1 ? (
+                      <span className="hidden rotate-90 text-slate-300 sm:block"><ArrowIcon /></span>
+                    ) : null}
+                  </div>
                 </div>
-
-                <h3 className="mb-3 text-xl font-semibold text-slate-950">
-                  {item.title}
-                </h3>
-                <p className="leading-7 text-slate-600">{item.description}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* How it works */}
-        <section className="mt-16 rounded-[2rem] border border-slate-200 bg-white px-6 py-8 shadow-sm sm:px-8 sm:py-10">
-          <div className="mb-8">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.24em] text-slate-500 sm:text-sm">
-              How it works
+      <section className="px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+        <div className="mx-auto max-w-7xl">
+          <div className="text-center">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
+              Designed for the whole delivery conversation
             </p>
-
-            <h2 className="text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-              One workspace. Three simple steps.
+            <h2 className="mx-auto mt-4 max-w-3xl text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+              One shared view of quality, different decisions for each role
             </h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {workflowSteps.map((item) => (
-              <div
-                key={item.step}
-                className="rounded-3xl border border-slate-200 bg-slate-50 p-6"
-              >
-                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-sky-500 text-sm font-bold text-white">
-                  {item.step}
-                </div>
-                <h3 className="mb-3 text-xl font-semibold text-slate-950">
-                  {item.title}
-                </h3>
-                <p className="leading-7 text-slate-600">{item.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* What's next */}
-        <section className="mt-16">
-          <div className="mb-6">
-            <p className="mb-3 text-xs font-medium uppercase tracking-[0.24em] text-slate-500 sm:text-sm">
-              What’s next
-            </p>
-            <h2 className="text-3xl font-bold tracking-tight text-slate-950 md:text-4xl">
-              The next upgrades already in motion
-            </h2>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            {whatsNext.map((item) => (
-              <div
-                key={item}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-              >
-                <div className="mb-3 h-2 w-12 rounded-full bg-sky-400" />
-                <p className="leading-7 text-slate-700">{item}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* Why PlaywrightGen */}
-        <section className="mt-16 rounded-[2rem] bg-slate-950 px-6 py-8 text-white shadow-sm sm:px-8 sm:py-10">
-          <p className="mb-3 text-xs font-medium uppercase tracking-[0.24em] text-sky-300 sm:text-sm">
-            Why PlaywrightGen
-          </p>
-
-          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">
-            Built to feel more like a developer tool than a generic AI demo
-          </h2>
-
-          <p className="mt-4 max-w-3xl text-slate-300">
-            The goal is not just to generate output. The goal is to generate
-            output that engineers can actually work with.
-          </p>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {whyPlaywrightGen.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-3xl border border-white/10 bg-white/5 p-6"
-              >
-                <div className="mb-4 h-2 w-14 rounded-full bg-sky-400" />
-                <h3 className="mb-3 text-xl font-semibold text-white">
-                  {item.title}
-                </h3>
-                <p className="leading-7 text-slate-300">{item.description}</p>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {audiences.map((audience, index) => (
+              <div key={audience.role} className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-50 text-xs font-bold text-cyan-700">
+                  0{index + 1}
+                </span>
+                <h3 className="mt-6 text-xl font-semibold tracking-[-0.025em]">{audience.role}</h3>
+                <p className="mt-3 leading-7 text-slate-600">{audience.outcome}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-            <Link
-              href="/login?next=/generator"
-              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl bg-white px-6 py-3 text-base font-medium text-slate-950 transition hover:bg-slate-100 sm:min-w-[210px] sm:w-auto"
-            >
-              Start Generating ⚡
-            </Link>
-
-            <Link
-              href="/pricing"
-              className="inline-flex min-h-[48px] w-full items-center justify-center rounded-xl border border-sky-300/30 bg-sky-400/10 px-6 py-3 text-base font-medium text-sky-200 transition hover:bg-sky-400/20 sm:min-w-[165px] sm:w-auto"
-            >
-              View Pricing $$
-            </Link>
+          <div className="mt-20 rounded-[2.25rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8 lg:p-10">
+            <div className="grid gap-10 lg:grid-cols-[0.78fr_1.22fr] lg:items-start">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">Trust model</p>
+                <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-4xl">
+                  AI assistance without invisible authority
+                </h2>
+                <p className="mt-5 leading-7 text-slate-600">
+                  The goal is not maximum automation at any cost. The goal is
+                  faster quality work that remains reviewable, attributable, and
+                  safe to challenge.
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-3">
+                {principles.map((principle) => (
+                  <div key={principle.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <span className="mb-5 block h-1.5 w-12 rounded-full bg-cyan-400" />
+                    <h3 className="font-semibold text-slate-950">{principle.title}</h3>
+                    <p className="mt-3 text-sm leading-6 text-slate-600">{principle.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
+        </div>
+      </section>
 
-          <p className="mt-4 text-sm text-slate-400">
-            Start with the free plan. Upgrade when you need more advanced AI workflows.
-          </p>
-        </section>
-      </div>
+      <section className="px-4 pb-20 sm:px-6 lg:px-8 lg:pb-28">
+        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[2.25rem] bg-slate-950 px-6 py-12 text-white shadow-xl sm:px-10 sm:py-14 lg:px-14">
+          <div className="pointer-events-none absolute right-[-8rem] top-[-10rem] h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="relative flex flex-col justify-between gap-9 lg:flex-row lg:items-end">
+            <div className="max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Start with the evidence you have</p>
+              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+                Turn the next quality question into a durable team decision.
+              </h2>
+              <p className="mt-5 max-w-2xl text-lg leading-8 text-slate-300">
+                Try a focused free review, or enter Workspace when the result needs
+                ownership, history, approval, and project context.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-3 sm:flex-row lg:flex-col xl:flex-row">
+              <Link
+                href="/workspace"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 text-sm font-bold text-slate-950 transition hover:bg-cyan-200"
+              >
+                Open Workspace
+                <ArrowIcon />
+              </Link>
+              <Link
+                href="/generator"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 px-5 text-sm font-semibold text-white transition hover:bg-white/10"
+              >
+                Try Quick Generate
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
