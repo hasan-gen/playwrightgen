@@ -3,6 +3,9 @@
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { WorkspaceHandoffButton } from "@/components/free-tools/workspace-handoff-button";
+import type { FreeToolHandoff } from "@/lib/free-tools/handoff";
+
 type Severity = "Critical" | "High" | "Medium" | "Low";
 
 type Finding = {
@@ -395,6 +398,41 @@ export default function EngineeringReviewPage() {
             setLoading(false);
         }
     };
+
+    const workspaceHandoff: FreeToolHandoff | null = result
+        ? {
+              version: 1,
+              source: "release-review",
+              target: "REQUIREMENT",
+              createdAt: new Date().toISOString(),
+              title:
+                  projectName.trim() ||
+                  `Release follow-up: ${changeSummary.trim().slice(0, 240)}`,
+              summary: [
+                  `Change summary:\n${changeSummary.trim()}`,
+                  `Expected behavior:\n${expectedBehavior.trim()}`,
+                  beforeBehavior.trim() && `Before behavior:\n${beforeBehavior.trim()}`,
+                  `Preliminary impact summary:\n${result.executiveSummary}`,
+                  result.criticalFindings.length > 0 &&
+                      `Directly affected areas:\n${result.criticalFindings
+                          .map((finding) => `[${finding.severity}] ${finding.title}: ${finding.impact}`)
+                          .join("\n")}`,
+              ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+              acceptanceCriteria: [
+                  acceptanceCriteria.trim(),
+                  result.recommendedActions
+                      .map((finding) => `${finding.title}: ${finding.recommendation}`)
+                      .join("\n"),
+              ]
+                  .filter(Boolean)
+                  .join("\n\n"),
+              tags: ["release-review", ...allCategories.slice(0, 8).map((item) => item.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))].filter(Boolean),
+              notice:
+                  "This creates an AI-suggested Requirement draft from a preliminary change-impact review. The evidence-completeness indicator is not a release-readiness score, and a person must review the proposed intent before approval.",
+          }
+        : null;
 
     return (
         <main className="min-h-screen bg-[#F8FAFC] px-4 py-8 sm:px-6 sm:py-10">
@@ -944,6 +982,32 @@ export default function EngineeringReviewPage() {
                                 description="Prioritized validation, coordination, or investigation prompted by the impact."
                                 items={result.recommendedActions}
                             />
+
+                            {workspaceHandoff && (
+                                <section className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 sm:p-6">
+                                    <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                                        <div>
+                                            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-800">
+                                                Turn analysis into owned work
+                                            </p>
+                                            <h3 className="mt-2 text-xl font-semibold text-slate-950">
+                                                Continue as a draft Requirement
+                                            </h3>
+                                            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                                                Choose a project and edit the proposed intent before
+                                                creating an AI-suggested draft. The review does not
+                                                approve the change or declare it release-ready.
+                                            </p>
+                                        </div>
+                                        <WorkspaceHandoffButton
+                                            handoff={workspaceHandoff}
+                                            className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-bold text-white hover:bg-cyan-700 lg:w-auto"
+                                        >
+                                            Continue in Workspace →
+                                        </WorkspaceHandoffButton>
+                                    </div>
+                                </section>
+                            )}
 
                             <div className="flex flex-col gap-3 border-t border-slate-300 pt-5 sm:flex-row">
                                 <button

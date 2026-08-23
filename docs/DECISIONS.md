@@ -192,3 +192,20 @@ recoverable branded experience, and avoids making workspace access depend on
 browser-specific behavior at a cross-site hosted sign-in page. Clerk still
 proves identity; PostgreSQL authorization and organization scoping are
 unchanged.
+
+## 021 — Keep public AI output preliminary and import only reviewed draft intent
+
+**Decision:** Quick Generate and Coverage Review use the OpenAI Responses API
+with Structured Outputs and local deterministic checks. Public results display
+their evidence limits and never claim execution, measured coverage, approval,
+or release readiness. Continue in Workspace stores a short-lived browser-tab
+handoff, requires authentication and project selection, validates the payload
+again on the server, and creates only an `AI_SUGGESTED` Requirement or Test Case
+draft through tenant-scoped domain services. Generated code is not imported as
+trusted automation.
+
+**Reason:** A free prompt result has no durable project authority or approved
+test intent. Converting it directly into approved automation would bypass
+versioning, RBAC, review, and evidence requirements. A reviewed draft preserves
+useful momentum while keeping PostgreSQL and the existing approval workflows
+authoritative.

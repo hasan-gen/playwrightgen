@@ -1,2441 +1,323 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { APP_LIMITS, PRO_WAITLIST_COPY } from "../../lib/plan";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import GeneratorLayout from "@/components/generator-layout";
+import { useMemo, useRef, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-type Mode = "text" | "html" | "api" | "component" | "figma";
-type StyleMode = "fast" | "clean" | "production";
-type OutputType = "playwright" | "unit";
-type TabType = "generate" | "debug" | "figma";
+import { WorkspaceHandoffButton } from "@/components/free-tools/workspace-handoff-button";
+import type { FreeToolHandoff } from "@/lib/free-tools/handoff";
 
-type IssueType =
-  | "Smart Detect"
-  | "Test Failure"
-  | "UI/Layout"
-  | "Component Logic"
-  | "Styling"
-  | "General Bug";
+type GenerationMode = "FLOW" | "MARKUP" | "COMPONENT" | "API";
+type GenerationDepth = "FOCUSED" | "EXPANDED";
 
-type HistoryItem = {
-  id: string;
-  mode: Mode;
-  prompt: string;
-  url: string;
-  generatedCode: string;
-  createdAt: string;
-  styleMode: StyleMode;
-  outputType: OutputType;
-  generationType: "prompt" | "url";
-  tabType?: TabType;
-  issueType?: IssueType;
+type QuickGenerationResult = {
+  title: string;
+  summary: string;
+  testPlan: { scenario: string; intent: string; expectedOutcome: string }[];
+  code: string;
+  assumptions: string[];
+  warnings: string[];
+  model: string;
+  validation: {
+    status: "PASSED" | "WARNINGS" | "BLOCKED";
+    findings: { severity: "BLOCKING" | "WARNING"; code: string; message: string }[];
+  };
 };
-function GeneratorContent() {
-  const [mode, setMode] = useState<Mode>("text");
-  const [prompt, setPrompt] = useState("");
-  const [generatedCode, setGeneratedCode] = useState("");
-  const [debugCode, setDebugCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [userEmail, setUserEmail] = useState("");
-  const [copied, setCopied] = useState(false);
+
+const modes: Array<{
+  id: GenerationMode;
+  label: string;
+  description: string;
+  placeholder: string;
+}> = [
+  {
+    id: "FLOW",
+    label: "User flow",
+    description: "Start from a requirement, acceptance criteria, or behavior description.",
+    placeholder: "A signed-out user can submit valid credentials and reach the dashboard. Invalid credentials show a visible error without navigating…",
+  },
+  {
+    id: "MARKUP",
+    label: "HTML or JSX",
+    description: "Derive user-facing scenarios from supplied markup without inventing implementation.",
+    placeholder: "Paste the relevant HTML or JSX here…",
+  },
+  {
+    id: "COMPONENT",
+    label: "Component behavior",
+    description: "Describe a component contract and receive a Playwright browser-test draft.",
+    placeholder: "The checkout summary updates totals when quantity changes and announces validation errors…",
+  },
+  {
+    id: "API",
+    label: "API contract",
+    description: "Create Playwright request-fixture tests from an endpoint contract.",
+    placeholder: "POST /api/orders requires an authenticated user and valid line items. Expect 201 with an order id…",
+  },
+];
+
+function formatBytes(bytes: number) {
+  if (bytes < 1_000) return `${bytes} B`;
+  return `${(bytes / 1_000).toFixed(bytes > 100_000 ? 0 : 1)} KB`;
+}
+
+export default function QuickGeneratePage() {
+  const [mode, setMode] = useState<GenerationMode>("FLOW");
+  const [depth, setDepth] = useState<GenerationDepth>("FOCUSED");
+  const [request, setRequest] = useState("");
+  const [pageUrl, setPageUrl] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
+  const [result, setResult] = useState<QuickGenerationResult | null>(null);
+  const [inputSignals, setInputSignals] = useState<string[]>([]);
+  const [remaining, setRemaining] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [url, setUrl] = useState("");
-  const [styleMode, setStyleMode] = useState<StyleMode>("clean");
-  const [outputType, setOutputType] = useState<OutputType>("playwright");
-  const [aiModeEnabled, setAiModeEnabled] = useState(false);
-  const [generationType, setGenerationType] = useState<"prompt" | "url">("prompt");
-  const [analysisSummary, setAnalysisSummary] = useState("");
-  const [remainingGenerations, setRemainingGenerations] = useState<number>(5);
-  const [hasSyncedUsage, setHasSyncedUsage] = useState(false);
-  const [selectedCoverage, setSelectedCoverage] = useState<string[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState("");
-  const [explanation, setExplanation] = useState("");
-  const [explaining, setExplaining] = useState(false);
-  const [showWaitlistModal, setShowWaitlistModal] = useState(false);
-  const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [waitlistLoading, setWaitlistLoading] = useState(false);
-  const [waitlistMessage, setWaitlistMessage] = useState("");
-  const [proEmailInput, setProEmailInput] = useState("");
-  const [checkingPro, setCheckingPro] = useState(false);
-  const [isProVerified, setIsProVerified] = useState(false);
-  const [proStatusMessage, setProStatusMessage] = useState("");
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [selectedHistoryId, setSelectedHistoryId] = useState<string | null>(null);
-  // ==================== 新增 Debug 状态 ====================
-  const [activeTab, setActiveTab] = useState<TabType>("generate");
-  const [figmaUrl, setFigmaUrl] = useState("");
-
-  type FigmaGenerateFor = "angular" | "react" | "html-css" | "playwright";
-  type FigmaOutputFormat = "single" | "multi";
-
-  const [figmaPrompt, setFigmaPrompt] = useState("");
-  const [figmaGenerateFor, setFigmaGenerateFor] = useState<FigmaGenerateFor>("angular");
-  const [figmaOutputFormat, setFigmaOutputFormat] = useState<FigmaOutputFormat>("multi");
-  const [selectedFigmaResultFile, setSelectedFigmaResultFile] = useState("");
-  const [figmaGeneratedFiles, setFigmaGeneratedFiles] = useState<Record<string, string>>({});
-
-  const [issueType, setIssueType] = useState<IssueType>("Smart Detect");
-  const [debugInput, setDebugInput] = useState("");
-  const outputRef = useRef<HTMLDivElement | null>(null);
-  const figmaOutputRef = useRef<HTMLDivElement | null>(null);
-  const explanationRef = useRef<HTMLDivElement | null>(null);
-  const deleteHistoryItem = (id: string) => {
-    const updated = historyItems.filter(item => item.id !== id);
-    setHistoryItems(updated);
-    localStorage.setItem("playwrightgen-history", JSON.stringify(updated));
-    if (selectedHistoryId === id) {
-      setSelectedHistoryId(null);
-    }
-  };
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
-  const [figmaFiles, setFigmaFiles] = useState<File[]>([]);
+  const [error, setError] = useState("");
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const figmaFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      setUploadedFiles(prev => [...prev, ...newFiles]);
-    }
+  const activeMode = useMemo(
+    () => modes.find((item) => item.id === mode) ?? modes[0],
+    [mode],
+  );
+
+  const resetResult = () => {
+    setResult(null);
+    setInputSignals([]);
+    setError("");
   };
 
-  const handleFigmaFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    const selectedFiles = Array.from(files).filter((file) =>
-      file.type.startsWith("image/")
-    );
-
-    setFigmaFiles(selectedFiles);
-
-    if (figmaFileInputRef.current) {
-      figmaFileInputRef.current.value = "";
-    }
-  };
-
-  const removeUploadedFile = (index: number) => {
-    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
-  };
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const paymentSuccess = searchParams.get("success") === "true";
-  const sessionId = searchParams.get("session_id");
-  useEffect(() => {
-    const savedProEmail = localStorage.getItem("proEmail");
-    if (savedProEmail) {
-      setProEmailInput(savedProEmail);
-    }
-  }, []);
-  useEffect(() => {
-    const email = localStorage.getItem("playwrightgen_user_email");
-    if (email) {
-      setUserEmail(email);
-    }
-  }, []);
-  useEffect(() => {
-    const savedUser = localStorage.getItem("playwrightgen_user_email");
-    if (!savedUser) {
-      router.replace("/login?next=/generator");
-    }
-  }, [router]);
-
-  useEffect(() => {
-    if (!paymentSuccess || !sessionId) return;
-    const fetchSession = async () => {
-      try {
-        const res = await fetch(
-          `/api/checkout-session?session_id=${encodeURIComponent(sessionId)}`
-        );
-        const data = await res.json();
-        if (data.email) {
-          localStorage.setItem("proEmail", data.email);
-          setProEmailInput(data.email);
-        }
-      } catch (err) {
-        console.error("Fetch session error:", err);
-      }
-    };
-    fetchSession();
-  }, [paymentSuccess, sessionId]);
-
-
-  useEffect(() => {
-    const email = proEmailInput || localStorage.getItem("proEmail");
-    if (!email) return;
-    const checkPro = async () => {
-      try {
-        setCheckingPro(true);
-        const res = await fetch("/api/check-pro", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email }),
-        });
-        const data = await res.json();
-        if (data.isPro) {
-          setIsProVerified(true);
-          setProEmailInput(email);
-          setProStatusMessage("Pro access verified.");
-        } else {
-          setIsProVerified(false);
-          setProStatusMessage("Payment received, but Pro is not ready yet.");
-        }
-      } catch (err) {
-        console.error("Check Pro failed:", err);
-        setIsProVerified(false);
-        setProStatusMessage("Automatic Pro verification failed.");
-      } finally {
-        setCheckingPro(false);
-      }
-    };
-    checkPro();
-  }, [proEmailInput]);
-  useEffect(() => {
-    const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as HistoryItem[];
-      setHistoryItems(parsed);
-    } catch (error) {
-      console.error("Failed to load history:", error);
-      localStorage.removeItem(HISTORY_STORAGE_KEY);
-    }
-
-
-  }, []);
-  const getTitle = () => {
-    if (mode === "text") return "Describe your test";
-    if (mode === "html") return "Paste HTML or JSX";
-    if (mode === "component") {
-      return "Component → Test";
-    }
-    return "Describe your API test";
-  };
-  const getPlaceholder = () => {
-    if (mode === "text") {
-      return "Create a login test for a page with email and password. After successful login, the user should be redirected to /dashboard.";
-    }
-    if (mode === "html") {
-      return `<form>
-<input placeholder="Enter email" />
-<input placeholder="Enter password" type="password" />
-<button type="submit">Login</button>
-</form>`;
-    }
-    if (mode === "component") {
-      return outputType === "unit"
-        ? `export function LoginForm() {
-return (
-<form>
-<label htmlFor="email">Email</label>
-<input id="email" placeholder="Enter email" />
-<label htmlFor="password">Password</label>
-<input id="password" type="password" placeholder="Enter password" />
-<button type="submit">Login</button>
-</form>
-);
-}`
-        : `export function LoginForm() {
-return (
-<form>
-<input placeholder="Enter email" />
-<input placeholder="Enter password" type="password" />
-<button type="submit">Login</button>
-</form>
-);
-}`;
-    }
-    return "Create a Playwright API test for POST /login with email and password. Expect status 200 and a token in response.";
-  };
-  const handleNewGeneration = () => {
-    setPrompt("");
-    setUrl("");
-    setGeneratedCode("");
-    setAnalysisSummary("");
-    setExplanation("");
-    setSelectedCoverage([]);
-    setSelectedTemplate("");
-    setSelectedHistoryId(null);
-
-    setDebugCode("");
-    setDebugInput("");
-    setError(null);
-
-    setFigmaGeneratedFiles({});
-    setSelectedFigmaResultFile("");
-    setFigmaUrl("");
-    setFigmaPrompt("");
-
-    clearUploadedFiles();
-  };
-
-
-  const clearUploadedFiles = () => {
-    if (activeTab === "figma") {
-      setFigmaFiles([]);
-      if (figmaFileInputRef.current) {
-        figmaFileInputRef.current.value = "";
-      }
-    } else {
-      setUploadedFiles([]);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  };
-  const handleSelectHistoryItem = (item: HistoryItem) => {
-    setSelectedHistoryId(item.id);
-    setSelectedTemplate("");
-    setPrompt(item.prompt || "");
-    setUrl(item.url || "");
-    setError(null);
-    setExplanation("");
-
-    clearUploadedFiles();
-
-    // ==================== 关键修复：区分 Generate / Debug / Figma 的输出 ====================
-    if (item.tabType === "debug") {
-      setDebugCode(item.generatedCode || "");
-      setGeneratedCode("");
-      setFigmaGeneratedFiles({});
-      setSelectedFigmaResultFile("");
-    } else if (item.tabType === "figma" || item.mode === "figma") {
-      setGeneratedCode(item.generatedCode || "");
-      setDebugCode("");
-
-      const parsedFiles = parseFigmaFiles(item.generatedCode || "");
-      setFigmaGeneratedFiles(parsedFiles);
-
-      const fileNames = Object.keys(parsedFiles);
-      setSelectedFigmaResultFile(fileNames[0] || "");
-
-      setFigmaUrl(item.url || "");
-      setFigmaPrompt(item.prompt || "");
-    } else {
-      setGeneratedCode(item.generatedCode || "");
-      setDebugCode("");
-      setFigmaGeneratedFiles({});
-      setSelectedFigmaResultFile("");
-    }
-    // =====================================================================
-
-    if (item.mode) setMode(item.mode);
-    if (item.styleMode) setStyleMode(item.styleMode);
-    if (item.outputType) setOutputType(item.outputType);
-    if (item.generationType) setGenerationType(item.generationType);
-
-    // ==================== 自动切换 Tab ====================
-    if (item.tabType === "debug") {
-      setActiveTab("debug");
-      setDebugInput(item.prompt || "");
-      if (item.issueType) setIssueType(item.issueType);
-    } else if (item.tabType === "figma" || item.mode === "figma") {
-      setActiveTab("figma");
-    } else {
-      setActiveTab("generate");
-    }
-    // ============================================================
-
-    // 滚动到对应输出区
-    setTimeout(() => {
-      if (item.tabType === "figma" || item.mode === "figma") {
-        figmaOutputRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      } else {
-        outputRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }
-    }, 100);
-  };
-  const getOutputTitle = () => {
-    if (generationType === "url") {
-      return "Generated Playwright Test Suite from Page Analysis";
-    }
-    if (mode === "component" && outputType === "unit") {
-      return "Generated Component Unit Test";
-    }
-    if (mode === "component") {
-      return "Generated Component Playwright Test";
-    }
-    if (mode === "text") return "Generated Playwright Test";
-    if (mode === "html") return "Generated Playwright Test from HTML";
-    return "Generated Playwright API Test";
-  };
-  const getModeLabel = () => {
-    if (mode === "text") return "Prompt Mode";
-    if (mode === "html") return "HTML Mode";
-    if (mode === "component") {
-      return outputType === "unit" ? "Component Unit Test Mode" : "Component Mode";
-    }
-    return "API Mode";
-  };
-  const appendCoverageSuggestion = (suggestion: string) => {
-    const isSelected = selectedCoverage.includes(suggestion);
-
-    if (isSelected) {
-      setSelectedCoverage([]);
-
-      setPrompt((prev) => {
-        const lines = prev
-          .split("\n")
-          .map((line) => line.trim())
-          .filter((line) => line && line !== suggestion);
-
-        return lines.join("\n");
-      });
-
-      return;
-    }
-
-    setSelectedCoverage([suggestion]);
-
-    setPrompt((prev) => {
-      const cleanedLines = prev
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(
-          (line) =>
-            line &&
-            !selectedCoverage.includes(line)
-        );
-
-      if (!cleanedLines.length) {
-        return suggestion;
-      }
-
-      return [...cleanedLines, suggestion].join("\n");
-    });
-  };
-  const parseCodeAndExplanation = (result: string) => {
-    const codePart = result.split("===EXPLANATION===")[0] || "";
-    const explanationPart = result.split("===EXPLANATION===")[1] || "";
-
-    const cleanCode = codePart.replace("===CODE===", "").trim();
-    const cleanExplanation = explanationPart.trim();
-
-    return { cleanCode, cleanExplanation };
-  };
-
-  const parseExplanationSections = (text: string) => {
-    const sections = {
-      overview: "",
-      keyLogic: "",
-      whyThisWorks: "",
-      improvements: "",
-      risks: "",
-    };
-
-    const getSection = (start: string, end?: string) => {
-      const startIndex = text.indexOf(start);
-      if (startIndex === -1) return "";
-      const contentStart = startIndex + start.length;
-      const endIndex = end ? text.indexOf(end, contentStart) : -1;
-      return (endIndex === -1
-        ? text.slice(contentStart)
-        : text.slice(contentStart, endIndex)
-      ).trim();
-    };
-
-    sections.overview = getSection("1. Overview", "2. Key Logic");
-    sections.keyLogic = getSection("2. Key Logic", "3. Why This Works");
-    sections.whyThisWorks = getSection("3. Why This Works", "4. Improvements");
-    sections.improvements = getSection("4. Improvements", "5. Risks / Edge Cases");
-    sections.risks = getSection("5. Risks / Edge Cases");
-
-    return sections;
-  };
-  const handleGenerate = async () => {
-    setExplanation("");
-    setError(null);
-    if (!isProVerified && remainingGenerations <= 0) {
-      setShowWaitlistModal(true);
-      return;
-    }
-
-    // 支持只上传文件不写 prompt 的情况
-    if (!prompt.trim() && uploadedFiles.length === 0) {
-      setError("Please enter a prompt or upload at least one file/image.");
+  const generate = async () => {
+    if (!request.trim() && files.length === 0) {
+      setError("Describe the intended behavior or attach relevant evidence first.");
       return;
     }
 
     try {
-      setGenerationType("prompt");
-      setAnalysisSummary("");
       setLoading(true);
+      setError("");
+      setResult(null);
       setCopied(false);
-      setGeneratedCode("");
-      setExplanation("");
 
       const formData = new FormData();
-      formData.append("mode", mode);
-      formData.append("prompt", prompt || "");
-      formData.append("url", url || "");
-      formData.append("styleMode", styleMode);
-      formData.append("outputType", outputType);
-      formData.append("aiModeEnabled", String(aiModeEnabled));   // AI Mode 真正生效
+      formData.set("mode", mode);
+      formData.set("depth", depth);
+      formData.set("request", request);
+      formData.set("pageUrl", pageUrl);
+      files.forEach((file) => formData.append("files", file));
 
-      // 上传所有文件
-      uploadedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        body: formData,                    // 改成 FormData，支持文件上传
-      });
-
+      const response = await fetch("/api/quick-generate", { method: "POST", body: formData });
       const data = await response.json();
-
       if (!response.ok) {
-        setError(data.error || "Something went wrong.");
-        if (typeof data.remaining === "number") {
-          setRemainingGenerations(data.remaining);
-          setHasSyncedUsage(true);
-        }
+        setError(data.error || "Quick Generate failed.");
+        if (typeof data.remaining === "number") setRemaining(data.remaining);
         return;
       }
 
-      const { cleanCode, cleanExplanation } = parseCodeAndExplanation(data.result || "");
-      setGeneratedCode(cleanCode);
-      setExplanation("");
-
-      setTimeout(() => {
-        outputRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
-
-      if (!isProVerified) {
-        setRemainingGenerations(prev => prev - 1);
-      }
-
-      if (data.result) {
-        saveHistoryItem({
-          id: crypto.randomUUID(),
-          mode,
-          prompt,
-          url,
-          generatedCode: data.result,
-          createdAt: new Date().toISOString(),
-          styleMode,
-          outputType,
-          generationType: "prompt",
-        });
-      }
-
-      if (typeof data.remaining === "number") {
-        setRemainingGenerations(data.remaining);
-        setHasSyncedUsage(true);
-      }
-    } catch (error) {
-      console.error("Generate error:", error);
-      setGeneratedCode("Failed to generate code.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleAnalyzeUrl = async () => {
-    setError(null);
-    if (!isProVerified) {
-      setShowWaitlistModal(true);
-      setWaitlistMessage("");
-      return;
-    }
-    if (!url.trim()) {
-      setGeneratedCode("Please enter a URL first.");
-      return;
-    }
-    try {
-      setGenerationType("url");
-
-
-      setLoading(true);
-      setCopied(false);
-      setGeneratedCode("");
-      setExplanation("");
-      setAnalysisSummary("");
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          url,
-          styleMode,
-        }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.error || "Failed to analyze page.");
-        setGeneratedCode("");
-        return;
-      }
-      const analyzedResult = data.result || "";
-      setGeneratedCode(analyzedResult);
-      setTimeout(() => {
-        outputRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
-      if (analyzedResult) {
-        saveHistoryItem({
-          id: crypto.randomUUID(),
-          mode,
-          prompt,
-          url,
-          generatedCode: analyzedResult,
-          createdAt: new Date().toISOString(),
-          styleMode,
-          outputType,
-          generationType: "url",
-        });
-      }
-      if (data.analysis) {
-        const summaryParts = [
-          `Analyzed URL: ${data.analysis.url || url}`,
-          data.analysis.title ? `Title: ${data.analysis.title}` : "",
-          typeof data.analysis.formsCount === "number"
-            ? `Forms: ${data.analysis.formsCount}`
-            : "",
-          data.analysis.buttons?.length
-            ? `Buttons: ${data.analysis.buttons.slice(0, 4).join(", ")}`
-            : "",
-        ].filter(Boolean);
-
-
-        setAnalysisSummary(summaryParts.join(" · "));
-      } else {
-        setAnalysisSummary(`Analyzed URL: ${url}`);
-      }
-    } catch (error) {
-      console.error("Analyze URL error:", error);
-      setGeneratedCode("Failed to analyze page.");
+      setResult(data.result);
+      setInputSignals(Array.isArray(data.inputSignals) ? data.inputSignals : []);
+      if (typeof data.remaining === "number") setRemaining(data.remaining);
+      window.requestAnimationFrame(() => document.getElementById("quick-generate-result")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    } catch {
+      setError("Quick Generate could not reach the service. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDebug = async () => {
-    if (!debugInput.trim() && uploadedFiles.length === 0) {
-      setError("Please enter a description or upload a file/image.");
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-    setGeneratedCode("");
-
-    try {
-      const formData = new FormData();
-      formData.append("input", debugInput);
-      formData.append("issueType", issueType === "Smart Detect" ? "Auto Detect" : issueType);
-      formData.append("styleMode", styleMode);
-
-      // 上传所有文件
-      uploadedFiles.forEach((file) => {
-        formData.append("files", file);
-      });
-
-      const response = await fetch("/api/debug", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Debug request failed.");
-        return;
-      }
-
-      // 处理结构化输出
-      let displayText = "";
-      if (typeof data.result === "string") {
-        try {
-          const parsed = JSON.parse(data.result);
-          displayText = `
-Root Cause: ${parsed.rootCause || "N/A"}
-
-Confidence: ${parsed.confidence || "Medium"}
-
-Issue Type: ${parsed.issueType || "General"}
-
-Minimal Fix:
-${parsed.minimalFix || "No minimal fix provided"}
-
-Updated Code:
-${parsed.updatedCode || "No code change suggested"}
-
-Why:
-${parsed.why || "N/A"}
-
-What to test next:
-${parsed.whatToTestNext || "N/A"}
-
-Risks / Side Effects:
-${parsed.risks || "No risks mentioned"}
-          `.trim();
-        } catch (e) {
-          displayText = data.result;
-        }
-      } else {
-        displayText = JSON.stringify(data.result, null, 2);
-      }
-
-      setDebugCode(displayText);
-
-      if (typeof data.remaining === "number") {
-        setRemainingGenerations(data.remaining);
-      }
-
-      // 保存到历史
-      const newHistoryItem: HistoryItem = {
-        id: crypto.randomUUID(),
-        mode: "text",
-        prompt: debugInput,
-        url: "",
-        generatedCode: displayText,
+  const handoff: FreeToolHandoff | null = result
+    ? {
+        version: 1,
+        source: "quick-generate",
+        target: "TEST_CASE",
         createdAt: new Date().toISOString(),
-        styleMode,
-        outputType: "playwright",
-        generationType: "prompt",
-        tabType: "debug",
-        issueType: issueType,
-      };
-
-      saveHistoryItem(newHistoryItem);
-
-      setTimeout(() => {
-        outputRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
-
-    } catch (err) {
-      console.error("Debug error:", err);
-      setError("Failed to analyze the issue. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFigmaGenerate = async () => {
-    setError(null);
-    if (!isProVerified && remainingGenerations <= 0) {
-      setShowWaitlistModal(true);
-      return;
-    }
-
-    if (!figmaUrl && figmaFiles.length === 0 && !figmaPrompt.trim()) {
-      setError("Please upload a Figma screenshot, paste a Figma link, or enter a prompt.");
-      return;
-    }
-
-    setLoading(true);
-    setGeneratedCode("");
-    setExplanation("");
-
-
-
-    const formData = new FormData();
-    formData.append("mode", "figma");
-    formData.append("figmaUrl", figmaUrl || "");
-    formData.append("figmaPrompt", figmaPrompt || "");
-    formData.append("figmaGenerateFor", figmaGenerateFor);
-    formData.append("figmaOutputFormat", figmaOutputFormat);
-
-    figmaFiles.forEach((file) => formData.append("files", file));
-    try {
-      const response = await fetch("/api/generate", {
-        method: "POST",
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Failed to generate from Figma.");
-        return;
+        title: result.title,
+        summary: [
+          request.trim(),
+          result.summary,
+          result.testPlan.map((item, index) => `${index + 1}. ${item.scenario}: ${item.intent}`).join("\n"),
+        ].filter(Boolean).join("\n\n"),
+        acceptanceCriteria: result.testPlan.map((item) => item.expectedOutcome).join("\n"),
+        externalReference: pageUrl.trim() || undefined,
+        tags: ["quick-generate", mode.toLowerCase()],
+        testType: mode === "API" ? "API" : "END_TO_END",
+        notice:
+          "This creates an AI-suggested Test Case draft from the preliminary plan. The generated code is not imported as trusted automation; Workspace can generate a versioned artifact only after the Test Case is completed, reviewed, and approved.",
       }
+    : null;
 
-      const { cleanCode, cleanExplanation } = parseCodeAndExplanation(data.result || "");
-      setGeneratedCode(cleanCode);
-      setExplanation("");
-
-      if (typeof data.remaining === "number") {
-        setRemainingGenerations(data.remaining);
-      }
-      const parsedFiles = parseFigmaFiles(data.result || "");
-      setFigmaGeneratedFiles(parsedFiles);
-
-      const fileNames = Object.keys(parsedFiles);
-      setSelectedFigmaResultFile(fileNames[0] || "");
-
-      setTimeout(() => {
-        figmaOutputRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
-
-      // 保存到历史
-      const newHistoryItem: HistoryItem = {
-        id: crypto.randomUUID(),
-        mode: "figma",
-        prompt:
-          figmaPrompt ||
-          figmaUrl ||
-          `Figma ${figmaGenerateFor} (${figmaOutputFormat === "multi" ? "multi-file" : "single-file"})`,
-        url: figmaUrl || "",
-        generatedCode: data.result,
-        createdAt: new Date().toISOString(),
-        styleMode,
-        outputType: figmaGenerateFor === "playwright" ? "playwright" : "unit",
-        generationType: "prompt",
-        tabType: "figma",
-      };
-      saveHistoryItem(newHistoryItem);
-    } catch (err) {
-      console.error("Figma generate error:", err);
-      setError("Failed to generate from Figma.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getFigmaOutputPreview = () => {
-    if (figmaGenerateFor === "angular") {
-      return figmaOutputFormat === "multi"
-        ? [
-          "a.component.ts",
-          "a.component.html",
-          "a.component.less",
-          "a.component.spec.ts",
-        ]
-        : ["component.generated.ts"];
-    }
-
-    if (figmaGenerateFor === "react") {
-      return figmaOutputFormat === "multi"
-        ? ["Component.tsx", "Component.css", "Component.test.tsx"]
-        : ["Component.tsx"];
-    }
-
-    if (figmaGenerateFor === "html-css") {
-      return figmaOutputFormat === "multi"
-        ? ["index.html", "styles.css"]
-        : ["ui-snippet.html"];
-    }
-
-    return ["ui.spec.ts"];
-  };
-
-  const parseFigmaFiles = (result: string) => {
-    const files: Record<string, string> = {};
-    const normalized = result.replace(/\r\n/g, "\n");
-
-    const matches = [...normalized.matchAll(/^===FILE:\s*(.+?)===\s*$/gm)];
-
-    if (!matches.length) {
-      return files;
-    }
-
-    for (let i = 0; i < matches.length; i++) {
-      const fileName = matches[i][1].trim();
-      const start = matches[i].index! + matches[i][0].length;
-      const end = i + 1 < matches.length ? matches[i + 1].index! : normalized.length;
-
-      const content = normalized.slice(start, end).trim();
-
-      files[fileName] = content;
-    }
-
-    return files;
-  };
-
-  const getFigmaLanguage = (fileName: string) => {
-    if (fileName.endsWith(".html")) return "markup";
-    if (fileName.endsWith(".less")) return "css";
-    if (fileName.endsWith(".css")) return "css";
-    if (fileName.endsWith(".tsx")) return "tsx";
-    if (fileName.endsWith(".ts")) return "typescript";
-    return "typescript";
-  };
-
-  const handleCheckProAccess = async () => {
-    if (!proEmailInput.trim()) {
-      setProStatusMessage("Please enter your email.");
-      setIsProVerified(false);
-      return;
-    }
-    try {
-      setCheckingPro(true);
-      setProStatusMessage("");
-      const response = await fetch("/api/check-pro", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: proEmailInput }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setProStatusMessage(data.error || "Failed to check Pro access.");
-        setIsProVerified(false);
-        return;
-      }
-      if (data.isPro) {
-        setIsProVerified(true);
-        setProStatusMessage("Pro access verified.");
-      } else {
-        setIsProVerified(false);
-        setProStatusMessage("This email does not have Pro access yet.");
-      }
-    } catch (error) {
-      console.error("Check Pro access error:", error);
-      setIsProVerified(false);
-      setProStatusMessage("Failed to check Pro access.");
-    } finally {
-
-
-      setCheckingPro(false);
-    }
-  };
-  const handleCopy = async () => {
-    if (!generatedCode) return;
-    try {
-      await navigator.clipboard.writeText(generatedCode);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Copy failed:", error);
-    }
-  };
-  const handleExplain = async () => {
-    if (!generatedCode) return;
-    try {
-      setExplaining(true);
-      setExplanation("");
-      const response = await fetch("/api/explain", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ code: generatedCode }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setExplanation(data.error || "Failed to explain test.");
-        return;
-      }
-      setExplanation(data.explanation || "No explanation returned.");
-
-      setTimeout(() => {
-        explanationRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
-      }, 100);
-    } catch (error) {
-      console.error("Explain error:", error);
-      setExplanation("Failed to explain test.");
-    } finally {
-      setExplaining(false);
-    }
-  };
-
-  const explainButtonLabel =
-    activeTab === "figma" ? "Explain Output" : "Explain Test";
-
-  const explanationTitle =
-    activeTab === "figma" ? "Output Explanation" : "Test Explanation";
-
-  const reExplainButtonLabel =
-    activeTab === "figma" ? "Re-explain Output" : "Re-explain Test";
-
-
-  const handleDownload = () => {
-    if (!generatedCode) return;
-
-    const extension = outputType === "unit" ? "test.tsx" : "spec.ts";
-    const blob = new Blob([generatedCode], { type: "text/typescript" });
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = `playwrightgen-output.${extension}`;
-    link.click();
-    window.URL.revokeObjectURL(downloadUrl);
-  };
-
-  const handleCopyFigmaFile = async () => {
-    const currentFile = figmaGeneratedFiles[selectedFigmaResultFile] || "";
-    if (!currentFile) return;
-
-    try {
-      await navigator.clipboard.writeText(currentFile);
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    } catch (error) {
-      console.error("Copy failed:", error);
-    }
-  };
-
-  const handleDownloadFigmaFile = () => {
-    const currentFile = figmaGeneratedFiles[selectedFigmaResultFile] || "";
-    if (!currentFile || !selectedFigmaResultFile) return;
-
-    const blob = new Blob([currentFile], { type: "text/plain;charset=utf-8" });
-    const downloadUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = downloadUrl;
-    link.download = selectedFigmaResultFile;
-    link.click();
-    window.URL.revokeObjectURL(downloadUrl);
-  };
-  const handleJoinWaitlist = async () => {
-    if (!waitlistEmail.trim()) {
-      setWaitlistMessage("Please enter your email.");
-      return;
-    }
-    try {
-      setWaitlistLoading(true);
-      setWaitlistMessage("");
-      const response = await fetch("/api/waitlist", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email: waitlistEmail }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setWaitlistMessage(data.error || "Failed to join waitlist.");
-        return;
-      }
-      setWaitlistMessage("You're on the waitlist.");
-      setWaitlistEmail("");
-    } catch (error) {
-      console.error("Waitlist submit error:", error);
-      setWaitlistMessage("Failed to join waitlist.");
-    } finally {
-      setWaitlistLoading(false);
-    }
-  };
-  const HISTORY_STORAGE_KEY = "playwrightgen-history";
-  const saveHistoryItem = (item: HistoryItem) => {
-    setHistoryItems((prev) => {
-
-
-      const updated = [item, ...prev].slice(0, 20);
-      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(updated));
-      return updated;
-    });
-  };
-  const loadHistoryItem = (item: HistoryItem) => {
-    setSelectedHistoryId(item.id);
-    setMode(item.mode);
-    setPrompt(item.prompt);
-    setUrl(item.url);
-    setGeneratedCode(item.generatedCode);
-    setStyleMode(item.styleMode);
-    setOutputType(item.outputType);
-    setGenerationType(item.generationType);
-    setExplanation("");
-    setCopied(false);
-  };
-  const clearHistory = () => {
-    localStorage.removeItem(HISTORY_STORAGE_KEY);
-    setHistoryItems([]);
-    setSelectedHistoryId(null);
-  };
-
-  const handleModeChange = (newMode: Mode) => {
-    setMode(newMode);
-    setSelectedTemplate("");
-    setPrompt("");
-    setGeneratedCode("");
-    setCopied(false);
-    setUrl("");
-    setGenerationType("prompt");
-    setAnalysisSummary("");
-    setSelectedCoverage([]);
-    setExplanation("");
-    if (newMode !== "component") {
-      setOutputType("playwright");
-    }
-  };
-  const handleTemplateSelect = (template: string) => {
-    setSelectedTemplate(template);
-    setSelectedCoverage([]);
-    setPrompt(template);
-    setGeneratedCode("");
-    setCopied(false);
-  };
-  const getTemplates = () => {
-    if (mode === "text") {
-      return [
-
-
-        {
-          label: "Login Test",
-          value:
-            "Create a login test for a page with email and password. After successful login, the user should be redirected to /dashboard.",
-        },
-        {
-          label: "Signup Test",
-          value:
-            "Create a signup test for a page with name, email, password, and confirm password. After successful signup, the user should see a welcome message.",
-        },
-        {
-          label: "Search Test",
-          value:
-            "Create a search test where the user types a product name into a search input, clicks search, and sees matching results.",
-        },
-      ];
-    }
-    if (mode === "api") {
-      return [
-        {
-          label: "API Auth Test",
-          value:
-            "Create a Playwright API test for POST /login with email and password. Expect status 200 and token in response.",
-        },
-        {
-          label: "Get Profile Test",
-          value:
-            "Create a Playwright API test for GET /users/profile. Expect status 200 and a user object in the response.",
-        },
-      ];
-    }
-    if (mode === "component") {
-      return outputType === "unit"
-        ? [
-          {
-            label: "Form Unit Test",
-            value: `export function LoginForm() {
-return (
-<form>
-<label htmlFor="email">Email</label>
-<input id="email" placeholder="Enter email" />
-<label htmlFor="password">Password</label>
-<input id="password" type="password" placeholder="Enter password" />
-<button type="submit">Login</button>
-</form>
-);
-}`,
-          },
-          {
-            label: "Modal Unit Test",
-
-
-            value: `export function DeleteModal() {
-return (
-<div>
-<h2>Delete item</h2>
-<button>Cancel</button>
-<button>Confirm Delete</button>
-</div>
-);
-}`,
-          },
-        ]
-        : [
-          {
-            label: "Login Component",
-            value: `export function LoginForm() {
-return (
-<form>
-<input placeholder="Enter email" />
-<input type="password" placeholder="Enter password" />
-<button type="submit">Login</button>
-</form>
-);
-}`,
-          },
-          {
-            label: "Search Component",
-            value: `export function SearchBar() {
-return (
-<div>
-<input placeholder="Search products" />
-<button>Search</button>
-</div>
-);
-}`,
-          },
-        ];
-    }
-    return [];
-  };
   return (
-    <>
-      <GeneratorLayout
-        sidebarProps={{
-          historyItems,
-          selectedHistoryId,
-          onSelect: handleSelectHistoryItem,
-          onNew: handleNewGeneration,
-          onClear: clearHistory,
-          onDelete: deleteHistoryItem,
-          onLogout: () => {
-            localStorage.removeItem("playwrightgen_user_email");
-            localStorage.removeItem("proEmail");
-            router.push("/login?next=/generator");
-          },
-          userEmail,
-          isProVerified,
-          remainingGenerations,
-          hasSyncedUsage,
-          freeDailyGenerations: APP_LIMITS.freeDailyGenerations,
-
-          // ==================== 新增：上传功能（供 History 面板使用） ====================
-          uploadedFiles,
-          onFileUpload: handleFileUpload,
-          onRemoveFile: removeUploadedFile,
-          fileInputRef,
-          // ========================================================================
-        }}
-      >
-        <main className="overflow-x-hidden px-4 py-8 sm:px-6 sm:py-10">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-8 rounded-[2rem] border border-cyan-100 bg-[radial-gradient(circle_at_top_right,rgba(34,211,238,0.18),transparent_32%),linear-gradient(135deg,#ffffff,#f8fafc)] p-6 shadow-sm sm:p-8 xl:flex xl:items-end xl:justify-between xl:gap-8">
-              <div>
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-cyan-700">
-                  Free Tool · Quick Generate
-                </p>
-                <h1 className="text-3xl font-bold tracking-tight text-black sm:text-4xl">
-                  Create a reviewable Playwright starting point
-                </h1>
-                {paymentSuccess && (
-                  <div className="mx-auto mb-6 max-w-2xl rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-
-
-                    ■ Payment successful! Your Pro access is now active.
-                  </div>
-                )}
-                <p className="mt-2 max-w-3xl text-gray-600">
-                  Turn a requirement, component, HTML snippet, API description, or
-                  page URL into a disposable first draft. Use Workspace when the
-                  test needs versions, review, traceability, and execution evidence.
-                </p>
-                <p className="mt-2 text-sm text-gray-500">
-                  Best for a quick experiment—not a release-readiness decision.
-                </p>
-              </div>
-              <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:mt-0 xl:justify-end">
-                <Link
-                  href="/workspace"
-                  className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-cyan-600"
-                >
-                  Continue in Workspace →
-                </Link>
-                {isProVerified ? (
-                  <span className="text-sm text-gray-500 text-left sm:text-right">
-                    Pro plan active
-                  </span>
-                ) : (
-                  <>
-                    <span className="text-sm text-gray-500">
-                      {`Free plan: ${remainingGenerations} of ${APP_LIMITS.freeDailyGenerations} generations left today`}
-                    </span>
-                    <Link
-                      href="/pricing"
-                      className="group inline-flex w-full sm:w-auto min-h-[44px] items-center justify-center rounded-xl border border-black bg-white px-4 py-2
-transition hover:bg-black"
-                    >
-                      <span className="text-sm font-medium text-black group-hover:text-white">
-                        Upgrade to Pro
-                      </span>
-                    </Link>
-                  </>
-                )}
-              </div>
-            </div>
-            {/* ==================== Tab 切换 ==================== */}
-            <div className="mb-8 flex border-b border-gray-200">
-              <button
-                onClick={() => setActiveTab("generate")}
-                className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "generate" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
-                  }`}
-              >
-                Quick Generate
-              </button>
-              <button
-                onClick={() => setActiveTab("debug")}
-                className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "debug" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
-                  }`}
-              >
-                Debug Lab
-              </button>
-              <button
-                onClick={() => setActiveTab("figma")}
-                className={`px-8 py-4 text-lg font-semibold transition ${activeTab === "figma" ? "border-b-4 border-black text-black" : "text-gray-500 hover:text-gray-700"
-                  }`}
-              >
-                Design Lab
-              </button>
-            </div>
-            <div className="mb-6 flex flex-wrap gap-3">
-              <button
-                onClick={() => handleModeChange("text")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "text"
-                  ? "bg-black text-white"
-                  : "border border-gray-300 bg-white text-gray-700"
-                  }`}
-              >
-                Prompt
-              </button>
-              <button
-                onClick={() => handleModeChange("component")}
-
-
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "component"
-                  ? "bg-black text-white"
-                  : "border border-gray-300 bg-white text-gray-700"
-                  }`}
-              >
-                Component
-              </button>
-              <button
-                onClick={() => handleModeChange("html")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "html"
-                  ? "bg-black text-white"
-                  : "border border-gray-300 bg-white text-gray-700"
-                  }`}
-              >
-                HTML
-              </button>
-              <button
-                onClick={() => handleModeChange("api")}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${mode === "api"
-                  ? "bg-black text-white"
-                  : "border border-gray-300 bg-white text-gray-700"
-                  }`}
-              >
-                API
-              </button>
-            </div>
-            {/* ==================== Generate Tab ==================== */}
-            {activeTab === "generate" && (
-              <div className="space-y-6">
-                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="mb-5">
-                    <div className="min-w-0">
-                      <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                      <div>
-                        <p className="text-sm font-semibold text-black">AI Mode</p>
-                        <p className="text-xs text-gray-500">
-                          {aiModeEnabled
-                            ? "Enhanced generation is enabled"
-                            : "Standard generation is enabled"}
-                        </p>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => setAiModeEnabled((prev) => !prev)}
-                        className={`relative inline-flex h-8 w-16 items-center rounded-full transition-all duration-300 ${aiModeEnabled
-                          ? "bg-black shadow-[0_0_20px_rgba(34,197,94,0.45)]"
-                          : "bg-gray-300"
-                          }`}
-                        aria-pressed={aiModeEnabled}
-                        aria-label="Toggle AI mode"
-                        title="Toggle AI mode"
-                      >
-                        <span
-                          className={`inline-block h-6 w-6 transform rounded-full bg-white transition-all duration-300 ${aiModeEnabled ? "translate-x-9" : "translate-x-1"
-                            }`}
-                        />
-                        {aiModeEnabled && (
-                          <span className="pointer-events-none absolute left-2 text-[10px] font-semibold text-green-400">
-                            ON
-                          </span>
-                        )}
-                        {!aiModeEnabled && (
-                          <span className="pointer-events-none absolute right-2 text-[10px] font-semibold text-gray-600">
-                            OFF
-                          </span>
-                        )}
-                      </button>
-                    </div>
-                    {mode === "component" && (
-                      <div className="mt-4">
-                        <p className="mb-2 text-sm font-medium text-gray-700">Test Type</p>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => setOutputType("playwright")}
-                            className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
-                              ? "bg-black text-white"
-                              : "border border-gray-300 bg-white text-gray-700"
-                              }`}
-                          >
-                            Playwright Test
-                          </button>
-                          <button
-                            onClick={() => setOutputType("unit")}
-                            className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
-                              ? "bg-black text-white"
-                              : "border border-gray-300 bg-white text-gray-700"
-                              }`}
-                          >
-                            Unit Test
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ==================== Generate Tab 的上传区域 ==================== */}
-                  <div className="mb-6">
-                    <p className="mb-3 text-sm font-medium text-gray-700">Attach files or screenshots (optional)</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                      >
-                        📸 Image
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                      >
-                        📄 File
-                      </button>
-                    </div>
-
-                    {/* 隐藏的文件输入框 */}
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*,.log,.txt,.json,.ts,.tsx,.js,.jsx,.html,.css"
-                      multiple
-                      className="hidden"
-                      onChange={handleFileUpload}
-                    />
-
-                    {/* 预览卡片 */}
-                    {uploadedFiles.length > 0 && (
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {uploadedFiles.map((file, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center gap-2 rounded-2xl bg-gray-100 px-3 py-1 text-xs text-gray-700"
-                          >
-                            <span className="max-w-[140px] truncate">{file.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeUploadedFile(index)}
-                              className="text-red-500 hover:text-red-700 text-base leading-none"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* ======================================================== */}
-
-                  <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                    {/* 你原来的所有内容从这里开始保持完全不变 */}
-                    <div className="mb-5">
-                      <div className="min-w-0">
-                        <h2 className="text-xl font-semibold text-black">{getTitle()}</h2>
-                      </div>
-                      {mode === "component" && (
-                        <div className="mt-4">
-                          <p className="mb-2 text-sm font-medium text-gray-700">Test Type</p>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => setOutputType("playwright")}
-                              className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "playwright"
-                                ? "bg-black text-white"
-                                : "border border-gray-300 bg-white text-gray-700"
-                                }`}
-                            >
-                              Playwright Test
-                            </button>
-                            <button
-                              onClick={() => setOutputType("unit")}
-                              className={`rounded-full px-3 py-1 text-sm font-medium transition ${outputType === "unit"
-                                ? "bg-black text-white"
-                                : "border border-gray-300 bg-white text-gray-700"
-                                }`}
-                            >
-                              Unit Test
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {getTemplates().length > 0 && (
-                      <div className="mb-5">
-                        <p className="mb-2 text-sm font-medium text-gray-700">
-                          {mode === "component"
-                            ? "Example Components"
-                            : mode === "html"
-                              ? "Example Markup"
-                              : mode === "api"
-                                ? "Example Requests"
-                                : "Example Tests"}
-                        </p>
-                        <div className="flex flex-wrap gap-2">
-                          {getTemplates().map((template) => (
-                            <button
-                              key={template.label}
-                              onClick={() => handleTemplateSelect(template.value)}
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedTemplate === template.value
-                                ? "border-black bg-black text-white"
-                                : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                                }`}
-                            >
-                              {template.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {(mode === "text" || mode === "html" || mode === "component") && (
-                      <div className="mb-4">
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Page URL
-                        </label>
-                        <p className="mb-2 text-sm text-gray-500">
-                          Optional. Add a page URL to analyze page structure and generate a more realistic Playwright test suite.
-                        </p>
-                        <input
-                          type="text"
-                          placeholder="https://example.com/login"
-                          className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-                          value={url}
-                          onChange={(e) => setUrl(e.target.value)}
-                        />
-                      </div>
-                    )}
-
-                    <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                      <p className="mb-1 text-sm font-semibold text-gray-800">
-                        Pro access email
-                      </p>
-                      <p className="mb-3 text-xs text-gray-500">
-                        Enter the email used during Stripe checkout to unlock Pro features.
-                      </p>
-                      <div className="flex flex-col gap-3 sm:flex-row">
-                        <input
-                          type="email"
-                          value={proEmailInput}
-                          onChange={(e) => {
-                            setProEmailInput(e.target.value);
-                            setIsProVerified(false);
-                            setProStatusMessage("");
-                          }}
-                          placeholder="Enter your Pro email"
-                          className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-                        />
-                        <button
-                          type="button"
-                          onClick={handleCheckProAccess}
-                          disabled={checkingPro}
-                          className="rounded-xl border border-black bg-white px-4 py-3 text-sm font-medium text-black transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {checkingPro ? "Checking..." : "Verify Pro"}
-                        </button>
-                      </div>
-                      {proStatusMessage && (
-                        <p className="mt-3 text-sm text-gray-600">{proStatusMessage}</p>
-                      )}
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Code Style
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          onClick={() => setStyleMode("fast")}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "fast"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
-                            }`}
-                        >
-                          Fast
-                        </button>
-                        <button
-                          onClick={() => setStyleMode("clean")}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "clean"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
-                            }`}
-                        >
-                          Clean
-                        </button>
-                        <button
-                          onClick={() => setStyleMode("production")}
-                          className={`rounded-full px-3 py-1 text-sm font-medium transition ${styleMode === "production"
-                            ? "bg-black text-white"
-                            : "border border-gray-300 bg-white text-gray-700"
-                            }`}
-                        >
-                          Production
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mb-4 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                      <p className="mb-1 text-sm font-semibold text-gray-800">
-                        Suggested Test Coverage
-                      </p>
-                      <p className="mb-3 text-xs text-gray-500">
-                        AI-prioritized coverage areas for this input mode.
-                      </p>
-                      <div className="flex flex-wrap gap-2 text-sm text-gray-600">
-                        {mode === "text" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a happy path scenario for the main user flow.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a happy path scenario for the main user flow.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Happy path
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a negative scenario that validates incorrect or failed user behavior.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative scenario that validates incorrect or failed user behavior.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Negative scenario
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a validation flow scenario for missing, invalid, or blocked input.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a validation flow scenario for missing, invalid, or blocked input.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Validation flow
-                            </button>
-                          </>
-                        )}
-                        {mode === "html" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Cover the main user flow suggested by the provided markup.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the main user flow suggested by the provided markup.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Main user flow
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include validation behavior for the provided markup.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include validation behavior for the provided markup.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Validation behavior
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a negative case based on the provided HTML or JSX.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a negative case based on the provided HTML or JSX.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Negative case
-                            </button>
-                          </>
-                        )}
-                        {mode === "component" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Cover the initial render state of the component.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Cover the initial render state of the component.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Render state
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a user interaction scenario for the component.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a user interaction scenario for the component.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              User interaction
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a scenario that verifies state or UI updates after interaction.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a scenario that verifies state or UI updates after interaction.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              State update
-                            </button>
-                          </>
-                        )}
-                        {mode === "api" && (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include a successful response scenario for the API.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include a successful response scenario for the API.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Success response
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include an invalid request scenario for the API.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an invalid request scenario for the API.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Invalid request
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() =>
-                                appendCoverageSuggestion("Include an edge case scenario for the API.")
-                              }
-                              className={`rounded-full border px-3 py-1 text-sm transition ${selectedCoverage.includes("Include an edge case scenario for the API.")
-                                ? "border-black bg-black text-white"
-                                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
-                                }`}
-                            >
-                              Edge case
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="px-1 sm:px-0">
-                      <textarea
-                        className="min-h-[300px] w-full resize-none rounded-2xl border border-gray-300 bg-white p-4 font-mono text-sm outline-none transition focus:border-black [touch-action:pan-y] sm:min-h-[340px]"
-                        placeholder={getPlaceholder()}
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                      <button
-                        type="button"
-                        onClick={handleGenerate}
-                        disabled={loading || (!prompt.trim() && uploadedFiles.length === 0)}
-                        className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {loading ? "Generating..." : "Generate"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAnalyzeUrl}
-                        disabled={!url.trim() || loading}
-                        className="rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 transition disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {loading && generationType === "url" ? "Analyzing..." : "Analyze Page"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Generate 输出区 */}
-                <div
-                  ref={outputRef}
-                  className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
-                >
-                  {error && (
-                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
-                    </div>
-                  )}
-                  <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 lg:max-w-[52%]">
-                      <p className="mb-1 text-sm text-gray-500">{getModeLabel()}</p>
-                      <h2 className="text-xl font-semibold leading-snug text-black">
-                        {getOutputTitle()}
-                      </h2>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
-                      <button
-                        type="button"
-                        onClick={handleCopy}
-                        disabled={!generatedCode}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {copied ? "Copied!" : "Copy Code"}
-                      </button>
-                      <button
-                        onClick={handleDownload}
-                        disabled={!generatedCode}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Download
-                      </button>
-                      <button
-                        onClick={handleExplain}
-                        disabled={!generatedCode || explaining}
-                        className={`inline-flex min-h-[40px] items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${explanation
-                          ? "bg-sky-600 text-white hover:bg-sky-700"
-                          : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                          }`}
-                      >
-                        {explaining
-                          ? "Explaining..."
-                          : explanation
-                            ? reExplainButtonLabel
-                            : explainButtonLabel}
-                      </button>
-                    </div>
-                  </div>
-                  {analysisSummary && (
-                    <div className="mb-4 rounded-2xl bg-gray-50 p-3 text-sm text-gray-600">
-                      {analysisSummary}
-                    </div>
-                  )}
-                  {/* ==================== Generate Tab - VS Code 风格语法高亮输出 ==================== */}
-                  <div className="min-h-[360px] rounded-3xl border border-gray-200 bg-[#1e1e1e] p-6 shadow-inner sm:min-h-[420px] overflow-auto">
-                    {loading ? (
-                      <div className="font-mono text-sm text-zinc-400">
-                        {generationType === "url"
-                          ? "Analyzing page structure and generating Playwright test suite..."
-                          : "Generating production-grade code..."}
-                      </div>
-                    ) : (
-                      <SyntaxHighlighter
-                        language="typescript"
-                        style={vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          padding: "1.25rem",
-                          background: "transparent",
-                          fontSize: "0.875rem",
-                          lineHeight: "1.6",
-                          borderRadius: "1rem",
-                        }}
-                        wrapLongLines={true}
-                        showLineNumbers={true}
-                      >
-                        {generatedCode || "Your generated output will appear here."}
-                      </SyntaxHighlighter>
-                    )}
-                  </div>
-                  {explaining && (
-                    <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                      <h3 className="mb-4 text-base font-semibold text-black">
-                        {explanationTitle}
-                      </h3>
-
-                      <div className="space-y-2 text-sm text-gray-600">
-                        <p className="animate-pulse">Analyzing test...</p>
-                        <p className="animate-pulse">Breaking down logic...</p>
-                        <p className="animate-pulse">Reviewing assertions...</p>
-                      </div>
-                    </div>
-                  )}
-                  {explanation && (() => {
-                    const sections = parseExplanationSections(explanation);
-
-                    return (
-                      <div
-                        ref={explanationRef}
-                        className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-                        <h3 className="mb-4 text-base font-semibold text-black">Explanation</h3>
-
-                        <div className="space-y-4">
-                          <div className="rounded-xl bg-white p-4 border border-gray-200">
-                            <h4 className="mb-2 text-sm font-semibold text-black">1. Overview</h4>
-                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
-                              {sections.overview.replace(/^- /gm, "• ")}
-                            </pre>
-                          </div>
-
-                          <div className="rounded-xl bg-white p-4 border border-gray-200">
-                            <h4 className="mb-2 text-sm font-semibold text-black">2. Key Logic</h4>
-                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700 font-medium">
-                              {sections.keyLogic.replace(/^- /gm, "• ")}
-                            </pre>
-                          </div>
-
-                          <div className="rounded-xl bg-white p-4 border border-gray-200">
-                            <h4 className="mb-2 text-sm font-semibold text-black">3. Why This Works</h4>
-                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
-                              {sections.whyThisWorks.replace(/^- /gm, "• ")}
-                            </pre>
-                          </div>
-
-                          <div className="rounded-xl bg-white p-4 border border-gray-200">
-                            <h4 className="mb-2 text-sm font-semibold text-black">4. Improvements</h4>
-                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
-                              {sections.improvements.replace(/^- /gm, "• ")}
-                            </pre>
-                          </div>
-
-                          <div className="rounded-xl bg-white p-4 border border-gray-200">
-                            <h4 className="mb-2 text-sm font-semibold text-black">5. Risks / Edge Cases</h4>
-                            <pre className="whitespace-pre-wrap text-sm leading-7 text-gray-700">
-                              {sections.risks.replace(/^- /gm, "• ")}
-                            </pre>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-
-            {/* ==================== Debug Tab ==================== */}
-            {activeTab === "debug" && (
-              <div className="space-y-6">
-                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-                  <h2 className="mb-4 text-2xl font-semibold text-black">AI Debugging Workspace</h2>
-                  <p className="mb-6 text-gray-600">
-                    Paste your failed test, error message, flaky locator, layout issue, or describe the bug.<br />
-                    I will find the root cause and give you the smallest safe fix with risk assessment.
-                  </p>
-
-                  <div className="mb-6">
-                    <p className="mb-3 text-sm font-medium text-gray-700">Issue Type</p>
-                    <div className="flex flex-wrap gap-2">
-                      {["Smart Detect", "Test Failure", "UI/Layout", "Component Logic", "Styling", "General Bug"].map((type) => (
-                        <button
-                          key={type}
-                          onClick={() => setIssueType(type as IssueType)}
-                          className={`rounded-full px-4 py-2 text-sm font-medium transition ${issueType === type ? "bg-black text-white" : "border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"}`}
-                        >
-                          {type}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 明显附件上传区域（修复版） */}
-                  <div className="mb-4 flex gap-3">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      📸 Image
-                    </button>
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-5 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      📄 File
-                    </button>
-                  </div>
-
-                  {/* 隐藏的文件输入框（关键修复） */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*,.log,.txt,.json,.ts,.tsx,.js,.jsx"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileUpload}
-                  />
-
-                  <textarea
-                    className="min-h-[280px] w-full resize-none rounded-2xl border border-gray-300 bg-white p-5 font-mono text-sm outline-none transition focus:border-black"
-                    placeholder="Paste the error message, failed Playwright test, flaky selector, layout bug description, or component code here..."
-                    value={debugInput}
-                    onChange={(e) => setDebugInput(e.target.value)}
-                  />
-
-                  {/* 已上传附件预览 */}
-                  {uploadedFiles.length > 0 && (
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {uploadedFiles.map((file, index) => (
-                        <div key={index} className="flex items-center gap-2 rounded-xl border border-gray-200 bg-gray-50 px-3 py-1 text-sm">
-                          {file.type.startsWith("image/") ? "🖼️" : "📄"}
-                          <span className="max-w-[180px] truncate">{file.name}</span>
-                          <button
-                            onClick={() => removeUploadedFile(index)}
-                            className="ml-2 text-gray-400 hover:text-red-500 text-xs"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  <div className="mt-6">
-                    <button
-                      onClick={handleDebug}
-                      disabled={loading || (!debugInput.trim() && uploadedFiles.length === 0)}
-                      className="rounded-xl bg-black px-8 py-3.5 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading ? "Analyzing Root Cause..." : "Debug This Issue"}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Debug 输出区（美化版） */}
-                <div
-                  ref={outputRef}
-                  className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
-                >
-                  {error && (
-                    <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                      {error}
-                    </div>
-                  )}
-
-                  <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 lg:max-w-[52%]">
-                      <h2 className="text-xl font-semibold text-black flex items-center gap-2">
-                        <span className="text-emerald-600 text-2xl">✓</span>
-                        Debug Result
-                      </h2>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 lg:flex-nowrap lg:justify-end">
-                      <button
-                        type="button"
-                        onClick={handleCopy}
-                        disabled={!generatedCode}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {copied ? "✅ Copied!" : "Copy Result"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleDebug}
-                        disabled={loading}
-                        className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        🔄 Regenerate
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* ==================== Debug Tab - VS Code 风格语法高亮输出 ==================== */}
-                  <div className="min-h-[400px] rounded-3xl border border-gray-200 bg-[#1e1e1e] p-6 shadow-inner sm:min-h-[460px] overflow-auto">
-                    {loading ? (
-                      <div className="font-mono text-sm text-zinc-400">
-                        🔍 Analyzing root cause and generating professional debug report...
-                      </div>
-                    ) : (
-                      <SyntaxHighlighter
-                        language="typescript"
-                        style={vscDarkPlus}
-                        customStyle={{
-                          margin: 0,
-                          padding: "1.25rem",
-                          background: "transparent",
-                          fontSize: "0.875rem",
-                          lineHeight: "1.6",
-                          borderRadius: "1rem",
-                        }}
-                        wrapLongLines={true}
-                        showLineNumbers={true}
-                      >
-                        {debugCode || "Debug result will appear here after analysis."}
-                      </SyntaxHighlighter>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            {/* ==================== Figma Tab ==================== */}
-            {activeTab === "figma" && (
-              <div className="space-y-6">
-                <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
-                  <div className="mb-5">
-                    <div className="min-w-0">
-                      <h2 className="text-xl font-semibold text-black">Figma to Code</h2>
-                      <p className="text-sm text-gray-500 mt-1">Upload Figma screenshot or paste Figma link → Get production-ready components</p>
-                    </div>
-                  </div>
-
-                  {/* Figma 输入区域 */}
-                  <div className="space-y-4">
-                    {/* 上传 Figma 截图 */}
-                    <div>
-                      <p className="mb-2 text-sm font-medium text-gray-700">Upload Figma Screenshot</p>
-                      <button
-                        type="button"
-                        onClick={() => figmaFileInputRef.current?.click()}
-                        className="flex items-center justify-center gap-2 w-full rounded-2xl border border-gray-300 bg-white px-6 py-4 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
-                      >
-                        📸 Upload Figma Image
-                      </button>
-                      <input
-                        ref={figmaFileInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleFigmaFileUpload}
-                      />
-
-                      {figmaFiles.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {figmaFiles.map((file, index) => (
-                            <div
-                              key={`${file.name}-${index}`}
-                              className="flex items-center gap-2 rounded-2xl bg-gray-100 px-3 py-1 text-xs text-gray-700"
-                            >
-                              <span className="max-w-[180px] truncate">{file.name}</span>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setFigmaFiles((prev) => prev.filter((_, i) => i !== index))
-                                }
-                                className="text-red-500 hover:text-red-700"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-
-                    </div>
-
-                    {/* 或粘贴 Figma 链接 */}
-                    <div>
-                      <p className="mb-2 text-sm font-medium text-gray-700">Or paste Figma link</p>
-                      <input
-                        type="text"
-                        placeholder="https://www.figma.com/file/..."
-                        className="w-full rounded-2xl border border-gray-300 bg-white px-5 py-4 text-sm outline-none focus:border-black"
-                        value={figmaUrl || ""}
-                        onChange={(e) => setFigmaUrl(e.target.value)}
-                      />
-                    </div>
-
-                    <div className="mt-5">
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
-                        Optional prompt
-                      </label>
-                      <textarea
-                        value={figmaPrompt}
-                        onChange={(e) => setFigmaPrompt(e.target.value)}
-                        placeholder="Generate a production-ready Angular component from this design. Use reusable markup, LESS styling, and include a.component.spec.ts."
-                        rows={4}
-                        className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none transition focus:border-black"
-                      />
-                    </div>
-
-                    <div className="mt-6">
-                      <p className="mb-3 text-sm font-medium text-gray-700">Generate For</p>
-
-                      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                        <button
-                          type="button"
-                          onClick={() => setFigmaGenerateFor("angular")}
-                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "angular"
-                            ? "border-black bg-black text-white"
-                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
-                            }`}
-                        >
-                          <div className="text-sm font-semibold">Angular</div>
-                          <div
-                            className={`mt-1 text-xs ${figmaGenerateFor === "angular" ? "text-gray-200" : "text-gray-500"
-                              }`}
-                          >
-                            Generate Angular component files
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setFigmaGenerateFor("react")}
-                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "react"
-                            ? "border-black bg-black text-white"
-                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
-                            }`}
-                        >
-                          <div className="text-sm font-semibold">React</div>
-                          <div
-                            className={`mt-1 text-xs ${figmaGenerateFor === "react" ? "text-gray-200" : "text-gray-500"
-                              }`}
-                          >
-                            Generate React UI component code
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setFigmaGenerateFor("html-css")}
-                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "html-css"
-                            ? "border-black bg-black text-white"
-                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
-                            }`}
-                        >
-                          <div className="text-sm font-semibold">HTML/CSS</div>
-                          <div
-                            className={`mt-1 text-xs ${figmaGenerateFor === "html-css" ? "text-gray-200" : "text-gray-500"
-                              }`}
-                          >
-                            Generate static markup and styles
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setFigmaGenerateFor("playwright")}
-                          className={`rounded-2xl border p-4 text-left transition ${figmaGenerateFor === "playwright"
-                            ? "border-black bg-black text-white"
-                            : "border-gray-300 bg-white text-gray-800 hover:border-black"
-                            }`}
-                        >
-                          <div className="text-sm font-semibold">Playwright Test</div>
-                          <div
-                            className={`mt-1 text-xs ${figmaGenerateFor === "playwright" ? "text-gray-200" : "text-gray-500"
-                              }`}
-                          >
-                            Generate UI automation test from the design
-                          </div>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <p className="mb-3 text-sm font-medium text-gray-700">Code Output Format</p>
-
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setFigmaOutputFormat("single")}
-                          className={`rounded-full px-5 py-2 text-sm font-medium transition ${figmaOutputFormat === "single"
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                        >
-                          Single file
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setFigmaOutputFormat("multi")}
-                          className={`rounded-full px-5 py-2 text-sm font-medium transition ${figmaOutputFormat === "multi"
-                            ? "bg-black text-white"
-                            : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                            }`}
-                        >
-                          Multi-file output
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="mt-6">
-                      <p className="mb-3 text-sm font-medium text-gray-700">Output Preview</p>
-
-                      <div className="flex flex-wrap gap-2">
-                        {getFigmaOutputPreview().map((file) => (
-                          <span
-                            key={file}
-                            className="rounded-full border border-gray-300 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700"
-                          >
-                            {file}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* 生成按钮 */}
-                    <button
-                      onClick={handleFigmaGenerate}
-                      disabled={
-                        loading ||
-                        (!figmaUrl && figmaFiles.length === 0 && !figmaPrompt.trim())
-                      }
-                      className="w-full rounded-2xl bg-black px-8 py-4 text-base font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      {loading ? "Generating components..." : "Generate Code from Figma"}
-                    </button>
-                    {Object.keys(figmaGeneratedFiles).length > 0 && (
-                      <div
-                        ref={figmaOutputRef}
-                        className="mt-6 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6"
-                      >
-                        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <h3 className="text-lg font-semibold text-black">
-                              Generated Code (Figma)
-                            </h3>
-                            <p className="text-sm text-gray-500">
-                              Review the generated output by file.
-                            </p>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={handleCopyFigmaFile}
-                              className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-black hover:text-black"
-                            >
-                              {copied ? "Copied" : "Copy"}
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={handleDownloadFigmaFile}
-                              className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
-                            >
-                              Download
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="mb-4 flex flex-wrap gap-2">
-                          {Object.keys(figmaGeneratedFiles).map((fileName) => (
-                            <button
-                              key={fileName}
-                              type="button"
-                              onClick={() => setSelectedFigmaResultFile(fileName)}
-                              className={`rounded-xl px-4 py-2 text-sm font-medium transition ${selectedFigmaResultFile === fileName
-                                ? "bg-black text-white shadow-sm"
-                                : "border border-gray-300 bg-white text-gray-700 hover:border-black"
-                                }`}
-                            >
-                              {fileName}
-                            </button>
-                          ))}
-                        </div>
-
-                        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
-                          <div className="border-b border-gray-200 bg-gray-50 px-4 py-2 text-xs font-medium text-gray-500">
-                            {selectedFigmaResultFile}
-                          </div>
-
-                          <SyntaxHighlighter
-                            language={getFigmaLanguage(selectedFigmaResultFile)}
-                            style={vscDarkPlus}
-                            customStyle={{
-                              margin: 0,
-                              borderRadius: 0,
-                              padding: "1rem",
-                              fontSize: "0.875rem",
-                              lineHeight: "1.6",
-                              minHeight: "220px",
-                            }}
-                            wrapLongLines
-                          >
-                            {figmaGeneratedFiles[selectedFigmaResultFile] || ""}
-                          </SyntaxHighlighter>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </main>
-      </GeneratorLayout>
-
-      {showWaitlistModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="mb-4">
-              <h3 className="text-xl font-semibold text-black">{PRO_WAITLIST_COPY.title}</h3>
-              <p className="mt-2 text-sm text-gray-600">
-                {PRO_WAITLIST_COPY.description}
+    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="mx-auto max-w-7xl">
+        <section className="relative overflow-hidden rounded-[2.25rem] bg-slate-950 px-6 py-10 text-white shadow-xl sm:px-9 sm:py-12 lg:px-12">
+          <div className="pointer-events-none absolute right-[-8rem] top-[-10rem] h-80 w-80 rounded-full bg-cyan-400/20 blur-3xl" />
+          <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Free Tool · Quick Generate</p>
+              <h1 className="mt-4 max-w-4xl text-4xl font-semibold tracking-[-0.05em] sm:text-5xl lg:text-6xl">
+                Turn test intent into a reviewable Playwright draft
+              </h1>
+              <p className="mt-5 max-w-3xl text-lg leading-8 text-slate-300">
+                Supply the behavior and evidence you actually have. PlaywrightGen returns a test plan, executable draft, assumptions, and deterministic safety checks—without claiming the code ran or passed.
               </p>
             </div>
-            <input
-              type="email"
-              value={waitlistEmail}
-              onChange={(e) => setWaitlistEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full rounded-xl border border-gray-300 bg-white p-3 outline-none transition focus:border-black"
-            />
-            {waitlistMessage && (
-              <p className="mt-3 text-sm text-gray-600">{waitlistMessage}</p>
-            )}
-            <div className="mt-5 flex gap-3">
-              <button
-                onClick={handleJoinWaitlist}
-                disabled={waitlistLoading}
-                className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {waitlistLoading ? "Joining..." : PRO_WAITLIST_COPY.buttonText}
-              </button>
-              <button
-                onClick={() => setShowWaitlistModal(false)}
-                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                Close
+            <div className="grid gap-2 text-sm text-slate-300">
+              {["Structured output", "Evidence limitations shown", "No automatic approval"].map((item) => (
+                <span key={item} className="flex items-center gap-2"><span className="text-cyan-300">✓</span>{item}</span>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-8 grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
+          <aside className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">1 · Choose the evidence shape</p>
+            <div className="mt-5 space-y-3">
+              {modes.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => { setMode(item.id); resetResult(); }}
+                  className={`w-full rounded-2xl border p-4 text-left transition ${mode === item.id ? "border-cyan-400 bg-cyan-50" : "border-slate-200 hover:border-cyan-200 hover:bg-slate-50"}`}
+                >
+                  <span className="text-sm font-semibold text-slate-950">{item.label}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-600">{item.description}</span>
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 border-t border-slate-200 pt-6">
+              <p className="text-sm font-semibold text-slate-900">Draft depth</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
+                {(["FOCUSED", "EXPANDED"] as const).map((item) => (
+                  <button key={item} type="button" onClick={() => { setDepth(item); resetResult(); }} className={`rounded-lg px-3 py-2 text-xs font-bold ${depth === item ? "bg-white text-slate-950 shadow-sm" : "text-slate-500"}`}>
+                    {item === "FOCUSED" ? "Focused" : "Expanded"}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-slate-500">
+                {depth === "FOCUSED" ? "Smallest high-value suite for a fast starting point." : "Adds distinct negative and edge scenarios when evidence supports them."}
+              </p>
+            </div>
+          </aside>
+
+          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">2 · Supply intent and evidence</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{activeMode.label}</h2>
+
+            <label className="mt-6 block text-sm font-semibold text-slate-800">
+              Behavior, requirement, or contract
+              <textarea
+                rows={9}
+                value={request}
+                onChange={(event) => { setRequest(event.target.value); resetResult(); }}
+                maxLength={30_000}
+                placeholder={activeMode.placeholder}
+                className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm leading-6 outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-100"
+              />
+            </label>
+
+            <div className="mt-5 grid gap-5 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-slate-800">
+                Page or API URL <span className="font-normal text-slate-400">(context only)</span>
+                <input value={pageUrl} onChange={(event) => { setPageUrl(event.target.value); resetResult(); }} maxLength={2_000} placeholder="https://app.example.com/login" className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-cyan-600" />
+              </label>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Files or screenshots <span className="font-normal text-slate-400">(optional)</span></p>
+                <button type="button" onClick={() => fileInputRef.current?.click()} className="mt-2 inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-dashed border-cyan-300 bg-cyan-50 px-4 text-sm font-semibold text-cyan-800 hover:bg-cyan-100">
+                  Add evidence files
+                </button>
+                <input ref={fileInputRef} type="file" multiple accept="image/png,image/jpeg,image/webp,.ts,.tsx,.js,.jsx,.json,.md,.txt,.html,.css,.yml,.yaml" className="hidden" onChange={(event) => { setFiles(Array.from(event.target.files ?? []).slice(0, 6)); resetResult(); }} />
+              </div>
+            </div>
+
+            {files.length ? (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {files.map((file, index) => (
+                  <span key={`${file.name}-${index}`} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600">
+                    {file.name} · {formatBytes(file.size)}
+                    <button type="button" aria-label={`Remove ${file.name}`} onClick={() => { setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index)); resetResult(); }} className="font-bold text-slate-400 hover:text-red-600">×</button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            {error ? <p role="alert" className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p> : null}
+
+            <div className="mt-6 flex flex-col gap-3 border-t border-slate-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-xs leading-5 text-slate-500">
+                {remaining === null ? "Up to 5 successful drafts per day." : `${remaining} successful draft${remaining === 1 ? "" : "s"} remaining today.`}
+              </p>
+              <button type="button" onClick={generate} disabled={loading} className="inline-flex min-h-12 items-center justify-center rounded-xl bg-slate-950 px-6 text-sm font-bold text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:opacity-50">
+                {loading ? "Building structured draft…" : "Generate Playwright draft"}
               </button>
             </div>
           </div>
-        </div>
-      )}
-    </>
+        </section>
+
+        {result ? (
+          <section id="quick-generate-result" className="scroll-mt-24 mt-8 space-y-6">
+            <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+              <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">Preliminary result</p>
+                  <h2 className="mt-2 text-3xl font-semibold tracking-[-0.035em] text-slate-950">{result.title}</h2>
+                  <p className="mt-3 max-w-3xl leading-7 text-slate-600">{result.summary}</p>
+                </div>
+                <span className={`w-fit rounded-full border px-3 py-1 text-xs font-bold ${result.validation.status === "PASSED" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : result.validation.status === "WARNINGS" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-red-200 bg-red-50 text-red-800"}`}>
+                  Deterministic checks: {result.validation.status.toLowerCase()}
+                </span>
+              </div>
+
+              <div className="mt-7 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                  <h3 className="font-semibold text-slate-950">Test plan</h3>
+                  <ol className="mt-4 space-y-4">
+                    {result.testPlan.map((item, index) => (
+                      <li key={`${item.scenario}-${index}`} className="grid grid-cols-[auto_1fr] gap-3">
+                        <span className="grid h-7 w-7 place-items-center rounded-lg bg-slate-950 text-xs font-bold text-white">{index + 1}</span>
+                        <div><p className="text-sm font-semibold text-slate-900">{item.scenario}</p><p className="mt-1 text-sm leading-6 text-slate-600">{item.intent}</p><p className="mt-1 text-xs font-medium text-cyan-800">Expected: {item.expectedOutcome}</p></div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <div className="space-y-4">
+                  <EvidenceList title="Input signals used" items={inputSignals} empty="Only the typed request was available." tone="cyan" />
+                  <EvidenceList title="Assumptions to verify" items={result.assumptions} empty="No additional assumptions returned." tone="amber" />
+                  <EvidenceList title="Warnings" items={[...result.warnings, ...result.validation.findings.map((item) => item.message)]} empty="No warnings returned by the model or deterministic checks." tone="rose" />
+                </div>
+              </div>
+            </div>
+
+            <div className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 shadow-xl">
+              <div className="flex flex-col justify-between gap-3 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center">
+                <div><p className="text-sm font-semibold text-white">Playwright TypeScript draft</p><p className="mt-1 text-xs text-slate-400">Generated, not executed · Review before use</p></div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={async () => { await navigator.clipboard.writeText(result.code); setCopied(true); }} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">{copied ? "Copied" : "Copy"}</button>
+                  <button type="button" onClick={() => { const url = URL.createObjectURL(new Blob([result.code], { type: "text/typescript" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "playwright-draft.spec.ts"; anchor.click(); URL.revokeObjectURL(url); }} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">Download</button>
+                </div>
+              </div>
+              <SyntaxHighlighter language="typescript" style={vscDarkPlus} customStyle={{ margin: 0, padding: "1.5rem", background: "#020617", fontSize: "0.82rem", minHeight: "18rem" }} wrapLongLines>{result.code}</SyntaxHighlighter>
+            </div>
+
+            <div className="rounded-[2rem] border border-cyan-200 bg-cyan-50 p-6 sm:p-8">
+              <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-center">
+                <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-800">Need a trusted artifact?</p><h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Continue through Test Case review in Workspace</h2><p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">The preliminary plan becomes an AI-suggested draft—not approved code. Complete the test intent, review it, approve its immutable version, then generate a versioned Browser or API artifact.</p></div>
+                {handoff ? <WorkspaceHandoffButton handoff={handoff} className="inline-flex min-h-12 w-full items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-bold text-white hover:bg-cyan-700 lg:w-auto">Continue in Workspace →</WorkspaceHandoffButton> : null}
+              </div>
+            </div>
+          </section>
+        ) : null}
+      </div>
+    </main>
   );
 }
 
-export default function GeneratorPage() {
+function EvidenceList({ title, items, empty, tone }: { title: string; items: string[]; empty: string; tone: "cyan" | "amber" | "rose" }) {
+  const tones = { cyan: "border-cyan-200 bg-cyan-50 text-cyan-900", amber: "border-amber-200 bg-amber-50 text-amber-900", rose: "border-rose-200 bg-rose-50 text-rose-900" };
   return (
-    <Suspense fallback={null}>
-      <GeneratorContent />
-    </Suspense>
+    <div className={`rounded-2xl border p-4 ${tones[tone]}`}>
+      <h3 className="text-sm font-semibold">{title}</h3>
+      {items.length ? <ul className="mt-3 space-y-2 text-xs leading-5">{items.map((item, index) => <li key={`${item}-${index}`} className="flex gap-2"><span>•</span><span>{item}</span></li>)}</ul> : <p className="mt-2 text-xs leading-5 opacity-75">{empty}</p>}
+    </div>
   );
 }

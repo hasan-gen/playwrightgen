@@ -1,6 +1,6 @@
 import { OrganizationList } from "@clerk/nextjs";
 
-export function WorkspaceOnboarding() {
+export function WorkspaceOnboarding({ returnUrl = "/workspace" }: { returnUrl?: string }) {
   return (
     <main className="min-h-[calc(100vh-12rem)] bg-slate-50 px-4 py-10 sm:px-6 sm:py-16">
       <div className="mx-auto w-full max-w-5xl">
@@ -27,8 +27,8 @@ export function WorkspaceOnboarding() {
           </h2>
           <div className="mx-auto flex w-full justify-center overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-sm sm:p-5">
             <OrganizationList
-              afterCreateOrganizationUrl="/workspace"
-              afterSelectOrganizationUrl="/workspace"
+              afterCreateOrganizationUrl={returnUrl}
+              afterSelectOrganizationUrl={returnUrl}
               hidePersonal
               appearance={{
                 elements: {
