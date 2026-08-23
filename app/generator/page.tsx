@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
+import { ResultActions } from "@/components/free-tools/result-actions";
 import { WorkspaceHandoffButton } from "@/components/free-tools/workspace-handoff-button";
 import type { FreeToolHandoff } from "@/lib/free-tools/handoff";
 
@@ -72,7 +73,6 @@ export default function QuickGeneratePage() {
   const [remaining, setRemaining] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeMode = useMemo(
@@ -96,7 +96,6 @@ export default function QuickGeneratePage() {
       setLoading(true);
       setError("");
       setResult(null);
-      setCopied(false);
 
       const formData = new FormData();
       formData.set("mode", mode);
@@ -168,19 +167,19 @@ export default function QuickGeneratePage() {
           </div>
         </section>
 
-        <section className="mt-8 grid gap-6 lg:grid-cols-[0.72fr_1.28fr]">
-          <aside className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+        <section className="mt-8 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">1 · Choose the evidence shape</p>
-            <div className="mt-5 space-y-3">
+            <div className="mt-5 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
               {modes.map((item) => (
                 <button
                   key={item.id}
                   type="button"
                   onClick={() => { setMode(item.id); resetResult(); }}
-                  className={`w-full rounded-2xl border p-4 text-left transition ${mode === item.id ? "border-cyan-400 bg-cyan-50" : "border-slate-200 hover:border-cyan-200 hover:bg-slate-50"}`}
+                  className={`w-full rounded-xl border px-4 py-3 text-left transition ${mode === item.id ? "border-slate-950 bg-slate-950 text-white shadow-sm" : "border-slate-200 bg-slate-50 hover:border-cyan-300 hover:bg-cyan-50"}`}
                 >
-                  <span className="text-sm font-semibold text-slate-950">{item.label}</span>
-                  <span className="mt-1 block text-xs leading-5 text-slate-600">{item.description}</span>
+                  <span className={`text-sm font-semibold ${mode === item.id ? "text-white" : "text-slate-950"}`}>{item.label}</span>
+                  <span className={`mt-1 block text-xs leading-5 ${mode === item.id ? "text-slate-300" : "text-slate-500"}`}>{item.description}</span>
                 </button>
               ))}
             </div>
@@ -198,9 +197,9 @@ export default function QuickGeneratePage() {
                 {depth === "FOCUSED" ? "Smallest high-value suite for a fast starting point." : "Adds distinct negative and edge scenarios when evidence supports them."}
               </p>
             </div>
-          </aside>
+          </div>
 
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <div className="mt-7 border-t border-slate-200 pt-7">
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">2 · Supply intent and evidence</p>
             <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-slate-950">{activeMode.label}</h2>
 
@@ -291,10 +290,7 @@ export default function QuickGeneratePage() {
             <div className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 shadow-xl">
               <div className="flex flex-col justify-between gap-3 border-b border-white/10 px-5 py-4 sm:flex-row sm:items-center">
                 <div><p className="text-sm font-semibold text-white">Playwright TypeScript draft</p><p className="mt-1 text-xs text-slate-400">Generated, not executed · Review before use</p></div>
-                <div className="flex gap-2">
-                  <button type="button" onClick={async () => { await navigator.clipboard.writeText(result.code); setCopied(true); }} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">{copied ? "Copied" : "Copy"}</button>
-                  <button type="button" onClick={() => { const url = URL.createObjectURL(new Blob([result.code], { type: "text/typescript" })); const anchor = document.createElement("a"); anchor.href = url; anchor.download = "playwright-draft.spec.ts"; anchor.click(); URL.revokeObjectURL(url); }} className="rounded-lg border border-white/15 px-3 py-2 text-xs font-semibold text-white hover:bg-white/10">Download</button>
-                </div>
+                <ResultActions content={result.code} filename="playwright-draft.spec.ts" tone="dark" />
               </div>
               <SyntaxHighlighter language="typescript" style={vscDarkPlus} customStyle={{ margin: 0, padding: "1.5rem", background: "#020617", fontSize: "0.82rem", minHeight: "18rem" }} wrapLongLines>{result.code}</SyntaxHighlighter>
             </div>

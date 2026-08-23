@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 const freeTools = [
   { href: "/generator", label: "Quick Generate" },
@@ -7,6 +10,13 @@ const freeTools = [
 ] as const;
 
 export function SiteNavigation() {
+  const pathname = usePathname();
+  const navigationItems = [
+    { href: "/#product", label: "Product", match: "/" },
+    ...freeTools.map((tool) => ({ ...tool, match: tool.href })),
+    { href: "/pricing", label: "Pricing", match: "/pricing" },
+  ];
+
   return (
     <nav className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/90 backdrop-blur-xl">
       <div className="mx-auto flex min-h-16 max-w-7xl items-center justify-between gap-5 px-4 sm:px-6 lg:px-8">
@@ -24,31 +34,20 @@ export function SiteNavigation() {
           </span>
         </Link>
 
-        <div className="hidden items-center gap-1 lg:flex">
-          <Link
-            href="/#product"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-          >
-            Product
-          </Link>
-          <span className="ml-2 px-2 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
-            Free tools
-          </span>
-          {freeTools.map((tool) => (
+        <div className="hidden items-center gap-1 rounded-2xl border border-slate-200 bg-slate-100/70 p-1 lg:flex">
+          {navigationItems.map((item) => {
+            const active = pathname === item.match;
+            return (
             <Link
-              key={tool.href}
-              href={tool.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={`rounded-xl px-3.5 py-2 text-sm font-medium transition ${active ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:bg-white/70 hover:text-slate-950"}`}
             >
-              {tool.label}
+              {item.label}
             </Link>
-          ))}
-          <Link
-            href="/pricing"
-            className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-950"
-          >
-            Pricing
-          </Link>
+            );
+          })}
         </div>
 
         <Link
@@ -60,22 +59,22 @@ export function SiteNavigation() {
         </Link>
       </div>
 
-      <div className="flex gap-1 overflow-x-auto border-t border-slate-100 px-4 py-2 lg:hidden">
-        {freeTools.map((tool) => (
-          <Link
-            key={tool.href}
-            href={tool.href}
-            className="whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-          >
-            {tool.label}
-          </Link>
-        ))}
-        <Link
-          href="/pricing"
-          className="whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950"
-        >
-          Pricing
-        </Link>
+      <div className="overflow-x-auto border-t border-slate-100 px-4 py-2 lg:hidden">
+        <div className="flex min-w-max gap-1 rounded-xl bg-slate-100 p-1">
+          {navigationItems.slice(1).map((item) => {
+            const active = pathname === item.match;
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                aria-current={active ? "page" : undefined}
+                className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-semibold ${active ? "bg-white text-slate-950 shadow-sm" : "text-slate-600 hover:bg-white/70 hover:text-slate-950"}`}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
       </div>
     </nav>
   );

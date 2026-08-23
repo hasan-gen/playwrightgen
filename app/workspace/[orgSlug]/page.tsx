@@ -40,7 +40,7 @@ export default async function OrganizationWorkspacePage({
           {projects.map((project) => (
             <Link
               key={project.id}
-              href={`/workspace/${orgSlug}/projects/${project.id}/overview`}
+              href={`/workspace/${orgSlug}/projects/${project.id}/quality`}
               className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-4">

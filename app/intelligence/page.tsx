@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 
+import { ResultActions } from "@/components/free-tools/result-actions";
 import { WorkspaceHandoffButton } from "@/components/free-tools/workspace-handoff-button";
 import type { FreeToolHandoff } from "@/lib/free-tools/handoff";
 
@@ -139,14 +140,20 @@ export default function CoverageReviewPage() {
           </div>
         </section>
 
-        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {lenses.map((item, index) => (
-            <button key={item.id} type="button" onClick={() => { setLens(item.id); invalidate(); }} className={`rounded-2xl border p-5 text-left transition ${lens === item.id ? "border-cyan-400 bg-cyan-50 shadow-sm" : "border-slate-200 bg-white hover:border-cyan-200"}`}>
-              <span className={`grid h-9 w-9 place-items-center rounded-xl text-xs font-bold ${lens === item.id ? "bg-cyan-700 text-white" : "bg-slate-100 text-slate-600"}`}>0{index + 1}</span>
-              <h2 className="mt-5 font-semibold text-slate-950">{item.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{item.description}</p>
-            </button>
-          ))}
+        <section className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white p-1.5 shadow-sm">
+          <div className="flex min-w-max gap-1">
+            {lenses.map((item, index) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => { setLens(item.id); invalidate(); }}
+                className={`rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${lens === item.id ? "bg-slate-950 text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"}`}
+              >
+                <span className={`mr-2 text-xs ${lens === item.id ? "text-cyan-300" : "text-slate-400"}`}>0{index + 1}</span>
+                {item.title}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section className="mt-6 rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm sm:p-8">
@@ -192,7 +199,10 @@ export default function CoverageReviewPage() {
             <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
                 <div><p className="text-xs font-bold uppercase tracking-[0.18em] text-cyan-700">Preliminary review</p><h2 className="mt-2 text-3xl font-semibold tracking-[-0.035em]">What the supplied evidence suggests</h2><p className="mt-3 max-w-4xl leading-7 text-slate-600">{result.summary}</p></div>
-                <span className={`w-fit rounded-full border px-3 py-1 text-xs font-bold ${result.evidenceQuality.level === "HIGH" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : result.evidenceQuality.level === "MEDIUM" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-100 text-slate-700"}`}>Evidence quality: {result.evidenceQuality.level.toLowerCase()}</span>
+                <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
+                  <span className={`w-fit rounded-full border px-3 py-1 text-xs font-bold ${result.evidenceQuality.level === "HIGH" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : result.evidenceQuality.level === "MEDIUM" ? "border-amber-200 bg-amber-50 text-amber-800" : "border-slate-200 bg-slate-100 text-slate-700"}`}>Evidence quality: {result.evidenceQuality.level.toLowerCase()}</span>
+                  <ResultActions content={JSON.stringify(result, null, 2)} filename="playwrightgen-coverage-review.json" copyLabel="Copy report" downloadLabel="Download report" />
+                </div>
               </div>
               <div className="mt-7 grid gap-4 md:grid-cols-3">
                 <SignalCard title="Supplied" items={result.evidenceQuality.suppliedSignals} tone="emerald" />

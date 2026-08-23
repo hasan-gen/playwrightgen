@@ -3,6 +3,7 @@
 import { KeyboardEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
+import { ResultActions } from "@/components/free-tools/result-actions";
 import { WorkspaceHandoffButton } from "@/components/free-tools/workspace-handoff-button";
 import type { FreeToolHandoff } from "@/lib/free-tools/handoff";
 
@@ -924,19 +925,29 @@ export default function EngineeringReviewPage() {
                         className="mx-auto mt-10 max-w-5xl scroll-mt-6 rounded-[2rem] border border-sky-200 bg-slate-100/80 p-4 shadow-sm sm:p-7"
                     >
                         <header className="rounded-2xl border border-sky-200 bg-white p-5 sm:p-6">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
-                                AI Impact Analysis
-                            </p>
-                            <h2
-                                id="impact-analysis-heading"
-                                className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl"
-                            >
-                                Change impact results
-                            </h2>
-                            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
-                                Direct effects, downstream consequences, affected validation,
-                                uncertainty, and concrete engineering follow-up.
-                            </p>
+                            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-start">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-700">
+                                        AI Impact Analysis
+                                    </p>
+                                    <h2
+                                        id="impact-analysis-heading"
+                                        className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl"
+                                    >
+                                        Change impact results
+                                    </h2>
+                                    <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+                                        Direct effects, downstream consequences, affected validation,
+                                        uncertainty, and concrete engineering follow-up.
+                                    </p>
+                                </div>
+                                <ResultActions
+                                    content={JSON.stringify(result, null, 2)}
+                                    filename="playwrightgen-release-review.json"
+                                    copyLabel="Copy report"
+                                    downloadLabel="Download report"
+                                />
+                            </div>
                         </header>
 
                         <div className="mt-6 space-y-5">

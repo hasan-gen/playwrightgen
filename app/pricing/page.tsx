@@ -1,227 +1,209 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { FREE_PLAN, PRO_PLAN, PRO_WAITLIST_COPY } from "../../lib/plan";
+import { useState } from "react";
 
-function PricingContent() {
+const plans = [
+  {
+    name: "Free tools",
+    price: "$0",
+    suffix: "No workspace required",
+    description: "Reach a useful first result from the evidence you already have.",
+    features: [
+      "Quick Generate Playwright drafts",
+      "Coverage and flaky-risk review",
+      "Preliminary release-impact review",
+      "Copy and download results",
+      "Continue into a reviewed Workspace draft",
+    ],
+    cta: "Try Quick Generate",
+    href: "/generator",
+    featured: false,
+  },
+  {
+    name: "Workspace preview",
+    price: "$0",
+    suffix: "During the product preview",
+    description: "Turn disposable results into versioned, team-owned quality evidence.",
+    features: [
+      "Organization and project isolation",
+      "Requirements and immutable versions",
+      "Test Cases, traceability, and approvals",
+      "Browser and API automation engines",
+      "Test Runs and failure intelligence",
+      "Quality Command Center",
+    ],
+    cta: "Open Workspace",
+    href: "/workspace",
+    featured: true,
+  },
+] as const;
+
+export default function PricingPage() {
   const [showWaitlist, setShowWaitlist] = useState(false);
   const [email, setEmail] = useState("");
   const [waitlistLoading, setWaitlistLoading] = useState(false);
   const [waitlistMessage, setWaitlistMessage] = useState("");
 
-  const searchParams = useSearchParams();
-  const paymentSuccess = searchParams.get("success") === "true";
-  const paymentCanceled = searchParams.get("canceled") === "true";
-
-  const handleJoinWaitlist = async () => {
+  async function joinWaitlist() {
     if (!email.trim()) {
-      setWaitlistMessage("Please enter your email.");
+      setWaitlistMessage("Enter an email address first.");
       return;
     }
-
     try {
       setWaitlistLoading(true);
       setWaitlistMessage("");
-
       const response = await fetch("/api/waitlist", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        setWaitlistMessage(data.error || "Failed to join waitlist.");
+        setWaitlistMessage(data.error || "The waitlist request failed.");
         return;
       }
-
-      setWaitlistMessage("You're on the waitlist.");
+      setWaitlistMessage("You are on the team-access waitlist.");
       setEmail("");
-    } catch (error) {
-      console.error("Pricing waitlist submit error:", error);
-      setWaitlistMessage("Failed to join waitlist.");
+    } catch {
+      setWaitlistMessage("The waitlist request failed. Please try again.");
     } finally {
       setWaitlistLoading(false);
     }
-  };
-
-  const handleUpgradeToPro = async () => {
-    try {
-      const response = await fetch("/api/checkout", {
-        method: "POST",
-      });
-
-      const data = await response.json();
-
-      if (data.url) {
-        window.location.href = data.url;
-        return;
-      }
-
-      alert(data.error || "Failed to start checkout.");
-    } catch (error) {
-      console.error("Checkout error:", error);
-      alert("Failed to start checkout.");
-    }
-  };
+  }
 
   return (
-    <>
-      <main className="min-h-screen px-6 py-14">
-        <div className="mx-auto max-w-5xl">
-          <div className="mb-12 text-center">
-            <p className="mb-3 text-sm font-medium uppercase tracking-[0.2em] text-gray-500">
-              Pricing
-            </p>
-
-            <h1 className="mb-4 text-5xl font-bold tracking-tight text-black md:text-6xl">
-              Simple pricing for AI-powered test generation
-            </h1>
-
-            <p className="mx-auto max-w-2xl text-gray-600">
-              Start free, validate your workflow, and upgrade when you need more
-              advanced AI-powered automation.
-            </p>
-
-            {paymentSuccess && (
-              <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
-                Pro activated successfully. You can now go back to the Generator
-                page and verify your email.
-              </div>
-            )}
-
-            {paymentCanceled && (
-              <div className="mx-auto mt-6 max-w-2xl rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
-                Checkout was canceled. You can try again whenever you’re ready.
-              </div>
-            )}
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
-              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-gray-500">
-                {FREE_PLAN.name}
-              </p>
-
-              <h2 className="mb-4 text-4xl font-bold text-black">
-                {FREE_PLAN.priceLabel}
-              </h2>
-
-              <ul className="mb-8 space-y-3 text-gray-600">
-                {FREE_PLAN.features.map((feature) => (
-                  <li key={feature}>{feature}</li>
-                ))}
-              </ul>
-
-              <Link
-                href="/generator"
-                className="inline-block rounded-xl border border-gray-300 px-5 py-3 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
-              >
-                Continue with Free
-              </Link>
-            </div>
-
-            <div className="rounded-3xl border border-black bg-black p-8 text-white shadow-sm">
-              <span className="mb-4 inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-xs font-medium">
-                ⭐ Most Popular
+    <main className="min-h-screen bg-slate-50 px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <div className="mx-auto max-w-6xl">
+        <header className="overflow-hidden rounded-[2rem] border border-slate-800 bg-slate-950 px-6 py-9 text-white shadow-xl shadow-slate-200/70 sm:px-9 sm:py-12">
+          <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end">
+            <div className="max-w-3xl">
+              <span className="inline-flex rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1.5 text-xs font-semibold text-cyan-200">
+                Public product preview
               </span>
-
-              <p className="mb-2 text-sm font-medium uppercase tracking-[0.2em] text-gray-300">
-                {PRO_PLAN.name} Plan
+              <h1 className="mt-6 text-4xl font-semibold tracking-[-0.045em] sm:text-5xl">
+                Start free. Pay only when the team platform is production-ready.
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-300">
+                PlaywrightGen does not sell unsupported promises. Free tools and
+                Workspace preview access remain available while GitHub, isolated
+                execution, observability, and billing gates are completed.
               </p>
+            </div>
+            <div className="rounded-2xl border border-white/10 bg-white/[0.06] p-4 text-sm text-slate-300 lg:max-w-xs">
+              <p className="font-semibold text-white">No surprise checkout</p>
+              <p className="mt-2 leading-6">
+                Team pricing will be published with real entitlements, runner limits,
+                and production support terms.
+              </p>
+            </div>
+          </div>
+        </header>
 
-              <h2 className="mb-4 text-4xl font-bold">
-                {PRO_PLAN.priceLabel} {PRO_PLAN.intervalLabel}
-              </h2>
-
-              <ul className="mb-8 space-y-3 text-gray-300">
-                {PRO_PLAN.features.map((feature) => (
-                  <li key={feature}>{feature}</li>
+        <section className="mt-6 grid gap-4 lg:grid-cols-2" aria-label="Available plans">
+          {plans.map((plan) => (
+            <article
+              key={plan.name}
+              className={`rounded-[1.75rem] border p-6 shadow-sm sm:p-8 ${
+                plan.featured
+                  ? "border-cyan-300 bg-cyan-50/70"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-950">{plan.name}</p>
+                  <div className="mt-4 flex items-end gap-3">
+                    <p className="text-4xl font-semibold tracking-[-0.04em] text-slate-950">{plan.price}</p>
+                    <p className="pb-1 text-xs font-medium text-slate-500">{plan.suffix}</p>
+                  </div>
+                </div>
+                {plan.featured ? (
+                  <span className="rounded-full bg-cyan-600 px-3 py-1 text-xs font-semibold text-white">
+                    Best product experience
+                  </span>
+                ) : null}
+              </div>
+              <p className="mt-5 text-sm leading-6 text-slate-600">{plan.description}</p>
+              <ul className="mt-6 space-y-3">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex gap-3 text-sm text-slate-700">
+                    <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-slate-950 text-[10px] font-bold text-white">
+                      ✓
+                    </span>
+                    <span>{feature}</span>
+                  </li>
                 ))}
               </ul>
-
-              <button
-                onClick={handleUpgradeToPro}
-                className="mt-6 w-full rounded-xl bg-white px-4 py-3 font-medium text-black transition hover:opacity-90"
+              <Link
+                href={plan.href}
+                className={`mt-8 inline-flex min-h-11 w-full items-center justify-center rounded-xl px-5 text-sm font-semibold transition ${
+                  plan.featured
+                    ? "bg-cyan-600 text-white hover:bg-cyan-500"
+                    : "border border-slate-300 bg-white text-slate-800 hover:border-cyan-300 hover:bg-cyan-50"
+                }`}
               >
-                Upgrade to Pro
-              </button>
+                {plan.cta}
+              </Link>
+            </article>
+          ))}
+        </section>
 
-              <p className="mt-3 text-center text-sm text-gray-400">
-                Built for individual developers today. Team and enterprise
-                options coming soon.
+        <section className="mt-4 rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-center">
+            <div className="max-w-3xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-semibold text-slate-950">Team + CI</p>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Coming after production gates</span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                GitHub import, isolated execution, pull-request reporting, collaboration,
+                usage controls, and support will define the paid plan. Pricing has not
+                been invented before those entitlements exist.
               </p>
-
-              <button
-                onClick={() => {
-                  setShowWaitlist(true);
-                  setWaitlistMessage("");
-                }}
-                className="mt-3 block w-full text-center text-sm text-gray-300 underline underline-offset-4 transition hover:text-white"
-              >
-                Need enterprise access or future premium features? Join the
-                waitlist
-              </button>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                setShowWaitlist(true);
+                setWaitlistMessage("");
+              }}
+              className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-slate-950 px-5 text-sm font-semibold text-white transition hover:bg-cyan-600"
+            >
+              Join team-access waitlist
+            </button>
           </div>
-        </div>
-      </main>
+        </section>
+      </div>
 
-      {showWaitlist && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-          <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
-            <h2 className="mb-2 text-2xl font-bold text-black">
-              {PRO_WAITLIST_COPY.title}
-            </h2>
-
-            <p className="mb-4 text-sm text-gray-600">
-              {PRO_WAITLIST_COPY.description}
+      {showWaitlist ? (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-slate-950/70 px-4 backdrop-blur-sm">
+          <div role="dialog" aria-modal="true" aria-labelledby="waitlist-title" className="w-full max-w-md rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-2xl">
+            <span className="inline-flex rounded-full bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700">Team + CI</span>
+            <h2 id="waitlist-title" className="mt-4 text-2xl font-semibold tracking-[-0.03em] text-slate-950">Join the product waitlist</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Get launch updates when GitHub, runners, entitlements, and support are ready for real teams.
             </p>
-
-            <input
-              type="email"
-              placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mb-4 w-full rounded-xl border border-gray-300 p-3 outline-none transition focus:border-black"
-            />
-
-            {waitlistMessage && (
-              <p className="mb-4 text-sm text-gray-600">{waitlistMessage}</p>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowWaitlist(false)}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-gray-700 transition hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleJoinWaitlist}
-                disabled={waitlistLoading}
-                className="rounded-xl bg-black px-4 py-2 text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {waitlistLoading ? "Joining..." : PRO_WAITLIST_COPY.buttonText}
+            <label className="mt-5 block text-sm font-medium text-slate-800">
+              Email address
+              <input
+                type="email"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@company.com"
+                className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+              />
+            </label>
+            {waitlistMessage ? <p className="mt-3 text-sm text-slate-600" role="status">{waitlistMessage}</p> : null}
+            <div className="mt-6 flex gap-3">
+              <button type="button" onClick={() => setShowWaitlist(false)} className="min-h-11 flex-1 rounded-xl border border-slate-300 px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Close</button>
+              <button type="button" onClick={joinWaitlist} disabled={waitlistLoading} className="min-h-11 flex-1 rounded-xl bg-cyan-600 px-4 text-sm font-semibold text-white hover:bg-cyan-500 disabled:opacity-50">
+                {waitlistLoading ? "Joining…" : "Join waitlist"}
               </button>
             </div>
           </div>
         </div>
-      )}
-    </>
-  );
-}
-
-export default function PricingPage() {
-  return (
-    <Suspense fallback={null}>
-      <PricingContent />
-    </Suspense>
+      ) : null}
+    </main>
   );
 }

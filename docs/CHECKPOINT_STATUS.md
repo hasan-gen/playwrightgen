@@ -19,7 +19,8 @@ completed, materially changed, or blocked.
 | V1.5 Failure Intelligence | Complete | OpenAI Responses API Structured Outputs classify failed/blocked immutable attempts; local exact-quote evidence validation, model/prompt/schema/token metadata, safe failure records, human confirm/dismiss, tenant/role enforcement, real Test Run UI, 118 tests, and development/test migrations pass. |
 | V1.6 Automation artifacts + engines | Complete | Separate Playwright Browser/API engines create append-only artifacts pinned to approved immutable Test Case versions; OpenAI Responses Structured Outputs, deterministic safety/quality validation, safe failed generations, preserved approved revisions, human review/approval, tenant/role enforcement, real Automation Studio UI, 128 tests, and development/test migrations pass. |
 | V1.6.1 Product surface unification | Complete | Evidence-workflow homepage and unified navigation; focused Quick Generate/Coverage Review/Release Review surfaces; Debug relocated conceptually to failed Test Runs; Figma removed from the product surface; Responses API Structured Outputs for new public generation/review flows; no invented coverage score; real tenant-scoped Continue in Workspace transitions that create human-reviewable AI-suggested Requirement or Test Case drafts without importing unapproved code. |
-| V1.7 Project quality intelligence | Next | Evidence-derived coverage, regression, change-impact, and delivery-confidence views over real Requirements, Test Cases, Automation artifacts, and Test Runs. |
+| V1.7 Project quality intelligence | Complete | Tenant-scoped Quality Command Center derives approved Requirement-to-Test Case coverage, current-version automation coverage, superseded automation, recent run health, unresolved findings, and evidence freshness from PostgreSQL records; every actionable gap links to its source, missing evidence remains explicit, no synthetic readiness score is produced, 136 tests pass, and public/workspace navigation and pricing use the refined shared visual system. |
+| V1.8 Repository, CI, and isolated execution | Next | Organization/project-scoped GitHub connection, existing Playwright import, guarded execution, durable trace/screenshot/log evidence, and pull-request reporting. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -34,6 +35,6 @@ completed, materially changed, or blocked.
 
 ## Next acceptance target
 
-Build project-aware quality intelligence from versioned Requirements, Test
-Cases, approved Automation artifacts, and immutable Test Run evidence. Every
-coverage or delivery claim must expose its source records and uncertainty.
+Connect a GitHub repository at organization/project scope, import existing
+Playwright configuration and tests without treating them as approved, and
+design the isolated execution/evidence boundary before any remote command runs.

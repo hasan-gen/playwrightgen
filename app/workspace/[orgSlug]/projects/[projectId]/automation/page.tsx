@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ProjectNavigation } from "@/components/workspace/project-navigation";
 import { listAutomationArtifacts } from "@/lib/services/automation-artifacts";
 
 const statusStyle = {
@@ -26,6 +27,7 @@ export default async function AutomationPage({
 
   return (
     <div className="mx-auto max-w-6xl">
+      <ProjectNavigation organizationSlug={orgSlug} projectId={projectId} />
       <header className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-700">

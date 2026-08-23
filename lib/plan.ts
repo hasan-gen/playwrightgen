@@ -1,40 +1,38 @@
 export const FREE_PLAN = {
- name: "Free",
- priceLabel: "$0",
- intervalLabel: "",
- features: [
- "5 generations per day",
- "Prompt → Playwright test",
- "HTML / JSX → test generation",
- "API test generation",
- "Component → Playwright test",
- "Component → unit test",
- "Copy and download output",
- ],
+  name: "Free",
+  priceLabel: "$0",
+  intervalLabel: "",
+  features: [
+    "5 generations per day",
+    "User flow to Playwright draft",
+    "HTML or JSX evidence input",
+    "API contract test generation",
+    "Component behavior test generation",
+    "Copy and download output",
+    "Continue as a reviewed Workspace draft",
+  ],
 };
 
 export const PRO_PLAN = {
- name: "Pro",
- priceLabel: "$8",
- intervalLabel: "/ month",
- features: [
- "Unlimited generations",
- "Analyze Page",
- "Explain Test",
- "Production-grade automation output",
- "Advanced AI workflows",
- "Faster generation for dev and QA teams",
- "Future premium automation features",
- ],
+  name: "Team + CI",
+  priceLabel: "Waitlist",
+  intervalLabel: "",
+  features: [
+    "GitHub and CI integration",
+    "Isolated Playwright execution",
+    "Pull-request quality reporting",
+    "Organization usage controls",
+    "Production support terms",
+  ],
 };
 
 export const APP_LIMITS = {
- freeDailyGenerations: 5,
+  freeDailyGenerations: 5,
 };
 
 export const PRO_WAITLIST_COPY = {
- title: "Join the Pro waitlist",
- description:
- "Get early access to Analyze Page, Explain Test, and upcoming premium automation features.",
- buttonText: "Join waitlist",
+  title: "Join the Team + CI waitlist",
+  description:
+    "Get launch updates when GitHub, isolated execution, entitlements, and team support are ready.",
+  buttonText: "Join waitlist",
 };

@@ -209,3 +209,21 @@ test intent. Converting it directly into approved automation would bypass
 versioning, RBAC, review, and evidence requirements. A reviewed draft preserves
 useful momentum while keeping PostgreSQL and the existing approval workflows
 authoritative.
+
+## 022 — Derive project quality intelligence from source-linked records
+
+**Decision:** The project Quality Command Center computes its signals only from
+tenant-scoped PostgreSQL records: approved Requirements, approved Test Cases and
+their traceability links, approved Automation artifacts pinned to immutable Test
+Case versions, immutable Test Run attempts, and reviewed Failure findings. It
+shows numerator-and-denominator counts, explicit missing evidence, deterministic
+freshness bands, and source links. It does not collapse those records into an AI
+readiness or release-confidence score.
+
+**Reason:** A scalar score would hide whether confidence comes from approved
+intent, current automation, execution evidence, or assumptions. Source-linked
+counts let a project lead inspect and act on the exact gap while preserving
+uncertainty. The service first resolves project access through
+`requireWorkspaceContext`, then scopes every query by both `organizationId` and
+`projectId`; cross-tenant and Viewer-read behavior are covered by integration
+tests.
