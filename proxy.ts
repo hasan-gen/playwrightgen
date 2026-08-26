@@ -18,5 +18,9 @@ export default clerkMiddleware(async (auth, request) => {
 });
 
 export const config = {
-  matcher: ["/workspace", "/workspace/:path*"],
+  matcher: [
+    "/workspace",
+    "/workspace/:path*",
+    "/api/github/setup/:path*",
+  ],
 };

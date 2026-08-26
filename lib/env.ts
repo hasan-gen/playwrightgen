@@ -5,6 +5,10 @@ import { z } from "zod";
 type EnvironmentSource = Readonly<Record<string, string | undefined>>;
 
 const requiredValue = z.string().trim().min(1);
+const httpUrl = requiredValue.url().refine(
+  (value) => value.startsWith("http://") || value.startsWith("https://"),
+  "Must be an HTTP(S) URL.",
+);
 const postgresUrl = requiredValue.refine(
   (value) => /^postgres(?:ql)?:\/\//i.test(value),
   "Must be a PostgreSQL connection URL.",
@@ -43,6 +47,15 @@ export const githubAppAuthenticationEnvironmentSchema = z.object({
 export const githubWebhookEnvironmentSchema = z.object({
   GITHUB_WEBHOOK_SECRET: requiredValue,
 });
+
+export const githubSetupEnvironmentSchema =
+  githubAppAuthenticationEnvironmentSchema.extend({
+    GITHUB_APP_SLUG: requiredValue.regex(/^[a-z0-9](?:[a-z0-9-]{0,98}[a-z0-9])?$/),
+    GITHUB_APP_CLIENT_ID: requiredValue,
+    GITHUB_APP_CLIENT_SECRET: requiredValue,
+    GITHUB_SETUP_STATE_SECRET: requiredValue.min(32),
+    NEXT_PUBLIC_APP_URL: httpUrl,
+  });
 
 export class EnvironmentValidationError extends Error {
   readonly variableNames: readonly string[];
@@ -160,5 +173,15 @@ export function validateGitHubWebhookEnvironment(
     githubWebhookEnvironmentSchema,
     source,
     "GitHub webhook",
+  );
+}
+
+export function validateGitHubSetupEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    githubSetupEnvironmentSchema,
+    source,
+    "GitHub App setup",
   );
 }

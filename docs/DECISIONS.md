@@ -310,3 +310,20 @@ after repository access changes. Signature verification proves integrity,
 delivery identity prevents duplicate side effects, digest comparison detects
 conflicting replay, and conservative revocation prevents stale access from
 being treated as current authorization evidence.
+
+## 027 — Verify the installing GitHub user before binding tenant authority
+
+**Decision:** A GitHub setup redirect never trusts the installation ID by
+itself. The initiating PlaywrightGen Owner/Admin and exact organization/project
+are bound into a signed ten-minute state. After installation, a second signed
+state and PKCE-protected GitHub user authorization prove that the current
+GitHub user can access the installation. PlaywrightGen then authenticates as
+the App, requires an active installation with metadata/contents read only, and
+only then binds it to PostgreSQL. User and installation tokens are transient.
+
+**Reason:** GitHub documents that setup URLs can be called with spoofed
+installation IDs. App authentication proves that an installation belongs to
+the App but does not prove that the current user controls it. Combining local
+authorization, signed state, PKCE, user-installation access, and App
+verification closes both boundaries without making GitHub identity a
+PlaywrightGen authorization authority.

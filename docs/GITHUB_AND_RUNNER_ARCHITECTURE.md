@@ -25,6 +25,16 @@ repository and `contents:read`, and discards the token after the request. No
 installation token is persisted or sent to a browser, runner, AI provider,
 Activity record, or application log.
 
+An Owner/Admin starts setup from an exact Workspace project. PlaywrightGen
+signs a ten-minute state containing the local organization, project, actor, and
+random nonce. The post-install redirect starts GitHub user authorization with
+PKCE. The callback accepts the installation only after the current local actor
+still has organization-manage permission, the state and PKCE verifier match,
+GitHub confirms that user can access the installation, and App authentication
+returns the same active installation with metadata/contents read only. The
+transient user token is discarded immediately. This prevents the setup URL's
+untrusted installation ID from becoming tenant authority.
+
 The webhook boundary validates the exact raw body with HMAC-SHA256 before
 parsing and stores only delivery identity, a payload digest, normalized event
 metadata, and processing result. Installation suspension/removal and repository

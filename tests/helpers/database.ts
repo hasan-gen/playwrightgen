@@ -56,30 +56,46 @@ export async function cleanPhase1ATables(
     );
   }
 
-  await client.$transaction([
-    client.activity.deleteMany(),
-    client.repositoryImportFile.deleteMany(),
-    client.repositoryImport.deleteMany(),
-    client.repositoryConnection.deleteMany(),
-    client.gitHubWebhookDelivery.deleteMany(),
-    client.gitHubInstallation.deleteMany(),
-    client.failureFinding.deleteMany(),
-    client.failureAnalysis.deleteMany(),
-    client.testRunAttempt.deleteMany(),
-    client.testRun.deleteMany(),
-    client.automationArtifactVersion.deleteMany(),
-    client.automationArtifact.deleteMany(),
-    client.requirementTestCase.deleteMany(),
-    client.testCaseVersion.deleteMany(),
-    client.testCase.deleteMany(),
-    client.aiSuggestion.deleteMany(),
-    client.aiRun.deleteMany(),
-    client.requirementVersion.deleteMany(),
-    client.requirement.deleteMany(),
-    client.projectMembership.deleteMany(),
-    client.project.deleteMany(),
-    client.membership.deleteMany(),
-    client.organization.deleteMany(),
-    client.user.deleteMany(),
-  ]);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await client.$transaction([
+        client.activity.deleteMany(),
+        client.repositoryImportFile.deleteMany(),
+        client.repositoryImport.deleteMany(),
+        client.repositoryConnection.deleteMany(),
+        client.gitHubWebhookDelivery.deleteMany(),
+        client.gitHubInstallation.deleteMany(),
+        client.failureFinding.deleteMany(),
+        client.failureAnalysis.deleteMany(),
+        client.testRunAttempt.deleteMany(),
+        client.testRun.deleteMany(),
+        client.automationArtifactVersion.deleteMany(),
+        client.automationArtifact.deleteMany(),
+        client.requirementTestCase.deleteMany(),
+        client.testCaseVersion.deleteMany(),
+        client.testCase.deleteMany(),
+        client.aiSuggestion.deleteMany(),
+        client.aiRun.deleteMany(),
+        client.requirementVersion.deleteMany(),
+        client.requirement.deleteMany(),
+        client.projectMembership.deleteMany(),
+        client.project.deleteMany(),
+        client.membership.deleteMany(),
+        client.organization.deleteMany(),
+        client.user.deleteMany(),
+      ]);
+      return;
+    } catch (error) {
+      const retryable =
+        typeof error === "object" &&
+        error !== null &&
+        (("code" in error &&
+          (error.code === "P2028" || error.code === "P2034")) ||
+          ("message" in error &&
+            typeof error.message === "string" &&
+            error.message.includes("Unable to start a transaction")));
+      if (!retryable || attempt === 2) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
+  }
 }

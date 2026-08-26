@@ -10,7 +10,9 @@ import {
 import { getPrismaClient } from "@/lib/db/prisma";
 import {
   createGitHubRepositorySnapshotProvider,
+  type GitHubAccessibleRepository,
   GitHubProviderError,
+  listGitHubInstallationRepositories,
 } from "@/lib/integrations/github/app-client";
 
 const uuidSchema = z.string().uuid();
@@ -54,6 +56,9 @@ export type RepositorySnapshotProvider = (input: {
 
 type Dependencies = WorkspaceContextDependencies & {
   fetchSnapshot?: RepositorySnapshotProvider;
+  listRepositories?: (input: {
+    installationId: string;
+  }) => Promise<GitHubAccessibleRepository[]>;
 };
 
 export class RepositoryImportDomainError extends Error {
@@ -187,6 +192,7 @@ export async function bindGitHubInstallation(
     accountType: string;
     repositorySelection: "all" | "selected";
     installedAt?: Date;
+    providerUpdatedAt?: Date;
     requestId?: string;
   },
   dependencies?: Dependencies,
@@ -229,6 +235,7 @@ export async function bindGitHubInstallation(
         repositorySelection,
         connectedByUserId: workspace.user.id,
         installedAt: input.installedAt,
+        providerUpdatedAt: input.providerUpdatedAt,
       },
     });
     await transaction.activity.create({
@@ -378,6 +385,129 @@ export async function listRepositoryConnections(
     },
     orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
   });
+}
+
+export async function listConnectableGitHubRepositories(
+  input: { orgSlug?: string; projectId: string },
+  dependencies?: Dependencies,
+) {
+  const { workspace, projectId } = await projectContext(
+    input,
+    "repository:connect",
+    dependencies,
+  );
+  const prisma = client(dependencies);
+  const [installations, connections] = await Promise.all([
+    prisma.gitHubInstallation.findMany({
+      where: {
+        organizationId: workspace.organization.id,
+        status: "ACTIVE",
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+    }),
+    prisma.repositoryConnection.findMany({
+      where: { organizationId: workspace.organization.id, projectId },
+      select: { externalRepositoryId: true, status: true },
+    }),
+  ]);
+  const connected = new Map(
+    connections.map((connection) => [
+      connection.externalRepositoryId,
+      connection.status,
+    ]),
+  );
+  const listRepositories =
+    dependencies?.listRepositories ??
+    ((request: { installationId: string }) =>
+      listGitHubInstallationRepositories(request));
+  const available = await Promise.all(
+    installations.map(async (installation) => ({
+      installation,
+      repositories: await listRepositories({
+        installationId: installation.externalInstallationId,
+      }),
+    })),
+  );
+  return available.flatMap(({ installation, repositories }) =>
+    repositories.map((repository) => ({
+      ...repository,
+      githubInstallationId: installation.id,
+      accountLogin: installation.accountLogin,
+      connectionStatus: connected.get(repository.externalRepositoryId) ?? null,
+    })),
+  );
+}
+
+export async function connectVerifiedGitHubRepository(
+  input: {
+    orgSlug?: string;
+    projectId: string;
+    githubInstallationId: string;
+    externalRepositoryId: string;
+    requestId?: string;
+  },
+  dependencies?: Dependencies,
+) {
+  const githubInstallationId = parse(uuidSchema, input.githubInstallationId);
+  const externalRepositoryId = parse(
+    externalIdSchema,
+    input.externalRepositoryId,
+  );
+  const { workspace } = await projectContext(
+    input,
+    "repository:connect",
+    dependencies,
+  );
+  const installation = await client(dependencies).gitHubInstallation.findUnique({
+    where: {
+      organizationId_id: {
+        organizationId: workspace.organization.id,
+        id: githubInstallationId,
+      },
+    },
+  });
+  if (!installation || installation.status !== "ACTIVE") {
+    throw new RepositoryImportDomainError("github_installation_not_found", 404);
+  }
+  const listRepositories =
+    dependencies?.listRepositories ??
+    ((request: { installationId: string }) =>
+      listGitHubInstallationRepositories(request));
+  let repositories: GitHubAccessibleRepository[];
+  try {
+    repositories = await listRepositories({
+      installationId: installation.externalInstallationId,
+    });
+  } catch (error) {
+    throw new RepositoryImportDomainError(
+      error instanceof GitHubProviderError ? error.code : "provider_failure",
+      502,
+    );
+  }
+  const repository = repositories.find(
+    (candidate) =>
+      candidate.externalRepositoryId === externalRepositoryId,
+  );
+  if (!repository) {
+    throw new RepositoryImportDomainError(
+      "github_repository_access_not_verified",
+      404,
+    );
+  }
+  return connectGitHubRepository(
+    {
+      orgSlug: input.orgSlug,
+      projectId: input.projectId,
+      githubInstallationId,
+      externalRepositoryId,
+      ownerLogin: repository.ownerLogin,
+      name: repository.name,
+      defaultBranch: repository.defaultBranch,
+      visibility: repository.visibility,
+      requestId: input.requestId,
+    },
+    dependencies,
+  );
 }
 
 export async function importGitHubRepository(

@@ -8,18 +8,22 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current checkpoint commit: repository-import foundation checkpoint.
+- Current checkpoint commit: signed lifecycle checkpoint 9ff2f54; secure setup
+  flow is the next checkpoint awaiting final validation and commit.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
-  and signed idempotent installation/repository-access lifecycle handling.
+  signed idempotent installation/repository-access lifecycle handling, signed
+  setup state, PKCE user verification, strict App verification, and live
+  repository selection.
 - Product priority: reach the first safe production preview quickly without
   weakening tenant isolation, human review, evidence integrity, or launch gates.
 
 ## Next primary outcome
 
-Complete the signed organization/project-scoped GitHub App setup flow and
-connect one real selected repository through the new import boundary. Keep
-imported records preliminary and keep untrusted execution disabled.
+Configure the dedicated development GitHub App, connect one real selected
+repository through the completed secure setup boundary, and prove an
+exact-commit import. Keep imported records preliminary and keep untrusted
+execution disabled.
 
 ## Next working sequence
 
@@ -30,10 +34,11 @@ imported records preliminary and keep untrusted execution disabled.
      flow is proven.
 
 2. **Build the organization-scoped setup flow**
-   - Generate signed, expiring setup state for an Owner/Admin and exact project.
-   - Verify the returned installation through GitHub before binding it.
-   - List only repositories accessible to that installation and connect the
-     selected repository through the existing composite tenant service.
+   - Complete: signed ten-minute state for an Owner/Admin and exact project.
+   - Complete: PKCE GitHub user authorization verifies the user can access the
+     installation before App-authenticated least-privilege verification.
+   - Complete: live accessible-repository discovery and provider-verified
+     project connection through the existing composite tenant service.
 
 3. **Prove one real repository import**
    - Ask for one GitHub dashboard action only after the callback is locally ready.
@@ -101,8 +106,6 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** expose a signed, expiring,
-organization/project-scoped GitHub App installation setup state and callback,
-verify the returned installation through GitHub, and list only its accessible
-repositories. Ask for the one required GitHub dashboard action only after the
-local callback and tests are ready.
+**Exact first action next session:** configure the first required setting on
+the dedicated development GitHub App, then proceed one dashboard action at a
+time until the local signed callback can prove one selected repository import.

@@ -5,6 +5,10 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createGitHubAppJwt,
   createGitHubRepositorySnapshotProvider,
+  exchangeGitHubUserCode,
+  getVerifiedGitHubInstallation,
+  listGitHubInstallationRepositories,
+  verifyGitHubUserInstallationAccess,
 } from "@/lib/integrations/github/app-client";
 
 function privateKey() {
@@ -18,6 +22,19 @@ function jsonResponse(value: unknown) {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+function setupEnvironment(key: string) {
+  return {
+    GITHUB_APP_ID: "123",
+    GITHUB_APP_PRIVATE_KEY: key,
+    GITHUB_APP_SLUG: "playwrightgen-dev",
+    GITHUB_APP_CLIENT_ID: "Iv1.client",
+    GITHUB_APP_CLIENT_SECRET: "client-secret-never-stored",
+    GITHUB_SETUP_STATE_SECRET:
+      "github-setup-state-secret-that-is-long-enough",
+    NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+  };
 }
 
 describe("least-privilege GitHub App client", () => {
@@ -99,5 +116,124 @@ describe("least-privilege GitHub App client", () => {
     expect(snapshot.files).toHaveLength(1);
     expect(JSON.stringify(snapshot)).not.toContain("installation-token");
     expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it("verifies the GitHub user, App installation, and live repository access", async () => {
+    const key = privateKey();
+    const repository = {
+      id: 789,
+      name: "storefront",
+      full_name: "acme/storefront",
+      owner: { login: "acme" },
+      default_branch: "main",
+      visibility: "private",
+      private: true,
+    };
+    const oauthFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        access_token: "transient-user-token",
+        token_type: "bearer",
+      }));
+    const userToken = await exchangeGitHubUserCode({
+      code: "one-time-code",
+      codeVerifier: "v".repeat(43),
+      redirectUri: "http://localhost:3000/api/github/setup/callback",
+      fetcher: oauthFetcher,
+      environment: setupEnvironment(key),
+    });
+    expect(userToken).toBe("transient-user-token");
+    expect(JSON.parse(String(oauthFetcher.mock.calls[0][1]?.body))).toMatchObject({
+      code_verifier: "v".repeat(43),
+    });
+
+    const userFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        total_count: 1,
+        repositories: [repository],
+      }));
+    await verifyGitHubUserInstallationAccess({
+      installationId: "456",
+      userToken,
+      fetcher: userFetcher,
+    });
+    expect(userFetcher.mock.calls[0][0]).toContain(
+      "/user/installations/456/repositories",
+    );
+
+    const installationFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        id: 456,
+        app_id: 123,
+        account: { id: 321, login: "acme", type: "Organization" },
+        repository_selection: "selected",
+        permissions: { metadata: "read", contents: "read" },
+        suspended_at: null,
+        created_at: "2026-08-26T12:00:00.000Z",
+        updated_at: "2026-08-26T12:01:00.000Z",
+      }));
+    expect(await getVerifiedGitHubInstallation({
+      installationId: "456",
+      fetcher: installationFetcher,
+      environment: setupEnvironment(key),
+    })).toMatchObject({
+      externalInstallationId: "456",
+      accountId: "321",
+      accountLogin: "acme",
+      repositorySelection: "selected",
+    });
+
+    const repositoryFetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        token: "transient-installation-token",
+        expires_at: "2026-08-26T13:00:00.000Z",
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        total_count: 1,
+        repositories: [repository],
+      }));
+    const repositories = await listGitHubInstallationRepositories({
+      installationId: "456",
+      fetcher: repositoryFetcher,
+      environment: setupEnvironment(key),
+    });
+    expect(repositories).toEqual([{
+      externalRepositoryId: "789",
+      ownerLogin: "acme",
+      name: "storefront",
+      fullName: "acme/storefront",
+      defaultBranch: "main",
+      visibility: "PRIVATE",
+    }]);
+    expect(JSON.stringify(repositories)).not.toContain("transient-installation-token");
+  });
+
+  it("rejects an installation when the App has broader than read-only permissions", async () => {
+    const key = privateKey();
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValueOnce(jsonResponse({
+      id: 456,
+      app_id: 123,
+      account: { id: 321, login: "acme", type: "Organization" },
+      repository_selection: "selected",
+      permissions: {
+        metadata: "read",
+        contents: "read",
+        pull_requests: "write",
+      },
+      suspended_at: null,
+      created_at: "2026-08-26T12:00:00.000Z",
+      updated_at: "2026-08-26T12:01:00.000Z",
+    }));
+
+    await expect(getVerifiedGitHubInstallation({
+      installationId: "456",
+      fetcher,
+      environment: setupEnvironment(key),
+    })).rejects.toMatchObject({
+      code: "github_permissions_not_least_privilege",
+    });
   });
 });

@@ -1,5 +1,15 @@
+import Link from "next/link";
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
 import { ProjectNavigation } from "@/components/workspace/project-navigation";
-import { listRepositoryConnections } from "@/lib/services/repository-imports";
+import { requireWorkspaceContext } from "@/lib/auth/workspace-context";
+import { validateGitHubSetupEnvironment } from "@/lib/env";
+import {
+  connectVerifiedGitHubRepository,
+  listConnectableGitHubRepositories,
+  listRepositoryConnections,
+} from "@/lib/services/repository-imports";
 
 const connectionStatusStyle = {
   ACTIVE: "bg-emerald-50 text-emerald-700",
@@ -18,13 +28,68 @@ function shortSha(value: string | null) {
   return value ? value.slice(0, 8) : "Not resolved";
 }
 
+async function connectRepositoryAction(formData: FormData) {
+  "use server";
+
+  const orgSlug = String(formData.get("orgSlug") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const destination =
+    "/workspace/" +
+    encodeURIComponent(orgSlug) +
+    "/projects/" +
+    encodeURIComponent(projectId) +
+    "/repositories";
+  try {
+    await connectVerifiedGitHubRepository({
+      orgSlug,
+      projectId,
+      githubInstallationId: String(
+        formData.get("githubInstallationId") ?? "",
+      ),
+      externalRepositoryId: String(
+        formData.get("externalRepositoryId") ?? "",
+      ),
+    });
+  } catch {
+    redirect(destination + "?github=connection_failed");
+  }
+  revalidatePath(destination);
+  redirect(destination + "?github=repository_connected");
+}
+
 export default async function ProjectRepositoriesPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ orgSlug: string; projectId: string }>;
+  searchParams: Promise<{ github?: string }>;
 }) {
   const { orgSlug, projectId } = await params;
-  const connections = await listRepositoryConnections({ orgSlug, projectId });
+  const { github: githubResult } = await searchParams;
+  const [context, connections] = await Promise.all([
+    requireWorkspaceContext({ orgSlug, projectId }),
+    listRepositoryConnections({ orgSlug, projectId }),
+  ]);
+  let setupConfigured = true;
+  try {
+    validateGitHubSetupEnvironment();
+  } catch {
+    setupConfigured = false;
+  }
+  let connectableRepositories: Awaited<
+    ReturnType<typeof listConnectableGitHubRepositories>
+  > = [];
+  let repositoryDiscoveryFailed = false;
+  if (context.can("repository:connect")) {
+    try {
+      connectableRepositories = await listConnectableGitHubRepositories({
+        orgSlug,
+        projectId,
+      });
+    } catch {
+      repositoryDiscoveryFailed = true;
+    }
+  }
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -43,6 +108,90 @@ export default async function ProjectRepositoriesPage({
           creates or links approved Workspace records.
         </p>
       </header>
+
+      {githubResult === "connected" ? (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          GitHub identity and installation access were verified. Choose a
+          repository below to attach it to this project.
+        </div>
+      ) : null}
+      {githubResult === "repository_connected" ? (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Repository connected with fresh GitHub access verification.
+        </div>
+      ) : null}
+      {githubResult === "failed" || githubResult === "connection_failed" ? (
+        <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          GitHub setup could not be verified. No installation or repository
+          authority was changed.
+        </div>
+      ) : null}
+
+      {connectableRepositories.length ? (
+        <section className="mt-8 rounded-3xl border border-cyan-200 bg-cyan-50/40 p-5 sm:p-7">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
+                Available from GitHub
+              </p>
+              <h2 className="mt-2 text-xl font-semibold tracking-tight">
+                Select repository evidence
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                This list is fetched live from the verified App installation.
+              </p>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {connectableRepositories.map((repository) => (
+              <div
+                key={
+                  repository.githubInstallationId +
+                  ":" +
+                  repository.externalRepositoryId
+                }
+                className="flex flex-col justify-between gap-4 rounded-2xl border border-cyan-100 bg-white p-4 sm:flex-row sm:items-center"
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-semibold text-slate-950">
+                    {repository.fullName}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">
+                    {repository.visibility.toLowerCase()} /{" "}
+                    {repository.defaultBranch} / {repository.accountLogin}
+                  </p>
+                </div>
+                {repository.connectionStatus === "ACTIVE" ? (
+                  <span className="shrink-0 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    Connected
+                  </span>
+                ) : (
+                  <form action={connectRepositoryAction}>
+                    <input type="hidden" name="orgSlug" value={orgSlug} />
+                    <input type="hidden" name="projectId" value={projectId} />
+                    <input
+                      type="hidden"
+                      name="githubInstallationId"
+                      value={repository.githubInstallationId}
+                    />
+                    <input
+                      type="hidden"
+                      name="externalRepositoryId"
+                      value={repository.externalRepositoryId}
+                    />
+                    <button
+                      type="submit"
+                      className="shrink-0 rounded-full bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700"
+                    >
+                      Connect
+                    </button>
+                  </form>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         {connections.length ? (
@@ -156,10 +305,35 @@ export default async function ProjectRepositoriesPage({
             </span>
             <h2 className="mt-4 text-xl font-semibold">No repository connected</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              The secure connection foundation is ready. Installation setup is
-              intentionally unavailable until the GitHub App credentials and
-              signed lifecycle callback are configured for this environment.
+              Install the read-only PlaywrightGen GitHub App, verify your GitHub
+              access, then choose the repository whose test evidence belongs to
+              this project.
             </p>
+            {context.can("organization:manage") && setupConfigured ? (
+              <Link
+                href={
+                  "/api/github/setup/start?orgSlug=" +
+                  encodeURIComponent(orgSlug) +
+                  "&projectId=" +
+                  encodeURIComponent(projectId)
+                }
+                className="mt-5 inline-flex rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-700"
+              >
+                Connect GitHub
+              </Link>
+            ) : (
+              <p className="mt-5 text-xs font-medium text-amber-700">
+                {context.can("organization:manage")
+                  ? "GitHub App setup is not configured in this environment."
+                  : "An organization Owner or Admin must install the GitHub App."}
+              </p>
+            )}
+            {repositoryDiscoveryFailed ? (
+              <p className="mt-3 text-xs text-red-700">
+                Live repository access could not be refreshed. Existing
+                evidence remains unchanged.
+              </p>
+            ) : null}
             <div className="mt-6 grid gap-3 text-left sm:grid-cols-3">
               {[
                 ["Permissions", "Metadata and Contents read only"],

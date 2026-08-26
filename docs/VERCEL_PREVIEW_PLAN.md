@@ -23,7 +23,7 @@ credentials into Preview.
 | Database | `DATABASE_URL`, `DIRECT_URL` for migrations | Dedicated Preview PostgreSQL database with backup/PITR policy reviewed. Runtime uses the pooled URL; migrations use the direct URL. |
 | Clerk | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET` | Dedicated non-production instance/domain and endpoint. Redirect URLs must include the exact protected Preview origin. |
 | OpenAI | `OPENAI_API_KEY` and optional workflow model overrides | Separate project/key, budget, rate limits, and eval gate. Never expose the key client-side. |
-| GitHub App | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET` | Dedicated development/Preview GitHub App until production review. Private key and webhook secret are separate server-only values. |
+| GitHub App | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_SETUP_STATE_SECRET` | Dedicated development/Preview GitHub App until production review. App, OAuth, webhook, and setup-state secrets remain separate server-only values. |
 | Public rate limits | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Dedicated Preview store or explicitly isolated key namespace. |
 | Waitlist email | `RESEND_API_KEY` | Preview-safe sender/domain; no production mailing list side effects. |
 | Billing | Stripe values used by legacy routes | Paid checkout stays unavailable until organization entitlements, signed lifecycle handling, reconciliation, and test-mode E2E pass. |

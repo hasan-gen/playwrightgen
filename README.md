@@ -83,6 +83,19 @@ Phase 1A uses these environment variable names:
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SIGNING_SECRET`
 
+V1.8 GitHub setup additionally requires separate development/Preview values:
+
+- `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`
+- `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`
+- `GITHUB_WEBHOOK_SECRET`
+- `GITHUB_SETUP_STATE_SECRET` (at least 32 characters and distinct from every other secret)
+- `NEXT_PUBLIC_APP_URL` (the exact application origin used by the GitHub callback)
+
+The GitHub App is read-only during repository import: metadata and contents
+read, with only `installation` and `installation_repositories` webhook events.
+User and installation access tokens are transient and must never be logged or
+stored.
+
 Configure a Clerk Dashboard webhook endpoint at `/api/webhooks/clerk` and set `CLERK_WEBHOOK_SIGNING_SECRET` locally and in the deployment environment. Subscribe it to:
 
 - `user.created`, `user.updated`, `user.deleted`

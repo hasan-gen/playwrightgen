@@ -6,7 +6,9 @@ import type { PrismaClient, ProjectMembershipRole } from "@/generated/prisma/cli
 import {
   bindGitHubInstallation,
   connectGitHubRepository,
+  connectVerifiedGitHubRepository,
   importGitHubRepository,
+  listConnectableGitHubRepositories,
   listRepositoryConnections,
   type RepositorySnapshotProvider,
 } from "@/lib/services/repository-imports";
@@ -258,6 +260,55 @@ describe("tenant-safe GitHub repository imports", () => {
     await bindGitHubInstallation(input, deps(first));
     await expect(bindGitHubInstallation(input, deps(second))).rejects.toMatchObject({
       code: "github_installation_already_connected",
+    });
+  });
+
+  it("connects only a repository returned by the tenant installation live", async () => {
+    const space = await workspace();
+    const installation = await bindGitHubInstallation({
+      externalInstallationId: "700000002",
+      accountId: "800000002",
+      accountLogin: "acme-quality",
+      accountType: "Organization",
+      repositorySelection: "selected",
+    }, deps(space));
+    const listRepositories = vi.fn(async () => [{
+      externalRepositoryId: "900000002",
+      ownerLogin: "acme-quality",
+      name: "checkout",
+      fullName: "acme-quality/checkout",
+      defaultBranch: "main",
+      visibility: "PRIVATE" as const,
+    }]);
+    const liveDependencies = { ...deps(space), listRepositories };
+
+    const available = await listConnectableGitHubRepositories(
+      { projectId: space.project.id },
+      liveDependencies,
+    );
+    expect(available).toMatchObject([{
+      githubInstallationId: installation.id,
+      externalRepositoryId: "900000002",
+      connectionStatus: null,
+    }]);
+
+    const connection = await connectVerifiedGitHubRepository({
+      projectId: space.project.id,
+      githubInstallationId: installation.id,
+      externalRepositoryId: "900000002",
+    }, liveDependencies);
+    expect(connection).toMatchObject({
+      organizationId: space.organization.id,
+      projectId: space.project.id,
+      fullName: "acme-quality/checkout",
+      status: "ACTIVE",
+    });
+    await expect(connectVerifiedGitHubRepository({
+      projectId: space.project.id,
+      githubInstallationId: installation.id,
+      externalRepositoryId: "900000099",
+    }, liveDependencies)).rejects.toMatchObject({
+      code: "github_repository_access_not_verified",
     });
   });
 });

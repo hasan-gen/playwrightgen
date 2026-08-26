@@ -238,6 +238,22 @@ all-to-selected transition disables existing connections until live access is
 reverified. Lifecycle changes and PII-safe Activity share one serializable
 transaction.
 
+## GitHub setup authorization boundary
+
+The GitHub setup start route is available only to an authenticated Organization
+Owner/Admin for an exact tenant-scoped project. It generates a signed ten-minute
+install state. The post-install handler verifies that state, the current local
+actor, and project before starting GitHub user authorization with PKCE. The
+OAuth callback uses the transient user token only to verify access to the
+returned installation, authenticates independently as the GitHub App, enforces
+metadata/contents read-only permissions, and then calls the existing
+tenant-scoped installation binding service. No provider token is persisted.
+
+The Repository evidence page lists repositories live through an ephemeral
+installation token. A selected repository is checked live again on submission
+before its normalized identity is connected to the project. Provider-supplied
+form fields are never accepted as repository authority.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,
