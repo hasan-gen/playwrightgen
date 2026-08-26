@@ -18,6 +18,7 @@ export function ProjectNavigation({
     ["Requirements", `${base}/requirements`],
     ["Test Cases", `${base}/test-cases`],
     ["Automation", `${base}/automation`],
+    ["Repositories", `${base}/repositories`],
     ["Test Runs", `${base}/test-runs`],
   ] as const;
 

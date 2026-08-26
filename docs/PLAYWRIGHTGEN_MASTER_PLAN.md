@@ -20,10 +20,13 @@ engineering-review, debug, login, and browser-analysis capabilities available
 until project-aware workflows replace them.
 
 - Generator becomes **Automate this Test Case**.
-- Debug Assistant becomes failed Test Run analysis.
+- Debug Assistant keeps a preliminary public entry point and becomes
+  evidence-backed failed Test Run analysis inside Workspace.
 - Test Intelligence becomes coverage, regression, and missing-test insight.
 - Engineering Review becomes change-impact and delivery intelligence.
-- Figma-to-code is outside the product core and receives no new investment.
+- The existing Figma utility remains available, but new investment reframes it
+  as Visual Testing: design/screenshot evidence, assertions, accessibility,
+  and reviewed baselines rather than generic UI-code generation.
 
 ## Foundation roadmap
 

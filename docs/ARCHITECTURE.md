@@ -203,6 +203,22 @@ version generation, and workflow transition writes Activity in the same
 transaction as its effective domain change. Approval updates the Test Case's
 query-friendly automation summary without modifying its immutable version.
 
+## Repository import and execution boundary
+
+V1.8 uses a least-privilege GitHub App. A verified installation belongs to one
+Organization, a repository connection belongs to one project, and every import
+is pinned to an exact commit. Initial permissions are metadata read and Contents
+read. Short-lived, repository-restricted installation tokens are never stored.
+Imported paths, blob identities, parser results, and limitations are
+preliminary source evidence; they do not become approved test intent or passing
+execution evidence.
+
+The web application is the control plane and never executes repository code.
+Remote execution remains disabled until the disposable sandbox, typed job
+contract, resource/network controls, artifact manifest, idempotent ingestion,
+quotas, retention, and abuse tests in
+`docs/GITHUB_AND_RUNNER_ARCHITECTURE.md` are implemented and reviewed.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,

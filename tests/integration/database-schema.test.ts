@@ -329,6 +329,37 @@ if (!testDatabaseConfigured) {
       ).rejects.toMatchObject({ code: "P2003" });
     });
 
+    it("rejects a repository connection to another tenant's GitHub installation", async () => {
+      const first = await createFoundationRecords();
+      const second = await createFoundationRecords();
+      const installation = await prisma.gitHubInstallation.create({
+        data: {
+          organizationId: first.organization.id,
+          externalInstallationId: String(Date.now()),
+          accountId: "900000001",
+          accountLogin: "first-tenant",
+          accountType: "Organization",
+          repositorySelection: "selected",
+          connectedByUserId: first.user.id,
+        },
+      });
+
+      await expect(prisma.repositoryConnection.create({
+        data: {
+          organizationId: second.organization.id,
+          projectId: second.project.id,
+          githubInstallationId: installation.id,
+          externalRepositoryId: "900000002",
+          ownerLogin: "first-tenant",
+          name: "private-repository",
+          fullName: "first-tenant/private-repository",
+          defaultBranch: "main",
+          visibility: "PRIVATE",
+          createdByUserId: second.user.id,
+        },
+      })).rejects.toMatchObject({ code: "P2003" });
+    });
+
     it("rejects a Test Run pinned to another Test Case version", async () => {
       const { organization, project, user } = await createFoundationRecords();
       async function createCase(title: string) {

@@ -7,66 +7,53 @@ repository evidence overrides stale prose.
 
 ## Current position
 
-- Current checkpoint: **V1.7 Quality Command Center — complete**.
-- Current checkpoint commit: `e86c601`.
-- Next checkpoint: **V1.8 Repository, CI, and isolated execution**.
+- Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
+- Current checkpoint commit: repository-import foundation checkpoint.
+- Completed slice: least-privilege architecture, tenant-safe repository import
+  foundation, read-only GitHub client, runner contract, and Repository evidence UI.
 - Product priority: reach the first safe production preview quickly without
   weakening tenant isolation, human review, evidence integrity, or launch gates.
 
-## Tomorrow's primary outcome
+## Next primary outcome
 
-Begin the repository-to-evidence workflow so a real team can connect an
-existing Playwright project instead of repeatedly copying prompts and code.
-The first vertical slice should make repository configuration reviewable and
-project-scoped; it must not execute untrusted repository code yet.
+Complete the signed GitHub App installation lifecycle and connect one real,
+selected repository to a project through the new import boundary. Keep imported
+records preliminary and keep untrusted execution disabled.
 
-## Tomorrow's working sequence
+## Next working sequence
 
-1. **Reconfirm the production critical path**
-   - Re-read the master plan, architecture, checkpoint ledger, decisions, and
-     production-readiness gates.
-   - Inspect the clean branch, migrations, tests, and deployed-environment
-     assumptions before changing code.
-   - Use current official GitHub, Playwright, Next.js, Prisma, Clerk, OpenAI,
-     Vercel, and Stripe documentation for any decision that can change.
+1. **Build the signed GitHub installation lifecycle**
+   - Add raw-body HMAC-SHA256 webhook verification with timing-safe comparison.
+   - Process `installation` and `installation_repositories` idempotently without
+     storing raw payloads, tokens, or unnecessary account data.
+   - Disable imports on suspension, removal, or repository access removal while
+     retaining historical evidence.
 
-2. **Design the GitHub integration boundary**
-   - Choose the least-privilege GitHub App permissions and organization/project
-     ownership model.
-   - Define installation, repository, branch, and connection lifecycle state.
-   - Keep tokens encrypted and server-only; never expose them to the browser,
-     logs, Activity metadata, or AI prompts.
-   - Record the architecture decision before implementing credential storage.
+2. **Build the organization-scoped setup flow**
+   - Generate signed, expiring setup state for an Owner/Admin and exact project.
+   - Verify the returned installation through GitHub before binding it.
+   - List only repositories accessible to that installation and connect the
+     selected repository through the existing composite tenant service.
 
-3. **Build the first repository import slice**
-   - Add tenant-scoped connection/import domain records through a Prisma
-     migration.
-   - Import Playwright configuration and test inventory as preliminary evidence.
-   - Preserve source paths, commit SHA, timestamps, and import status.
-   - Do not mark imported tests approved, current, passing, or trusted.
-   - Show imported evidence and limitations inside the project Workspace.
+3. **Prove one real repository import**
+   - Ask for one GitHub dashboard action only after the callback is locally ready.
+   - Import one selected repository at an exact commit and verify displayed
+     configuration, spec inventory, limitations, Activity, and tenant isolation.
+   - Keep imported records preliminary and remote execution unavailable.
 
-4. **Specify the isolated runner contract**
-   - Define immutable inputs, allowed commands, time/resource/network limits,
-     secret injection, artifact capture, cancellation, and cleanup.
-   - Define idempotent result ingestion for traces, screenshots, logs, and test
-     metadata.
-   - Do not run arbitrary remote repository code until the isolation boundary
-     and abuse controls are reviewed and tested.
-
-5. **Continue the usability pass**
+4. **Continue the usability and capability pass**
    - Preserve the slate/cyan/blue/white palette.
    - Keep compact pill navigation, calm typography, and one focused workbench.
-   - Reduce duplicate controls and explanatory text only when trust remains clear.
+   - Plan the return of Quick Debug and Figma as Failure Analysis and Visual
+     Testing workflows tied to reviewable evidence.
    - Verify every new flow on desktop and mobile with useful empty, loading,
      error, permission, and missing-evidence states.
 
-6. **Validate and checkpoint**
+5. **Advance Preview readiness and checkpoint**
    - Add domain, tenant-isolation, permission, idempotency, and failure tests.
-   - Run relevant tests, the full suite, typecheck, changed-file lint, browser
-     checks, and a production build.
-   - Review the final diff, update the checkpoint ledger and decisions, then
-     create a checkpoint commit.
+   - Require the checked CI workflow to pass before merge and configure branch
+     protection after the repository is connected.
+   - Follow `docs/VERCEL_PREVIEW_PLAN.md` without deploying production.
 
 ## First production preview critical path
 
@@ -114,6 +101,8 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action tomorrow:** audit the current GitHub/CI-related code and
-official GitHub App guidance, then write the least-privilege connection and
-repository-import architecture decision before adding schema or credentials.
+**Exact first action next session:** implement timing-safe GitHub webhook
+verification and idempotent `installation` / `installation_repositories`
+lifecycle handling, then expose a signed organization-scoped installation setup
+flow. Ask for the one required GitHub dashboard action only after the local
+callback and tests are ready.

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const STORAGE_KEY = "playwrightgen_user_email";
@@ -19,7 +19,7 @@ function LoginPageContent() {
         }
     }, [router, next]);
 
-    const handleSubmit = (e: any) => {
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
         const normalized = email.trim().toLowerCase();

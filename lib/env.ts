@@ -35,6 +35,15 @@ export const clerkWebhookEnvironmentSchema = z.object({
   CLERK_WEBHOOK_SIGNING_SECRET: requiredValue,
 });
 
+export const githubAppAuthenticationEnvironmentSchema = z.object({
+  GITHUB_APP_ID: requiredValue.regex(/^\d+$/),
+  GITHUB_APP_PRIVATE_KEY: requiredValue,
+});
+
+export const githubWebhookEnvironmentSchema = z.object({
+  GITHUB_WEBHOOK_SECRET: requiredValue,
+});
+
 export class EnvironmentValidationError extends Error {
   readonly variableNames: readonly string[];
 
@@ -131,5 +140,25 @@ export function validateClerkWebhookEnvironment(
     clerkWebhookEnvironmentSchema,
     source,
     "Clerk webhook",
+  );
+}
+
+export function validateGitHubAppAuthenticationEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    githubAppAuthenticationEnvironmentSchema,
+    source,
+    "GitHub App authentication",
+  );
+}
+
+export function validateGitHubWebhookEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    githubWebhookEnvironmentSchema,
+    source,
+    "GitHub webhook",
   );
 }

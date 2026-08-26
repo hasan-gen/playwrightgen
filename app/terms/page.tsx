@@ -27,7 +27,7 @@ export default function TermsPage() {
                     </p>
 
                     <p>
-                        The service is provided "as is" without guarantees of uptime,
+                        The service is provided &quot;as is&quot; without guarantees of uptime,
                         accuracy, or reliability. You are responsible for validating any
                         generated output.
                     </p>

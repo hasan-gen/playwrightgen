@@ -117,9 +117,12 @@ Quality Command Center
 ## What to stop or avoid
 
 - Do not position generic prompt-to-code as the main product.
-- Do not invest further in Figma-to-code; it dilutes the quality mission.
-- Do not keep Debug as a disconnected form; failure analysis belongs to an
-  immutable failed run.
+- Do not position generic Figma-to-code as a primary product. Preserve the
+  existing utility, then evolve it into Visual Testing: design/screenshot
+  evidence, visual assertions, accessibility checks, and reviewed baselines.
+- Do not make a disconnected Debug form the authoritative diagnosis path.
+  Preserve a preliminary quick-debug entry point, while trusted failure
+  analysis remains attached to an immutable failed run and its evidence.
 - Do not publish unsupported coverage or release-readiness scores from a single
   pasted prompt.
 - Do not silently self-heal approved tests or hide changed behavior.

@@ -11,7 +11,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "test:authorization": "playwright test",
+    "test:authorization": "node scripts/run-browser-checks.mjs",
     "test:database": "vitest run tests/integration/database-schema.test.ts",
     "clerk:reconcile": "node --conditions=react-server --import tsx scripts/reconcile-clerk.ts",
     "prisma:generate": "prisma generate --config prisma.config.ts",

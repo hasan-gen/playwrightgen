@@ -227,3 +227,68 @@ uncertainty. The service first resolves project access through
 `requireWorkspaceContext`, then scopes every query by both `organizationId` and
 `projectId`; cross-tenant and Viewer-read behavior are covered by integration
 tests.
+
+## 023 — Use a least-privilege GitHub App and immutable repository imports
+
+**Decision:** PlaywrightGen will integrate through a GitHub App rather than a
+user-owned personal access token. The initial app requests only repository
+metadata and read-only Contents access, and subscribes only to installation and
+installation-repository lifecycle events. Each verified GitHub installation is
+bound to exactly one PlaywrightGen Organization. Each selected repository is
+then connected to an explicit project through composite organization/project
+keys. Installation access tokens are minted server-side for one installation,
+restricted to the selected repository and `contents:read`, allowed to expire,
+and never stored in PostgreSQL, browser state, Activity, logs, or AI prompts.
+
+Repository imports are immutable snapshots identified by repository, commit
+SHA, and parser version. They preserve source ref, file paths, blob SHAs,
+timestamps, and derived inventory only; the first slice does not persist source
+file bodies. Imported configuration and tests are preliminary evidence. They
+do not create approved Test Cases, approved Automation, passing Test Runs, or
+release-readiness claims. GitHub Checks write access, pull-request events,
+workflow modification, and repository writes are deferred until their separate
+CI-reporting milestone is reviewed.
+
+**Reason:** A GitHub App supports repository selection, narrow permissions,
+short-lived installation credentials, and auditable installation lifecycle.
+Separating Organization installation ownership from project repository use,
+and enforcing both at the database boundary, prevents guessed identifiers or a
+shared installation from crossing tenants. Immutable, source-linked imports
+make later parsing improvements reviewable without treating repository content
+as trusted execution input.
+
+## 024 — Keep repository discovery separate from isolated execution
+
+**Decision:** The Next.js application may authenticate, inventory repository
+trees, parse bounded text files, and enqueue execution requests, but it must
+never install dependencies or execute repository commands. A future runner
+accepts one immutable repository import and an allowlisted Playwright command,
+runs in an ephemeral sandbox with explicit CPU, memory, wall-clock, process,
+filesystem, output, and network limits, exposes no application or GitHub App
+credentials, uploads content-addressed artifacts through single-job scoped
+credentials, and is destroyed after completion. Result ingestion is
+idempotent and binds every artifact to the Organization, project, repository
+import, execution job, and attempt.
+
+**Reason:** Repository contents, package lifecycle scripts, test code, browser
+targets, and downloaded dependencies are untrusted. A container alone does not
+establish the required boundary. Separating the control plane from disposable
+workers prevents a malicious test suite from reaching tenant data or durable
+credentials and makes cancellation, quotas, evidence retention, and incident
+response enforceable.
+
+## 025 — Preserve Debug and Figma capabilities but align them to quality evidence
+
+**Decision:** The legacy Debug and Figma implementation remains available in
+source and will return to the product surface through clearer QA jobs. Quick
+Debug may provide explicitly preliminary help for pasted failures, while the
+authoritative diagnosis remains attached to an immutable failed Test Run with
+logs, steps, and artifacts. Figma/screenshot input will become Visual Testing:
+derive reviewable scenarios, visual assertions, accessibility expectations,
+and versioned baseline evidence. Generic UI-code generation remains a
+secondary legacy utility rather than PlaywrightGen's main promise.
+
+**Reason:** Both capabilities are useful acquisition and workflow inputs, but
+top-level generic tools can fragment the product. Connecting them to durable
+test intent and evidence preserves user value while strengthening the product's
+identity as an AI quality platform.

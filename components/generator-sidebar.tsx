@@ -62,10 +62,6 @@ export default function GeneratorSidebar({
   remainingGenerations,
   hasSyncedUsage,
   freeDailyGenerations,
-  uploadedFiles,
-  onFileUpload,
-  onRemoveFile,
-  fileInputRef,
 }: Props) {
   const [search, setSearch] = useState("");
 

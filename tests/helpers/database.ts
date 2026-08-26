@@ -58,6 +58,10 @@ export async function cleanPhase1ATables(
 
   await client.$transaction([
     client.activity.deleteMany(),
+    client.repositoryImportFile.deleteMany(),
+    client.repositoryImport.deleteMany(),
+    client.repositoryConnection.deleteMany(),
+    client.gitHubInstallation.deleteMany(),
     client.failureFinding.deleteMany(),
     client.failureAnalysis.deleteMany(),
     client.testRunAttempt.deleteMany(),

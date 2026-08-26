@@ -196,6 +196,38 @@ enum FailureFindingStatus {
   DISMISSED
 }
 
+enum GitHubInstallationStatus {
+  ACTIVE
+  SUSPENDED
+  REMOVED
+}
+
+enum RepositoryConnectionStatus {
+  ACTIVE
+  ACCESS_REMOVED
+  DISCONNECTED
+}
+
+enum RepositoryVisibility {
+  PUBLIC
+  PRIVATE
+  INTERNAL
+  UNKNOWN
+}
+
+enum RepositoryImportStatus {
+  RUNNING
+  SUCCEEDED
+  INCOMPLETE
+  FAILED
+}
+
+enum RepositoryImportFileKind {
+  PLAYWRIGHT_CONFIG
+  TEST_SPEC
+  SUPPORT_FILE
+}
+
 enum ActivityAction {
   ORGANIZATION_UPDATED
   MEMBERSHIP_ROLE_CHANGED
@@ -235,6 +267,9 @@ enum ActivityAction {
   AUTOMATION_SUBMITTED_FOR_REVIEW
   AUTOMATION_CHANGES_REQUESTED
   AUTOMATION_APPROVED
+  GITHUB_INSTALLATION_CONNECTED
+  REPOSITORY_CONNECTED
+  REPOSITORY_IMPORT_COMPLETED
 }
 
 enum ActivityTargetType {
@@ -253,6 +288,9 @@ enum ActivityTargetType {
   FAILURE_FINDING
   AUTOMATION_ARTIFACT
   AUTOMATION_ARTIFACT_VERSION
+  GITHUB_INSTALLATION
+  REPOSITORY_CONNECTION
+  REPOSITORY_IMPORT
 }
 
 enum ActivitySource {
@@ -276,29 +314,32 @@ model User {
   createdAt          DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt          DateTime   @updatedAt @db.Timestamptz(3)
 
-  memberships                 Membership[]
-  projectsCreated             Project[]                   @relation("ProjectCreatedBy")
-  projectsArchived            Project[]                   @relation("ProjectArchivedBy")
-  activities                  Activity[]                  @relation("ActivityActor")
-  requirementsCreated         Requirement[]               @relation("RequirementCreatedBy")
-  requirementsOwned           Requirement[]               @relation("RequirementOwner")
-  requirementVersionsCreated  RequirementVersion[]        @relation("RequirementVersionCreatedBy")
-  requirementVersionsOwned    RequirementVersion[]        @relation("RequirementVersionOwner")
-  aiRunsCreated               AiRun[]                     @relation("AiRunCreatedBy")
-  aiSuggestionsResolved       AiSuggestion[]              @relation("AiSuggestionResolvedBy")
-  testCasesCreated            TestCase[]                  @relation("TestCaseCreatedBy")
-  testCasesOwned              TestCase[]                  @relation("TestCaseOwner")
-  testCaseVersionsCreated     TestCaseVersion[]           @relation("TestCaseVersionCreatedBy")
-  testCaseVersionsOwned       TestCaseVersion[]           @relation("TestCaseVersionOwner")
-  requirementTestCasesCreated RequirementTestCase[]       @relation("RequirementTestCaseCreatedBy")
-  testRunsCreated             TestRun[]                   @relation("TestRunCreatedBy")
-  testRunsCanceled            TestRun[]                   @relation("TestRunCanceledBy")
-  testRunAttemptsExecuted     TestRunAttempt[]            @relation("TestRunAttemptExecutedBy")
-  failureAnalysesCreated      FailureAnalysis[]           @relation("FailureAnalysisCreatedBy")
-  failureFindingsResolved     FailureFinding[]            @relation("FailureFindingResolvedBy")
-  automationArtifactsCreated  AutomationArtifact[]        @relation("AutomationArtifactCreatedBy")
-  automationArtifactsApproved AutomationArtifact[]        @relation("AutomationArtifactApprovedBy")
-  automationVersionsCreated   AutomationArtifactVersion[] @relation("AutomationArtifactVersionCreatedBy")
+  memberships                  Membership[]
+  projectsCreated              Project[]                   @relation("ProjectCreatedBy")
+  projectsArchived             Project[]                   @relation("ProjectArchivedBy")
+  activities                   Activity[]                  @relation("ActivityActor")
+  requirementsCreated          Requirement[]               @relation("RequirementCreatedBy")
+  requirementsOwned            Requirement[]               @relation("RequirementOwner")
+  requirementVersionsCreated   RequirementVersion[]        @relation("RequirementVersionCreatedBy")
+  requirementVersionsOwned     RequirementVersion[]        @relation("RequirementVersionOwner")
+  aiRunsCreated                AiRun[]                     @relation("AiRunCreatedBy")
+  aiSuggestionsResolved        AiSuggestion[]              @relation("AiSuggestionResolvedBy")
+  testCasesCreated             TestCase[]                  @relation("TestCaseCreatedBy")
+  testCasesOwned               TestCase[]                  @relation("TestCaseOwner")
+  testCaseVersionsCreated      TestCaseVersion[]           @relation("TestCaseVersionCreatedBy")
+  testCaseVersionsOwned        TestCaseVersion[]           @relation("TestCaseVersionOwner")
+  requirementTestCasesCreated  RequirementTestCase[]       @relation("RequirementTestCaseCreatedBy")
+  testRunsCreated              TestRun[]                   @relation("TestRunCreatedBy")
+  testRunsCanceled             TestRun[]                   @relation("TestRunCanceledBy")
+  testRunAttemptsExecuted      TestRunAttempt[]            @relation("TestRunAttemptExecutedBy")
+  failureAnalysesCreated       FailureAnalysis[]           @relation("FailureAnalysisCreatedBy")
+  failureFindingsResolved      FailureFinding[]            @relation("FailureFindingResolvedBy")
+  automationArtifactsCreated   AutomationArtifact[]        @relation("AutomationArtifactCreatedBy")
+  automationArtifactsApproved  AutomationArtifact[]        @relation("AutomationArtifactApprovedBy")
+  automationVersionsCreated    AutomationArtifactVersion[] @relation("AutomationArtifactVersionCreatedBy")
+  githubInstallationsConnected GitHubInstallation[]        @relation("GitHubInstallationConnectedBy")
+  repositoryConnectionsCreated RepositoryConnection[]      @relation("RepositoryConnectionCreatedBy")
+  repositoryImportsRequested   RepositoryImport[]          @relation("RepositoryImportRequestedBy")
 
   @@index([primaryEmail])
   @@index([status])
@@ -317,21 +358,25 @@ model Organization {
   createdAt           DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime           @updatedAt @db.Timestamptz(3)
 
-  memberships          Membership[]
-  projects             Project[]
-  activities           Activity[]
-  projectMemberships   ProjectMembership[]
-  requirements         Requirement[]
-  aiRuns               AiRun[]
-  aiSuggestions        AiSuggestion[]
-  testCases            TestCase[]
-  requirementTestCases RequirementTestCase[]
-  testRuns             TestRun[]
-  testRunAttempts      TestRunAttempt[]
-  failureAnalyses      FailureAnalysis[]
-  failureFindings      FailureFinding[]
-  automationArtifacts  AutomationArtifact[]
-  automationVersions   AutomationArtifactVersion[]
+  memberships           Membership[]
+  projects              Project[]
+  activities            Activity[]
+  projectMemberships    ProjectMembership[]
+  requirements          Requirement[]
+  aiRuns                AiRun[]
+  aiSuggestions         AiSuggestion[]
+  testCases             TestCase[]
+  requirementTestCases  RequirementTestCase[]
+  testRuns              TestRun[]
+  testRunAttempts       TestRunAttempt[]
+  failureAnalyses       FailureAnalysis[]
+  failureFindings       FailureFinding[]
+  automationArtifacts   AutomationArtifact[]
+  automationVersions    AutomationArtifactVersion[]
+  githubInstallations   GitHubInstallation[]
+  repositoryConnections RepositoryConnection[]
+  repositoryImports     RepositoryImport[]
+  repositoryImportFiles RepositoryImportFile[]
 
   @@index([status])
 }
@@ -373,22 +418,25 @@ model Project {
   createdAt        DateTime      @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime      @updatedAt @db.Timestamptz(3)
 
-  organization         Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  createdBy            User                        @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  archivedBy           User?                       @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  projectMemberships   ProjectMembership[]
-  activities           Activity[]
-  requirements         Requirement[]
-  aiRuns               AiRun[]
-  aiSuggestions        AiSuggestion[]
-  testCases            TestCase[]
-  requirementTestCases RequirementTestCase[]
-  testRuns             TestRun[]
-  testRunAttempts      TestRunAttempt[]
-  failureAnalyses      FailureAnalysis[]
-  failureFindings      FailureFinding[]
-  automationArtifacts  AutomationArtifact[]
-  automationVersions   AutomationArtifactVersion[]
+  organization          Organization                @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy             User                        @relation("ProjectCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  archivedBy            User?                       @relation("ProjectArchivedBy", fields: [archivedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  projectMemberships    ProjectMembership[]
+  activities            Activity[]
+  requirements          Requirement[]
+  aiRuns                AiRun[]
+  aiSuggestions         AiSuggestion[]
+  testCases             TestCase[]
+  requirementTestCases  RequirementTestCase[]
+  testRuns              TestRun[]
+  testRunAttempts       TestRunAttempt[]
+  failureAnalyses       FailureAnalysis[]
+  failureFindings       FailureFinding[]
+  automationArtifacts   AutomationArtifact[]
+  automationVersions    AutomationArtifactVersion[]
+  repositoryConnections RepositoryConnection[]
+  repositoryImports     RepositoryImport[]
+  repositoryImportFiles RepositoryImportFile[]
 
   @@unique([organizationId, id])
   @@unique([organizationId, slug])
@@ -817,6 +865,115 @@ model FailureFinding {
 
   @@index([organizationId, projectId, testRunAttemptId, status])
   @@index([failureAnalysisId, createdAt])
+}
+
+model GitHubInstallation {
+  id                     String                   @id @default(uuid()) @db.Uuid
+  organizationId         String                   @db.Uuid
+  externalInstallationId String                   @unique @db.VarChar(32)
+  accountId              String                   @db.VarChar(32)
+  accountLogin           String                   @db.VarChar(255)
+  accountType            String                   @db.VarChar(50)
+  repositorySelection    String                   @db.VarChar(20)
+  status                 GitHubInstallationStatus @default(ACTIVE)
+  connectedByUserId      String                   @db.Uuid
+  installedAt            DateTime?                @db.Timestamptz(3)
+  suspendedAt            DateTime?                @db.Timestamptz(3)
+  removedAt              DateTime?                @db.Timestamptz(3)
+  lastSyncedAt           DateTime                 @default(now()) @db.Timestamptz(3)
+  createdAt              DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt              DateTime                 @updatedAt @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  connectedBy  User                   @relation("GitHubInstallationConnectedBy", fields: [connectedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  repositories RepositoryConnection[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status, updatedAt])
+}
+
+model RepositoryConnection {
+  id                   String                     @id @default(uuid()) @db.Uuid
+  organizationId       String                     @db.Uuid
+  projectId            String                     @db.Uuid
+  githubInstallationId String                     @db.Uuid
+  externalRepositoryId String                     @db.VarChar(32)
+  ownerLogin           String                     @db.VarChar(255)
+  name                 String                     @db.VarChar(255)
+  fullName             String                     @db.VarChar(511)
+  defaultBranch        String                     @db.VarChar(255)
+  visibility           RepositoryVisibility       @default(UNKNOWN)
+  status               RepositoryConnectionStatus @default(ACTIVE)
+  createdByUserId      String                     @db.Uuid
+  lastImportedAt       DateTime?                  @db.Timestamptz(3)
+  accessRemovedAt      DateTime?                  @db.Timestamptz(3)
+  disconnectedAt       DateTime?                  @db.Timestamptz(3)
+  createdAt            DateTime                   @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                   @updatedAt @db.Timestamptz(3)
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project            @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  installation GitHubInstallation @relation(fields: [organizationId, githubInstallationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  createdBy    User               @relation("RepositoryConnectionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  imports      RepositoryImport[]
+
+  @@unique([organizationId, projectId, id])
+  @@unique([organizationId, projectId, externalRepositoryId])
+  @@index([organizationId, projectId, status, updatedAt])
+  @@index([githubInstallationId, status])
+}
+
+model RepositoryImport {
+  id                     String                 @id @default(uuid()) @db.Uuid
+  organizationId         String                 @db.Uuid
+  projectId              String                 @db.Uuid
+  repositoryConnectionId String                 @db.Uuid
+  idempotencyKey         String                 @db.VarChar(100)
+  sourceRef              String                 @db.VarChar(255)
+  commitSha              String?                @db.Char(40)
+  parserVersion          String                 @db.VarChar(50)
+  status                 RepositoryImportStatus @default(RUNNING)
+  configurationCount     Int                    @default(0)
+  testFileCount          Int                    @default(0)
+  supportFileCount       Int                    @default(0)
+  discoveredTestCount    Int                    @default(0)
+  limitations            String[]               @default([])
+  failureCode            String?                @db.VarChar(100)
+  requestedByUserId      String                 @db.Uuid
+  startedAt              DateTime               @default(now()) @db.Timestamptz(3)
+  completedAt            DateTime?              @db.Timestamptz(3)
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project                @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  connection   RepositoryConnection   @relation(fields: [organizationId, projectId, repositoryConnectionId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+  requestedBy  User                   @relation("RepositoryImportRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  files        RepositoryImportFile[]
+
+  @@unique([organizationId, projectId, id])
+  @@unique([organizationId, projectId, repositoryConnectionId, idempotencyKey], map: "repository_import_idempotency_unique")
+  @@unique([organizationId, projectId, repositoryConnectionId, commitSha, parserVersion], map: "repository_import_snapshot_unique")
+  @@index([organizationId, projectId, status, startedAt])
+  @@index([repositoryConnectionId, startedAt])
+}
+
+model RepositoryImportFile {
+  id                  String                   @id @default(uuid()) @db.Uuid
+  organizationId      String                   @db.Uuid
+  projectId           String                   @db.Uuid
+  repositoryImportId  String                   @db.Uuid
+  path                String                   @db.VarChar(1000)
+  kind                RepositoryImportFileKind
+  blobSha             String                   @db.VarChar(64)
+  sizeBytes           Int
+  discoveredTestCount Int                      @default(0)
+  createdAt           DateTime                 @default(now()) @db.Timestamptz(3)
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  project      Project          @relation(fields: [organizationId, projectId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+  import       RepositoryImport @relation(fields: [organizationId, projectId, repositoryImportId], references: [organizationId, projectId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, projectId, repositoryImportId, path])
+  @@index([repositoryImportId, kind, path])
 }
 
 model Activity {
