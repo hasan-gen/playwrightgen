@@ -61,6 +61,7 @@ export async function cleanPhase1ATables(
     client.repositoryImportFile.deleteMany(),
     client.repositoryImport.deleteMany(),
     client.repositoryConnection.deleteMany(),
+    client.gitHubWebhookDelivery.deleteMany(),
     client.gitHubInstallation.deleteMany(),
     client.failureFinding.deleteMany(),
     client.failureAnalysis.deleteMany(),

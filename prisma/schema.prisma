@@ -202,6 +202,11 @@ enum GitHubInstallationStatus {
   REMOVED
 }
 
+enum GitHubWebhookDeliveryResult {
+  APPLIED
+  IGNORED
+}
+
 enum RepositoryConnectionStatus {
   ACTIVE
   ACCESS_REMOVED
@@ -268,7 +273,9 @@ enum ActivityAction {
   AUTOMATION_CHANGES_REQUESTED
   AUTOMATION_APPROVED
   GITHUB_INSTALLATION_CONNECTED
+  GITHUB_INSTALLATION_STATUS_CHANGED
   REPOSITORY_CONNECTED
+  REPOSITORY_ACCESS_CHANGED
   REPOSITORY_IMPORT_COMPLETED
 }
 
@@ -296,6 +303,7 @@ enum ActivityTargetType {
 enum ActivitySource {
   USER
   CLERK_WEBHOOK
+  GITHUB_WEBHOOK
   SYSTEM
 }
 
@@ -358,25 +366,26 @@ model Organization {
   createdAt           DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt           DateTime           @updatedAt @db.Timestamptz(3)
 
-  memberships           Membership[]
-  projects              Project[]
-  activities            Activity[]
-  projectMemberships    ProjectMembership[]
-  requirements          Requirement[]
-  aiRuns                AiRun[]
-  aiSuggestions         AiSuggestion[]
-  testCases             TestCase[]
-  requirementTestCases  RequirementTestCase[]
-  testRuns              TestRun[]
-  testRunAttempts       TestRunAttempt[]
-  failureAnalyses       FailureAnalysis[]
-  failureFindings       FailureFinding[]
-  automationArtifacts   AutomationArtifact[]
-  automationVersions    AutomationArtifactVersion[]
-  githubInstallations   GitHubInstallation[]
-  repositoryConnections RepositoryConnection[]
-  repositoryImports     RepositoryImport[]
-  repositoryImportFiles RepositoryImportFile[]
+  memberships             Membership[]
+  projects                Project[]
+  activities              Activity[]
+  projectMemberships      ProjectMembership[]
+  requirements            Requirement[]
+  aiRuns                  AiRun[]
+  aiSuggestions           AiSuggestion[]
+  testCases               TestCase[]
+  requirementTestCases    RequirementTestCase[]
+  testRuns                TestRun[]
+  testRunAttempts         TestRunAttempt[]
+  failureAnalyses         FailureAnalysis[]
+  failureFindings         FailureFinding[]
+  automationArtifacts     AutomationArtifact[]
+  automationVersions      AutomationArtifactVersion[]
+  githubInstallations     GitHubInstallation[]
+  githubWebhookDeliveries GitHubWebhookDelivery[]
+  repositoryConnections   RepositoryConnection[]
+  repositoryImports       RepositoryImport[]
+  repositoryImportFiles   RepositoryImportFile[]
 
   @@index([status])
 }
@@ -880,16 +889,39 @@ model GitHubInstallation {
   installedAt            DateTime?                @db.Timestamptz(3)
   suspendedAt            DateTime?                @db.Timestamptz(3)
   removedAt              DateTime?                @db.Timestamptz(3)
+  providerUpdatedAt      DateTime?                @db.Timestamptz(3)
+  lastWebhookDeliveryId  String?                  @db.VarChar(128)
   lastSyncedAt           DateTime                 @default(now()) @db.Timestamptz(3)
   createdAt              DateTime                 @default(now()) @db.Timestamptz(3)
   updatedAt              DateTime                 @updatedAt @db.Timestamptz(3)
 
-  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  connectedBy  User                   @relation("GitHubInstallationConnectedBy", fields: [connectedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  repositories RepositoryConnection[]
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  connectedBy       User                    @relation("GitHubInstallationConnectedBy", fields: [connectedByUserId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  repositories      RepositoryConnection[]
+  webhookDeliveries GitHubWebhookDelivery[]
 
   @@unique([organizationId, id])
   @@index([organizationId, status, updatedAt])
+}
+
+model GitHubWebhookDelivery {
+  id                     String                      @id @default(uuid()) @db.Uuid
+  deliveryId             String                      @unique @db.VarChar(128)
+  payloadSha256          String                      @db.Char(64)
+  eventName              String                      @db.VarChar(64)
+  action                 String                      @db.VarChar(64)
+  externalInstallationId String?                     @db.VarChar(32)
+  organizationId         String?                     @db.Uuid
+  githubInstallationId   String?                     @db.Uuid
+  result                 GitHubWebhookDeliveryResult
+  processedAt            DateTime                    @default(now()) @db.Timestamptz(3)
+
+  organization Organization?       @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  installation GitHubInstallation? @relation(fields: [organizationId, githubInstallationId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([externalInstallationId, processedAt])
+  @@index([organizationId, processedAt])
+  @@index([githubInstallationId, processedAt])
 }
 
 model RepositoryConnection {

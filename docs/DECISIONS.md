@@ -292,3 +292,21 @@ secondary legacy utility rather than PlaywrightGen's main promise.
 top-level generic tools can fragment the product. Connecting them to durable
 test intent and evidence preserves user value while strengthening the product's
 identity as an AI quality platform.
+
+## 026 — Treat GitHub webhooks as signed, idempotent access revocation input
+
+**Decision:** Verify the exact raw body with the separately stored GitHub
+webhook secret and `X-Hub-Signature-256` before parsing. Record each
+`X-GitHub-Delivery` once with a SHA-256 payload digest and normalized event
+metadata, never the raw payload. Process only installation and
+installation-repository lifecycle actions. Suspension or removal blocks new
+imports immediately; removal and explicit repository removal transition
+connections to access-removed state without deleting historical imports. An
+ambiguous all-to-selected transition fails closed until repository access is
+reverified.
+
+**Reason:** GitHub deliveries can be replayed, redelivered, delayed, or arrive
+after repository access changes. Signature verification proves integrity,
+delivery identity prevents duplicate side effects, digest comparison detects
+conflicting replay, and conservative revocation prevents stale access from
+being treated as current authorization evidence.

@@ -25,6 +25,12 @@ repository and `contents:read`, and discards the token after the request. No
 installation token is persisted or sent to a browser, runner, AI provider,
 Activity record, or application log.
 
+The webhook boundary validates the exact raw body with HMAC-SHA256 before
+parsing and stores only delivery identity, a payload digest, normalized event
+metadata, and processing result. Installation suspension/removal and repository
+access removal fail closed while historical imports remain immutable. Unknown
+or unbound lifecycle events do not create tenant authority.
+
 ### Tenant ownership
 
 1. An Organization Owner/Admin may bind a verified GitHub installation to the

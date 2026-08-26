@@ -10,24 +10,24 @@ repository evidence overrides stale prose.
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
 - Current checkpoint commit: repository-import foundation checkpoint.
 - Completed slice: least-privilege architecture, tenant-safe repository import
-  foundation, read-only GitHub client, runner contract, and Repository evidence UI.
+  foundation, read-only GitHub client, runner contract, Repository evidence UI,
+  and signed idempotent installation/repository-access lifecycle handling.
 - Product priority: reach the first safe production preview quickly without
   weakening tenant isolation, human review, evidence integrity, or launch gates.
 
 ## Next primary outcome
 
-Complete the signed GitHub App installation lifecycle and connect one real,
-selected repository to a project through the new import boundary. Keep imported
-records preliminary and keep untrusted execution disabled.
+Complete the signed organization/project-scoped GitHub App setup flow and
+connect one real selected repository through the new import boundary. Keep
+imported records preliminary and keep untrusted execution disabled.
 
 ## Next working sequence
 
-1. **Build the signed GitHub installation lifecycle**
-   - Add raw-body HMAC-SHA256 webhook verification with timing-safe comparison.
-   - Process `installation` and `installation_repositories` idempotently without
-     storing raw payloads, tokens, or unnecessary account data.
-   - Disable imports on suspension, removal, or repository access removal while
-     retaining historical evidence.
+1. **Complete the signed GitHub installation lifecycle**
+   - Raw-body HMAC-SHA256 verification, delivery idempotency, and fail-closed
+     access transitions are complete.
+   - Add operational visibility and a reconciliation path after the live setup
+     flow is proven.
 
 2. **Build the organization-scoped setup flow**
    - Generate signed, expiring setup state for an Owner/Admin and exact project.
@@ -101,8 +101,8 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** implement timing-safe GitHub webhook
-verification and idempotent `installation` / `installation_repositories`
-lifecycle handling, then expose a signed organization-scoped installation setup
-flow. Ask for the one required GitHub dashboard action only after the local
-callback and tests are ready.
+**Exact first action next session:** expose a signed, expiring,
+organization/project-scoped GitHub App installation setup state and callback,
+verify the returned installation through GitHub, and list only its accessible
+repositories. Ask for the one required GitHub dashboard action only after the
+local callback and tests are ready.

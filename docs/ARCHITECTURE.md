@@ -219,6 +219,25 @@ contract, resource/network controls, artifact manifest, idempotent ingestion,
 quotas, retention, and abuse tests in
 `docs/GITHUB_AND_RUNNER_ARCHITECTURE.md` are implemented and reviewed.
 
+## GitHub installation synchronization boundary
+
+`POST /api/webhooks/github` reads the exact raw request body, enforces a bounded
+payload size, and verifies `X-Hub-Signature-256` with HMAC-SHA256 and a
+timing-safe comparison before JSON parsing. The route requires
+`X-GitHub-Delivery` and `X-GitHub-Event`, then dispatches only allowlisted
+installation lifecycle fields.
+
+`GitHubWebhookDelivery` stores the delivery ID, payload digest, event/action,
+optional tenant-bound installation identity, result, and processing time. It
+never stores the raw payload. The unique delivery ID makes GitHub redelivery
+idempotent; reusing one delivery ID with another digest is rejected.
+Suspension and removal immediately block imports through installation status.
+Removal also marks connected repositories as access removed. Repository access
+events update only matching installation connections, and an ambiguous
+all-to-selected transition disables existing connections until live access is
+reverified. Lifecycle changes and PII-safe Activity share one serializable
+transaction.
+
 ## Validation strategy
 
 Vitest unit tests cover normalization, event decisions, safe Activity metadata,
