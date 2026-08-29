@@ -327,3 +327,26 @@ the App but does not prove that the current user controls it. Combining local
 authorization, signed state, PKCE, user-installation access, and App
 verification closes both boundaries without making GitHub identity a
 PlaywrightGen authorization authority.
+
+## 028 — Permit verified public evidence without repository ownership
+
+**Decision:** A tenant-bound active GitHub App installation may verify and
+import a canonical public GitHub repository URL even when that repository is
+owned by a different GitHub account. PlaywrightGen resolves the repository
+through GitHub using the short-lived installation token, requires GitHub to
+report `PUBLIC` visibility, confirms the returned owner and repository name
+match the requested locator, and only then creates the project-scoped
+connection. Public snapshot tokens omit repository-selection narrowing because
+the repository is not owned by the installation account; they retain only
+`contents:read`. Private and internal repositories continue to require live
+membership in the installation's selected repository list and a
+repository-restricted token.
+
+**Reason:** Public source evidence is intentionally readable without repository
+ownership, and requiring ownership would prevent legitimate analysis of open
+source projects, dependencies, examples, and repositories administered through
+another identity. The active installation still supplies an accountable,
+tenant-bound GitHub integration and higher provider limits. Strict URL parsing,
+live visibility verification, composite organization/project boundaries,
+bounded parsing, no retained source bodies, and disabled execution prevent the
+public path from weakening private repository authorization or evidence trust.

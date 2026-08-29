@@ -8,22 +8,24 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current checkpoint commit: signed lifecycle checkpoint 9ff2f54; secure setup
-  flow is the next checkpoint awaiting final validation and commit.
+- Current checkpoint commit: public repository evidence checkpoint `b7b8bfb`.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
-  setup state, PKCE user verification, strict App verification, and live
-  repository selection.
+  setup state, PKCE user verification, strict App verification, live
+  repository selection, canonical public-repository URL verification, and a
+  usable exact-commit import action in Workspace.
 - Product priority: reach the first safe production preview quickly without
   weakening tenant isolation, human review, evidence integrity, or launch gates.
 
 ## Next primary outcome
 
-Configure the dedicated development GitHub App, connect one real selected
-repository through the completed secure setup boundary, and prove an
-exact-commit import. Keep imported records preliminary and keep untrusted
-execution disabled.
+Install the dedicated development GitHub App on the browser-accessible GitHub
+account, connect the public PlaywrightGen repository through the completed
+secure setup boundary, and prove an exact-commit import. The public repository
+may belong to a different GitHub owner because PlaywrightGen now verifies its
+identity and public visibility live. Keep imported records preliminary and
+keep untrusted execution disabled.
 
 ## Next working sequence
 
@@ -41,8 +43,12 @@ execution disabled.
      project connection through the existing composite tenant service.
 
 3. **Prove one real repository import**
-   - Ask for one GitHub dashboard action only after the callback is locally ready.
-   - Import one selected repository at an exact commit and verify displayed
+   - Complete: Workspace can verify a public repository by canonical URL
+     through a tenant-bound active App installation; private repositories
+     still require explicit installation selection.
+   - Complete: connected repositories expose an actual import action.
+   - Ask for one GitHub installation action only after the callback is locally ready.
+   - Import the public PlaywrightGen repository at an exact commit and verify displayed
      configuration, spec inventory, limitations, Activity, and tenant isolation.
    - Keep imported records preliminary and remote execution unavailable.
 
@@ -106,6 +112,7 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** configure the first required setting on
-the dedicated development GitHub App, then proceed one dashboard action at a
-time until the local signed callback can prove one selected repository import.
+**Exact first action next session:** from the Workspace Repositories page,
+start the signed GitHub setup and install the read-only App on the currently
+accessible GitHub account using **All repositories**. Then connect the public
+PlaywrightGen URL and prove one exact-commit import.
