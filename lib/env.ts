@@ -72,6 +72,14 @@ export const redisEnvironmentSchema = z.object({
   UPSTASH_REDIS_REST_TOKEN: requiredValue,
 });
 
+export const openAiEnvironmentSchema = z.object({
+  OPENAI_API_KEY: requiredValue,
+});
+
+export const resendEnvironmentSchema = z.object({
+  RESEND_API_KEY: requiredValue,
+});
+
 export const stripeWebhookEnvironmentSchema =
   stripeClientEnvironmentSchema
     .extend({
@@ -232,6 +240,18 @@ export function validateRedisEnvironment(
   source: EnvironmentSource = process.env,
 ) {
   return validateEnvironment(redisEnvironmentSchema, source, "Upstash Redis");
+}
+
+export function validateOpenAiEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(openAiEnvironmentSchema, source, "OpenAI");
+}
+
+export function validateResendEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(resendEnvironmentSchema, source, "Resend");
 }
 
 export function validateStripeWebhookEnvironment(

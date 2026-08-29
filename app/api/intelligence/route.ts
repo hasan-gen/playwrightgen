@@ -2,16 +2,12 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 
+import {
+    validateOpenAiEnvironment,
+    validateRedisEnvironment,
+} from "@/lib/env";
+
 const DAILY_FREE_LIMIT = 5;
-
-const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
-const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
 
 function getClientIp(req: Request) {
     return (
@@ -35,6 +31,14 @@ function cleanJson(raw: string) {
 
 export async function POST(req: Request) {
     try {
+        const { OPENAI_API_KEY } = validateOpenAiEnvironment();
+        const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
+            validateRedisEnvironment();
+        const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+        const redis = new Redis({
+            url: UPSTASH_REDIS_REST_URL,
+            token: UPSTASH_REDIS_REST_TOKEN,
+        });
         const {
             mode,
             url,

@@ -3,12 +3,9 @@ import { NextResponse } from "next/server";
 import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 
-const DAILY_FREE_LIMIT = 5;
+import { validateRedisEnvironment } from "@/lib/env";
 
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL!,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+const DAILY_FREE_LIMIT = 5;
 
 const EXPLANATION_OUTPUT_RULES = `
 
@@ -508,6 +505,12 @@ function getDailyUsageKey(ip: string) {
 
 export async function POST(req: Request) {
   try {
+    const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
+      validateRedisEnvironment();
+    const redis = new Redis({
+      url: UPSTASH_REDIS_REST_URL,
+      token: UPSTASH_REDIS_REST_TOKEN,
+    });
     const formData = await req.formData();
 
     const mode = formData.get("mode") as string;

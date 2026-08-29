@@ -2,15 +2,19 @@ import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 import { Resend } from "resend";
 
-const redis = new Redis({
- url: process.env.UPSTASH_REDIS_REST_URL!,
- token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import {
+ validateRedisEnvironment,
+ validateResendEnvironment,
+} from "@/lib/env";
 
 export async function POST(req: Request) {
  try {
+ const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
+ validateRedisEnvironment();
+ const redis = new Redis({
+ url: UPSTASH_REDIS_REST_URL,
+ token: UPSTASH_REDIS_REST_TOKEN,
+ });
  const { email } = await req.json();
 
  if (!email || typeof email !== "string") {
@@ -34,6 +38,8 @@ export async function POST(req: Request) {
  await redis.sadd("playwrightgen:waitlist", normalizedEmail);
 
  if (process.env.WAITLIST_NOTIFY_EMAIL) {
+ const { RESEND_API_KEY } = validateResendEnvironment();
+ const resend = new Resend(RESEND_API_KEY);
  await resend.emails.send({
  from: "PlaywrightGen <onboarding@resend.dev>",
  to: process.env.WAITLIST_NOTIFY_EMAIL,

@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 
-const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import { validateRedisEnvironment } from "@/lib/env";
 
 export async function POST(req: Request) {
     try {
+        const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
+            validateRedisEnvironment();
+        const redis = new Redis({
+            url: UPSTASH_REDIS_REST_URL,
+            token: UPSTASH_REDIS_REST_TOKEN,
+        });
         const { email } = await req.json();
 
         if (!email || typeof email !== "string") {

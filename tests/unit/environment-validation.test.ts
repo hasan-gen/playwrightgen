@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   EnvironmentValidationError,
+  validateOpenAiEnvironment,
   validateRedisEnvironment,
+  validateResendEnvironment,
   validateStripeCheckoutEnvironment,
   validateStripeClientEnvironment,
   validateStripeWebhookEnvironment,
@@ -65,5 +67,21 @@ describe("runtime integration environment validation", () => {
     expect(() => validateRedisEnvironment({})).toThrowError(
       EnvironmentValidationError,
     );
+  });
+
+  it("requires runtime AI and email credentials only when used", () => {
+    expect(() => validateOpenAiEnvironment({})).toThrowError(
+      EnvironmentValidationError,
+    );
+    expect(() => validateResendEnvironment({})).toThrowError(
+      EnvironmentValidationError,
+    );
+
+    expect(validateOpenAiEnvironment({ OPENAI_API_KEY: "ai-key" })).toEqual({
+      OPENAI_API_KEY: "ai-key",
+    });
+    expect(validateResendEnvironment({ RESEND_API_KEY: "email-key" })).toEqual({
+      RESEND_API_KEY: "email-key",
+    });
   });
 });

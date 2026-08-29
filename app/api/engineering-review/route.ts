@@ -2,6 +2,11 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { Redis } from "@upstash/redis";
 
+import {
+    validateOpenAiEnvironment,
+    validateRedisEnvironment,
+} from "@/lib/env";
+
 const DAILY_FREE_LIMIT = 5;
 const MAX_SOURCE_LENGTH = 360_000;
 const MAX_FINDINGS_PER_SECTION = 4;
@@ -72,15 +77,6 @@ type AnalysisContext = {
     reviewMode: string;
     depth: string;
 };
-
-const client = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-
-const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
 
 function getClientIp(req: Request) {
     const forwarded = req.headers.get("x-forwarded-for");
@@ -293,7 +289,7 @@ Every finding must have exactly this structure:
 
 overallScore is Evidence Confidence only, not safety or readiness. scores is always []. productionReadiness.status is exactly "Partially Ready" for compatibility only. productionReadiness.reason describes Evidence Quality and must not describe readiness, approval, blocking, or a release decision.`;
 
-async function requestInitialAnalysis(context: AnalysisContext) {
+async function requestInitialAnalysis(client: OpenAI, context: AnalysisContext) {
     return client.chat.completions.create({
         model: "gpt-4o",
         temperature: 0.15,
@@ -311,6 +307,7 @@ async function requestInitialAnalysis(context: AnalysisContext) {
 }
 
 async function requestControlledRepair(
+    client: OpenAI,
     context: AnalysisContext,
     currentResponse: string,
     failures: string[]
@@ -854,12 +851,14 @@ function buildContext(body: Record<string, unknown>): AnalysisContext {
 
 export async function POST(req: Request) {
     try {
-        if (!process.env.OPENAI_API_KEY) {
-            return NextResponse.json(
-                { error: "OpenAI configuration is missing." },
-                { status: 500 }
-            );
-        }
+        const { OPENAI_API_KEY } = validateOpenAiEnvironment();
+        const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
+            validateRedisEnvironment();
+        const client = new OpenAI({ apiKey: OPENAI_API_KEY });
+        const redis = new Redis({
+            url: UPSTASH_REDIS_REST_URL,
+            token: UPSTASH_REDIS_REST_TOKEN,
+        });
 
         const requestBody = await req.json();
         const body =
@@ -911,7 +910,7 @@ export async function POST(req: Request) {
             );
         }
 
-        const initialCompletion = await requestInitialAnalysis(context);
+        const initialCompletion = await requestInitialAnalysis(client, context);
         const initialRaw = initialCompletion.choices[0]?.message?.content ?? "";
         let candidate = parseModelResponse(initialRaw);
         let failures = candidate.failure
@@ -920,6 +919,7 @@ export async function POST(req: Request) {
 
         if (failures.length > 0) {
             const repairCompletion = await requestControlledRepair(
+                client,
                 context,
                 candidate.parsed
                     ? JSON.stringify(candidate.parsed)
