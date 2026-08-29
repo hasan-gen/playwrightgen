@@ -1,7 +1,4 @@
-import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
-
-import { validatePublicClerkEnvironment } from "@/lib/env";
 
 export const metadata: Metadata = {
   title: "PlaywrightGen Workspace",
@@ -14,12 +11,5 @@ export default function WorkspaceLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY } =
-    validatePublicClerkEnvironment();
-
-  return (
-    <ClerkProvider publishableKey={NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}>
-      {children}
-    </ClerkProvider>
-  );
+  return children;
 }

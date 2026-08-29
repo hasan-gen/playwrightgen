@@ -1,7 +1,9 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import { SiteNavigation } from "@/components/site-navigation";
+import { validatePublicClerkEnvironment } from "@/lib/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -25,26 +27,37 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const { NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY } =
+    validatePublicClerkEnvironment();
+
   return (
-    <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <div className="min-h-screen bg-[#fafafa] text-black">
-          <SiteNavigation />
+    <ClerkProvider
+      publishableKey={NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      signInUrl="/sign-in"
+      signUpUrl="/sign-up"
+      signInFallbackRedirectUrl="/workspace"
+      signUpFallbackRedirectUrl="/workspace"
+    >
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+          <div className="min-h-screen bg-[#fafafa] text-black">
+            <SiteNavigation />
 
-          {children}
+            {children}
 
-          <footer className="mt-20 border-t py-6 text-center text-sm text-gray-500">
-            <div className="flex justify-center gap-6">
-              <a href="/terms" className="hover:text-black">
-                Terms
-              </a>
-              <a href="/privacy" className="hover:text-black">
-                Privacy
-              </a>
-            </div>
-          </footer>
-        </div>
-      </body>
-    </html>
+            <footer className="mt-20 border-t py-6 text-center text-sm text-gray-500">
+              <div className="flex justify-center gap-6">
+                <a href="/terms" className="hover:text-black">
+                  Terms
+                </a>
+                <a href="/privacy" className="hover:text-black">
+                  Privacy
+                </a>
+              </div>
+            </footer>
+          </div>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
