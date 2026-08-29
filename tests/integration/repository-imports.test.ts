@@ -6,10 +6,12 @@ import type { PrismaClient, ProjectMembershipRole } from "@/generated/prisma/cli
 import {
   bindGitHubInstallation,
   connectGitHubRepository,
+  connectVerifiedPublicGitHubRepository,
   connectVerifiedGitHubRepository,
   importGitHubRepository,
   listConnectableGitHubRepositories,
   listRepositoryConnections,
+  parseGitHubRepositoryLocator,
   type RepositorySnapshotProvider,
 } from "@/lib/services/repository-imports";
 import {
@@ -310,5 +312,78 @@ describe("tenant-safe GitHub repository imports", () => {
     }, liveDependencies)).rejects.toMatchObject({
       code: "github_repository_access_not_verified",
     });
+  });
+
+  it("connects a live-verified public repository through the tenant installation", async () => {
+    const space = await workspace();
+    const installation = await bindGitHubInstallation({
+      externalInstallationId: "700000003",
+      accountId: "800000003",
+      accountLogin: "hmamut39",
+      accountType: "User",
+      repositorySelection: "all",
+    }, deps(space));
+    const getPublicRepository = vi.fn(async () => ({
+      externalRepositoryId: "900000003",
+      ownerLogin: "hasan-gen",
+      name: "playwrightgen",
+      fullName: "hasan-gen/playwrightgen",
+      defaultBranch: "main",
+      visibility: "PUBLIC" as const,
+    }));
+
+    const connection = await connectVerifiedPublicGitHubRepository({
+      projectId: space.project.id,
+      githubInstallationId: installation.id,
+      repository: "https://github.com/hasan-gen/playwrightgen",
+    }, { ...deps(space), getPublicRepository });
+
+    expect(getPublicRepository).toHaveBeenCalledWith({
+      installationId: "700000003",
+      ownerLogin: "hasan-gen",
+      repositoryName: "playwrightgen",
+    });
+    expect(connection).toMatchObject({
+      organizationId: space.organization.id,
+      projectId: space.project.id,
+      fullName: "hasan-gen/playwrightgen",
+      visibility: "PUBLIC",
+    });
+  });
+
+  it("rejects public repository connection through another tenant's installation", async () => {
+    const first = await workspace();
+    const second = await workspace();
+    const installation = await bindGitHubInstallation({
+      externalInstallationId: "700000004",
+      accountId: "800000004",
+      accountLogin: "hmamut39",
+      accountType: "User",
+      repositorySelection: "all",
+    }, deps(first));
+
+    await expect(connectVerifiedPublicGitHubRepository({
+      projectId: second.project.id,
+      githubInstallationId: installation.id,
+      repository: "https://github.com/hasan-gen/playwrightgen",
+    }, deps(second))).rejects.toMatchObject({
+      code: "github_installation_not_found",
+    });
+  });
+
+  it("accepts only canonical GitHub repository locators", () => {
+    expect(parseGitHubRepositoryLocator(
+      "https://github.com/hasan-gen/playwrightgen.git",
+    )).toEqual({ ownerLogin: "hasan-gen", repositoryName: "playwrightgen" });
+    expect(parseGitHubRepositoryLocator("hasan-gen/playwrightgen")).toEqual({
+      ownerLogin: "hasan-gen",
+      repositoryName: "playwrightgen",
+    });
+    expect(() => parseGitHubRepositoryLocator(
+      "https://example.com/hasan-gen/playwrightgen",
+    )).toThrowError("invalid_repository_input");
+    expect(() => parseGitHubRepositoryLocator(
+      "https://github.com/hasan-gen/playwrightgen/issues",
+    )).toThrowError("invalid_repository_input");
   });
 });

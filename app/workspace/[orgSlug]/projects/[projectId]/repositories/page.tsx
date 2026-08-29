@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -6,7 +8,10 @@ import { ProjectNavigation } from "@/components/workspace/project-navigation";
 import { requireWorkspaceContext } from "@/lib/auth/workspace-context";
 import { validateGitHubSetupEnvironment } from "@/lib/env";
 import {
+  connectVerifiedPublicGitHubRepository,
   connectVerifiedGitHubRepository,
+  importGitHubRepository,
+  listActiveGitHubInstallations,
   listConnectableGitHubRepositories,
   listRepositoryConnections,
 } from "@/lib/services/repository-imports";
@@ -57,6 +62,66 @@ async function connectRepositoryAction(formData: FormData) {
   redirect(destination + "?github=repository_connected");
 }
 
+async function connectPublicRepositoryAction(formData: FormData) {
+  "use server";
+
+  const orgSlug = String(formData.get("orgSlug") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const destination =
+    "/workspace/" +
+    encodeURIComponent(orgSlug) +
+    "/projects/" +
+    encodeURIComponent(projectId) +
+    "/repositories";
+  try {
+    await connectVerifiedPublicGitHubRepository({
+      orgSlug,
+      projectId,
+      githubInstallationId: String(
+        formData.get("githubInstallationId") ?? "",
+      ),
+      repository: String(formData.get("repository") ?? ""),
+    });
+  } catch {
+    redirect(destination + "?github=public_connection_failed");
+  }
+  revalidatePath(destination);
+  redirect(destination + "?github=public_repository_connected");
+}
+
+async function importRepositoryAction(formData: FormData) {
+  "use server";
+
+  const orgSlug = String(formData.get("orgSlug") ?? "");
+  const projectId = String(formData.get("projectId") ?? "");
+  const destination =
+    "/workspace/" +
+    encodeURIComponent(orgSlug) +
+    "/projects/" +
+    encodeURIComponent(projectId) +
+    "/repositories";
+  let importFailed = false;
+  try {
+    const imported = await importGitHubRepository({
+      orgSlug,
+      projectId,
+      repositoryConnectionId: String(
+        formData.get("repositoryConnectionId") ?? "",
+      ),
+      sourceRef: String(formData.get("sourceRef") ?? ""),
+      idempotencyKey: `workspace-import:${randomUUID()}`,
+    });
+    importFailed = imported.status === "FAILED";
+  } catch {
+    redirect(destination + "?github=import_failed");
+  }
+  if (importFailed) {
+    redirect(destination + "?github=import_failed");
+  }
+  revalidatePath(destination);
+  redirect(destination + "?github=import_completed");
+}
+
 export default async function ProjectRepositoriesPage({
   params,
   searchParams,
@@ -79,8 +144,15 @@ export default async function ProjectRepositoriesPage({
   let connectableRepositories: Awaited<
     ReturnType<typeof listConnectableGitHubRepositories>
   > = [];
+  let activeInstallations: Awaited<
+    ReturnType<typeof listActiveGitHubInstallations>
+  > = [];
   let repositoryDiscoveryFailed = false;
   if (context.can("repository:connect")) {
+    activeInstallations = await listActiveGitHubInstallations({
+      orgSlug,
+      projectId,
+    });
     try {
       connectableRepositories = await listConnectableGitHubRepositories({
         orgSlug,
@@ -120,10 +192,24 @@ export default async function ProjectRepositoriesPage({
           Repository connected with fresh GitHub access verification.
         </div>
       ) : null}
-      {githubResult === "failed" || githubResult === "connection_failed" ? (
+      {githubResult === "public_repository_connected" ? (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Public repository identity and visibility were verified live before
+          the connection was saved.
+        </div>
+      ) : null}
+      {githubResult === "import_completed" ? (
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Repository evidence was imported and pinned to the resolved commit.
+        </div>
+      ) : null}
+      {githubResult === "failed" ||
+      githubResult === "connection_failed" ||
+      githubResult === "public_connection_failed" ||
+      githubResult === "import_failed" ? (
         <div className="mt-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          GitHub setup could not be verified. No installation or repository
-          authority was changed.
+          GitHub access or repository evidence could not be verified. Existing
+          Workspace records were not changed.
         </div>
       ) : null}
 
@@ -193,6 +279,60 @@ export default async function ProjectRepositoriesPage({
         </section>
       ) : null}
 
+      {activeInstallations.length ? (
+        <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">
+            Public repository
+          </p>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight">
+            Connect public evidence by URL
+          </h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+            Use this when the repository is public but belongs to another
+            GitHub account. PlaywrightGen verifies the repository live and
+            stores inventory metadata only; it does not execute repository
+            code.
+          </p>
+          <form
+            action={connectPublicRepositoryAction}
+            className="mt-5 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(12rem,0.45fr)_auto] sm:items-end"
+          >
+            <input type="hidden" name="orgSlug" value={orgSlug} />
+            <input type="hidden" name="projectId" value={projectId} />
+            <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+              GitHub repository URL
+              <input
+                type="url"
+                name="repository"
+                required
+                placeholder="https://github.com/owner/repository"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+              />
+            </label>
+            <label className="grid gap-1.5 text-sm font-medium text-slate-800">
+              Verified App installation
+              <select
+                name="githubInstallationId"
+                required
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm outline-none transition focus:border-cyan-500 focus:ring-2 focus:ring-cyan-100"
+              >
+                {activeInstallations.map((installation) => (
+                  <option key={installation.id} value={installation.id}>
+                    {installation.accountLogin}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="submit"
+              className="rounded-xl bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-700"
+            >
+              Verify and connect
+            </button>
+          </form>
+        </section>
+      ) : null}
+
       <section className="mt-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
         {connections.length ? (
           <div className="space-y-8">
@@ -217,11 +357,37 @@ export default async function ProjectRepositoriesPage({
                         Default branch {connection.defaultBranch} · GitHub account {connection.installation.accountLogin}
                       </p>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {connection.lastImportedAt
-                        ? `Last imported ${connection.lastImportedAt.toLocaleString()}`
-                        : "No import recorded"}
-                    </p>
+                    <div className="flex flex-col items-start gap-3 sm:items-end">
+                      <p className="text-xs text-slate-500">
+                        {connection.lastImportedAt
+                          ? `Last imported ${connection.lastImportedAt.toLocaleString()}`
+                          : "No import recorded"}
+                      </p>
+                      {context.can("repository:import") &&
+                      connection.status === "ACTIVE" &&
+                      connection.installation.status === "ACTIVE" ? (
+                        <form action={importRepositoryAction}>
+                          <input type="hidden" name="orgSlug" value={orgSlug} />
+                          <input type="hidden" name="projectId" value={projectId} />
+                          <input
+                            type="hidden"
+                            name="repositoryConnectionId"
+                            value={connection.id}
+                          />
+                          <input
+                            type="hidden"
+                            name="sourceRef"
+                            value={connection.defaultBranch}
+                          />
+                          <button
+                            type="submit"
+                            className="rounded-full bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700"
+                          >
+                            Import latest snapshot
+                          </button>
+                        </form>
+                      ) : null}
+                    </div>
                   </div>
 
                   {latestImport ? (

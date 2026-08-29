@@ -381,6 +381,38 @@ export async function listGitHubInstallationRepositories(input: {
   });
 }
 
+export async function getGitHubPublicRepository(input: {
+  installationId: string;
+  ownerLogin: string;
+  repositoryName: string;
+  fetcher?: typeof fetch;
+  environment?: Readonly<Record<string, string | undefined>>;
+}): Promise<GitHubAccessibleRepository> {
+  const environment = validateGitHubAppAuthenticationEnvironment(
+    input.environment,
+  );
+  const fetcher = input.fetcher ?? fetch;
+  const appJwt = createGitHubAppJwt({
+    appId: environment.GITHUB_APP_ID,
+    privateKey: environment.GITHUB_APP_PRIVATE_KEY,
+  });
+  const access = await installationToken({
+    fetcher,
+    appJwt,
+    installationId: input.installationId,
+  });
+  const repository = normalizeRepository(await githubRequest(
+    fetcher,
+    `/repos/${encodeURIComponent(input.ownerLogin)}/${encodeURIComponent(input.repositoryName)}`,
+    access.token,
+    repositorySchema,
+  ));
+  if (repository.visibility !== "PUBLIC") {
+    throw new GitHubProviderError("github_repository_not_public");
+  }
+  return repository;
+}
+
 export function createGitHubRepositorySnapshotProvider(input?: {
   fetcher?: typeof fetch;
   environment?: Readonly<Record<string, string | undefined>>;
@@ -399,7 +431,10 @@ export function createGitHubRepositorySnapshotProvider(input?: {
       fetcher,
       appJwt,
       installationId: request.externalInstallationId,
-      repositoryId: request.externalRepositoryId,
+      repositoryId:
+        request.visibility === "PUBLIC"
+          ? undefined
+          : request.externalRepositoryId,
     });
     const owner = encodeURIComponent(request.ownerLogin);
     const repository = encodeURIComponent(request.repositoryName);

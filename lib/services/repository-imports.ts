@@ -12,6 +12,7 @@ import {
   createGitHubRepositorySnapshotProvider,
   type GitHubAccessibleRepository,
   GitHubProviderError,
+  getGitHubPublicRepository,
   listGitHubInstallationRepositories,
 } from "@/lib/integrations/github/app-client";
 
@@ -19,6 +20,12 @@ const uuidSchema = z.string().uuid();
 const externalIdSchema = z.string().regex(/^\d+$/).max(32);
 const safeNameSchema = z.string().trim().min(1).max(255);
 const sourceRefSchema = z.string().trim().min(1).max(255);
+const repositorySegmentSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .regex(/^[A-Za-z0-9_.-]+$/);
 const idempotencyKeySchema = z
   .string()
   .trim()
@@ -52,6 +59,7 @@ export type RepositorySnapshotProvider = (input: {
   ownerLogin: string;
   repositoryName: string;
   sourceRef: string;
+  visibility: "PUBLIC" | "PRIVATE" | "INTERNAL" | "UNKNOWN";
 }) => Promise<RepositorySourceSnapshot>;
 
 type Dependencies = WorkspaceContextDependencies & {
@@ -59,6 +67,11 @@ type Dependencies = WorkspaceContextDependencies & {
   listRepositories?: (input: {
     installationId: string;
   }) => Promise<GitHubAccessibleRepository[]>;
+  getPublicRepository?: (input: {
+    installationId: string;
+    ownerLogin: string;
+    repositoryName: string;
+  }) => Promise<GitHubAccessibleRepository>;
 };
 
 export class RepositoryImportDomainError extends Error {
@@ -83,6 +96,40 @@ function parse<T>(schema: z.ZodType<T>, value: unknown): T {
     throw new RepositoryImportDomainError("invalid_repository_input", 400);
   }
   return result.data;
+}
+
+export function parseGitHubRepositoryLocator(value: unknown) {
+  const raw = parse(z.string().trim().min(1).max(1_000), value);
+  let path = raw;
+  if (raw.includes("://")) {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      throw new RepositoryImportDomainError("invalid_repository_input", 400);
+    }
+    if (
+      url.protocol !== "https:" ||
+      url.hostname.toLowerCase() !== "github.com" ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash
+    ) {
+      throw new RepositoryImportDomainError("invalid_repository_input", 400);
+    }
+    path = url.pathname;
+  }
+  const segments = path.split("/").filter(Boolean);
+  if (segments.length !== 2) {
+    throw new RepositoryImportDomainError("invalid_repository_input", 400);
+  }
+  const ownerLogin = parse(repositorySegmentSchema, segments[0]);
+  const repositoryName = parse(
+    repositorySegmentSchema,
+    segments[1].replace(/\.git$/i, ""),
+  );
+  return { ownerLogin, repositoryName };
 }
 
 async function projectContext(
@@ -438,6 +485,29 @@ export async function listConnectableGitHubRepositories(
   );
 }
 
+export async function listActiveGitHubInstallations(
+  input: { orgSlug?: string; projectId: string },
+  dependencies?: Dependencies,
+) {
+  const { workspace } = await projectContext(
+    input,
+    "repository:connect",
+    dependencies,
+  );
+  return client(dependencies).gitHubInstallation.findMany({
+    where: {
+      organizationId: workspace.organization.id,
+      status: "ACTIVE",
+    },
+    select: {
+      id: true,
+      accountLogin: true,
+      repositorySelection: true,
+    },
+    orderBy: [{ updatedAt: "desc" }, { id: "asc" }],
+  });
+}
+
 export async function connectVerifiedGitHubRepository(
   input: {
     orgSlug?: string;
@@ -500,6 +570,79 @@ export async function connectVerifiedGitHubRepository(
       projectId: input.projectId,
       githubInstallationId,
       externalRepositoryId,
+      ownerLogin: repository.ownerLogin,
+      name: repository.name,
+      defaultBranch: repository.defaultBranch,
+      visibility: repository.visibility,
+      requestId: input.requestId,
+    },
+    dependencies,
+  );
+}
+
+export async function connectVerifiedPublicGitHubRepository(
+  input: {
+    orgSlug?: string;
+    projectId: string;
+    githubInstallationId: string;
+    repository: string;
+    requestId?: string;
+  },
+  dependencies?: Dependencies,
+) {
+  const githubInstallationId = parse(uuidSchema, input.githubInstallationId);
+  const locator = parseGitHubRepositoryLocator(input.repository);
+  const { workspace } = await projectContext(
+    input,
+    "repository:connect",
+    dependencies,
+  );
+  const installation = await client(dependencies).gitHubInstallation.findUnique({
+    where: {
+      organizationId_id: {
+        organizationId: workspace.organization.id,
+        id: githubInstallationId,
+      },
+    },
+  });
+  if (!installation || installation.status !== "ACTIVE") {
+    throw new RepositoryImportDomainError("github_installation_not_found", 404);
+  }
+  const getPublicRepository =
+    dependencies?.getPublicRepository ??
+    ((request: {
+      installationId: string;
+      ownerLogin: string;
+      repositoryName: string;
+    }) => getGitHubPublicRepository(request));
+  let repository: GitHubAccessibleRepository;
+  try {
+    repository = await getPublicRepository({
+      installationId: installation.externalInstallationId,
+      ...locator,
+    });
+  } catch (error) {
+    throw new RepositoryImportDomainError(
+      error instanceof GitHubProviderError ? error.code : "provider_failure",
+      502,
+    );
+  }
+  if (
+    repository.visibility !== "PUBLIC" ||
+    repository.ownerLogin.toLowerCase() !== locator.ownerLogin.toLowerCase() ||
+    repository.name.toLowerCase() !== locator.repositoryName.toLowerCase()
+  ) {
+    throw new RepositoryImportDomainError(
+      "github_public_repository_not_verified",
+      404,
+    );
+  }
+  return connectGitHubRepository(
+    {
+      orgSlug: input.orgSlug,
+      projectId: input.projectId,
+      githubInstallationId,
+      externalRepositoryId: repository.externalRepositoryId,
       ownerLogin: repository.ownerLogin,
       name: repository.name,
       defaultBranch: repository.defaultBranch,
@@ -589,6 +732,7 @@ export async function importGitHubRepository(
       ownerLogin: connection.ownerLogin,
       repositoryName: connection.name,
       sourceRef,
+      visibility: connection.visibility,
     });
     const parsedSnapshot = parse(snapshotSchema, snapshot);
     if (parsedSnapshot.externalRepositoryId !== connection.externalRepositoryId) {

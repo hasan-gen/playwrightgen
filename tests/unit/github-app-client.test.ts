@@ -6,6 +6,7 @@ import {
   createGitHubAppJwt,
   createGitHubRepositorySnapshotProvider,
   exchangeGitHubUserCode,
+  getGitHubPublicRepository,
   getVerifiedGitHubInstallation,
   listGitHubInstallationRepositories,
   verifyGitHubUserInstallationAccess,
@@ -97,6 +98,7 @@ describe("least-privilege GitHub App client", () => {
       ownerLogin: "acme",
       repositoryName: "storefront",
       sourceRef: "main",
+      visibility: "PRIVATE",
     });
 
     const tokenRequest = fetcher.mock.calls[0];
@@ -116,6 +118,87 @@ describe("least-privilege GitHub App client", () => {
     expect(snapshot.files).toHaveLength(1);
     expect(JSON.stringify(snapshot)).not.toContain("installation-token");
     expect(fetcher).toHaveBeenCalledTimes(4);
+  });
+
+  it("verifies public repository metadata with an installation token", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        token: "installation-token-never-returned",
+        expires_at: "2026-08-25T12:30:00Z",
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        id: 789,
+        name: "playwrightgen",
+        full_name: "hasan-gen/playwrightgen",
+        owner: { login: "hasan-gen" },
+        default_branch: "main",
+        visibility: "public",
+        private: false,
+      }));
+
+    const repository = await getGitHubPublicRepository({
+      installationId: "456",
+      ownerLogin: "hasan-gen",
+      repositoryName: "playwrightgen",
+      fetcher,
+      environment: {
+        GITHUB_APP_ID: "123",
+        GITHUB_APP_PRIVATE_KEY: privateKey(),
+      },
+    });
+
+    expect(repository).toMatchObject({
+      externalRepositoryId: "789",
+      fullName: "hasan-gen/playwrightgen",
+      visibility: "PUBLIC",
+    });
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      permissions: { contents: "read" },
+    });
+    expect(fetcher.mock.calls[1][0]).toBe(
+      "https://api.github.com/repos/hasan-gen/playwrightgen",
+    );
+  });
+
+  it("imports a public repository without requesting private installation scope", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({
+        token: "installation-token-never-returned",
+        expires_at: "2026-08-25T12:30:00Z",
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        sha: "b".repeat(40),
+        commit: { tree: { sha: "tree-sha" } },
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        truncated: false,
+        tree: [],
+      }));
+    const provider = createGitHubRepositorySnapshotProvider({
+      fetcher,
+      environment: {
+        GITHUB_APP_ID: "123",
+        GITHUB_APP_PRIVATE_KEY: privateKey(),
+      },
+    });
+
+    await provider({
+      externalInstallationId: "456",
+      externalRepositoryId: "789",
+      ownerLogin: "hasan-gen",
+      repositoryName: "playwrightgen",
+      sourceRef: "main",
+      visibility: "PUBLIC",
+    });
+
+    expect(JSON.parse(String(fetcher.mock.calls[0][1]?.body))).toEqual({
+      permissions: { contents: "read" },
+    });
+    expect(fetcher.mock.calls[1][0]).toBe(
+      "https://api.github.com/repos/hasan-gen/playwrightgen/commits/main",
+    );
   });
 
   it("verifies the GitHub user, App installation, and live repository access", async () => {
