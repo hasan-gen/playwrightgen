@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
+import {
+    EnvironmentValidationError,
+    validateStripeClientEnvironment,
+} from "@/lib/env";
 
 export async function GET(req: Request) {
     try {
+        const { STRIPE_SECRET_KEY } = validateStripeClientEnvironment();
+        const stripe = new Stripe(STRIPE_SECRET_KEY);
         const { searchParams } = new URL(req.url);
         const sessionId = searchParams.get("session_id");
 
@@ -24,6 +29,13 @@ export async function GET(req: Request) {
 
         return NextResponse.json({ email });
     } catch (error) {
+        if (error instanceof EnvironmentValidationError) {
+            return NextResponse.json(
+                { error: "Billing is not configured in this environment." },
+                { status: 503 }
+            );
+        }
+
         console.error("Checkout session lookup error:", error);
         return NextResponse.json(
             { error: "Failed to retrieve checkout session." },

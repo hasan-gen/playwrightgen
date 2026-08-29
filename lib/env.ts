@@ -57,6 +57,28 @@ export const githubSetupEnvironmentSchema =
     NEXT_PUBLIC_APP_URL: httpUrl,
   });
 
+export const stripeClientEnvironmentSchema = z.object({
+  STRIPE_SECRET_KEY: requiredValue,
+});
+
+export const stripeCheckoutEnvironmentSchema =
+  stripeClientEnvironmentSchema.extend({
+    STRIPE_PRO_PRICE_ID: requiredValue,
+    NEXT_PUBLIC_APP_URL: httpUrl,
+  });
+
+export const redisEnvironmentSchema = z.object({
+  UPSTASH_REDIS_REST_URL: httpUrl,
+  UPSTASH_REDIS_REST_TOKEN: requiredValue,
+});
+
+export const stripeWebhookEnvironmentSchema =
+  stripeClientEnvironmentSchema
+    .extend({
+      STRIPE_WEBHOOK_SECRET: requiredValue,
+    })
+    .and(redisEnvironmentSchema);
+
 export class EnvironmentValidationError extends Error {
   readonly variableNames: readonly string[];
 
@@ -183,5 +205,41 @@ export function validateGitHubSetupEnvironment(
     githubSetupEnvironmentSchema,
     source,
     "GitHub App setup",
+  );
+}
+
+export function validateStripeClientEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    stripeClientEnvironmentSchema,
+    source,
+    "Stripe client",
+  );
+}
+
+export function validateStripeCheckoutEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    stripeCheckoutEnvironmentSchema,
+    source,
+    "Stripe checkout",
+  );
+}
+
+export function validateRedisEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(redisEnvironmentSchema, source, "Upstash Redis");
+}
+
+export function validateStripeWebhookEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    stripeWebhookEnvironmentSchema,
+    source,
+    "Stripe webhook",
   );
 }

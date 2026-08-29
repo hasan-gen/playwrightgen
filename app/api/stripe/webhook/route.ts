@@ -2,14 +2,32 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { Redis } from "@upstash/redis";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-
-const redis = new Redis({
- url: process.env.UPSTASH_REDIS_REST_URL!,
- token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-});
+import {
+ EnvironmentValidationError,
+ validateStripeWebhookEnvironment,
+} from "@/lib/env";
 
 export async function POST(req: Request) {
+ let config;
+
+ try {
+ config = validateStripeWebhookEnvironment();
+ } catch (error) {
+ if (error instanceof EnvironmentValidationError) {
+ return NextResponse.json(
+ { error: "Billing webhooks are not configured in this environment." },
+ { status: 503 }
+ );
+ }
+
+ throw error;
+ }
+
+ const stripe = new Stripe(config.STRIPE_SECRET_KEY);
+ const redis = new Redis({
+ url: config.UPSTASH_REDIS_REST_URL,
+ token: config.UPSTASH_REDIS_REST_TOKEN,
+ });
  const signature = req.headers.get("stripe-signature");
 
  if (!signature) {
@@ -27,7 +45,7 @@ export async function POST(req: Request) {
  event = stripe.webhooks.constructEvent(
  body,
  signature,
- process.env.STRIPE_WEBHOOK_SECRET as string
+ config.STRIPE_WEBHOOK_SECRET
  );
  } catch (error) {
  console.error("Webhook signature verification failed:", error);
