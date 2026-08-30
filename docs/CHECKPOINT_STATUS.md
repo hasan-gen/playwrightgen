@@ -24,7 +24,7 @@ starting the next checkpoint and update it at the end of every work session.
 | V1.6 Automation artifacts + engines | Complete | Separate Playwright Browser/API engines create append-only artifacts pinned to approved immutable Test Case versions; OpenAI Responses Structured Outputs, deterministic safety/quality validation, safe failed generations, preserved approved revisions, human review/approval, tenant/role enforcement, real Automation Studio UI, 128 tests, and development/test migrations pass. |
 | V1.6.1 Product surface unification | Complete | Evidence-workflow homepage and unified navigation; focused Quick Generate/Coverage Review/Release Review surfaces; Debug relocated conceptually to failed Test Runs; Figma removed from the product surface; Responses API Structured Outputs for new public generation/review flows; no invented coverage score; real tenant-scoped Continue in Workspace transitions that create human-reviewable AI-suggested Requirement or Test Case drafts without importing unapproved code. |
 | V1.7 Project quality intelligence | Complete | Tenant-scoped Quality Command Center derives approved Requirement-to-Test Case coverage, current-version automation coverage, superseded automation, recent run health, unresolved findings, and evidence freshness from PostgreSQL records; every actionable gap links to its source, missing evidence remains explicit, no synthetic readiness score is produced, 136 tests pass, and public/workspace navigation and pricing use the refined shared visual system. |
-| V1.8 Repository, CI, and isolated execution | In progress | Least-privilege GitHub App and isolated-runner decisions recorded; composite-tenant installation/connection/import schema; immutable repository inventory; signed idempotent lifecycle handling; and an Owner/Admin setup flow with expiring state, PKCE, GitHub user-installation verification, strict App permission verification, live repository discovery, and provider-verified project connection. Public repositories can now be verified by canonical GitHub URL through any tenant-bound active App installation, including cross-owner public evidence, while private repositories remain restricted to the installation selection. Workspace now exposes the missing exact-commit import action. Commit `b7b8bfb`; 175 tests, Prisma validation, typecheck, full lint, Chromium smoke checks, and production build pass. A live installation/import proof, runner implementation, artifact storage, and PR reporting remain. |
+| V1.8 Repository, CI, and isolated execution | In progress | Least-privilege GitHub App and isolated-runner decisions recorded; composite-tenant installation/connection/import schema; immutable repository inventory; signed idempotent lifecycle handling; and an Owner/Admin setup flow with expiring state, PKCE, GitHub user-installation verification, strict App permission verification, live repository discovery, and provider-verified project connection. Public repositories can now be verified by canonical GitHub URL through any tenant-bound active App installation, including cross-owner public evidence, while private repositories remain restricted to the installation selection. Workspace exposes the exact-commit import action. Commit `eb74ee9` makes Prisma client generation part of every production build; GitHub Actions run `33317894326` passed and final Vercel Preview deployment `dpl_7QYEpo2vfDsgzBro68WyXHaXWEzu` reached Ready. Authenticated Preview checks returned `200` for `/` and `/sign-in`, and unauthenticated `/workspace` correctly returned `307` to sign-in. A dedicated Preview database, repository-owner access recovery or deliberate transfer, live installation/import proof, runner implementation, artifact storage, and PR reporting remain. |
 
 ## Checkpoint 4 delivered behavior
 
@@ -39,8 +39,9 @@ starting the next checkpoint and update it at the end of every work session.
 
 ## Next acceptance target
 
-Install the dedicated development GitHub App on the browser-accessible account,
-prove the signed setup path, then connect the public PlaywrightGen repository
-by canonical URL and import its exact-commit evidence through the existing
-tenant boundary. Keep remote execution disabled until the isolated runner
-gates are implemented.
+Provision a dedicated Neon Preview branch and complete the isolated Preview
+environment before exercising authenticated Workspace routes. Then finish the
+signed GitHub setup callback, connect the public PlaywrightGen repository by
+canonical URL, and import its exact-commit evidence through the existing tenant
+boundary. Keep remote execution disabled until the isolated runner gates are
+implemented.

@@ -8,7 +8,7 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current checkpoint commit: public repository evidence checkpoint `b7b8bfb`.
+- Current checkpoint commit: Vercel Preview build checkpoint `eb74ee9`.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
@@ -17,15 +17,20 @@ repository evidence overrides stale prose.
   usable exact-commit import action in Workspace.
 - Product priority: reach the first safe production preview quickly without
   weakening tenant isolation, human review, evidence integrity, or launch gates.
+- Ownership finding: `hasan-gen` is a separate GitHub user and owns the public
+  repository; the interactive browser account is `hmamut39`. The development
+  App authorization created no installation, connection, or import record in
+  PostgreSQL, so no tenant data was attached incorrectly.
 
 ## Next primary outcome
 
-Install the dedicated development GitHub App on the browser-accessible GitHub
-account, connect the public PlaywrightGen repository through the completed
-secure setup boundary, and prove an exact-commit import. The public repository
-may belong to a different GitHub owner because PlaywrightGen now verifies its
-identity and public visibility live. Keep imported records preliminary and
-keep untrusted execution disabled.
+Provision a dedicated Neon Preview branch and complete the Preview-only
+environment without reusing production or the destructive test database. Then
+recover administrative access to the repository-owning `hasan-gen` account or
+make an explicit repository-transfer decision. Finish the development GitHub
+App callback, connect the public PlaywrightGen repository through the completed
+secure setup boundary, and prove an exact-commit import. Keep imported records
+preliminary and keep untrusted execution disabled.
 
 ## Next working sequence
 
