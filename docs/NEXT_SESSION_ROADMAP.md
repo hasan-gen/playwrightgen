@@ -8,8 +8,9 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current deployment baseline: authenticated Vercel Preview deployment
-  `dpl_B5UVQS5DDtEXpCvo1RHYqhemVZBn`.
+- Current deployment baseline: commit `48a3fdb`, authenticated Vercel Preview
+  deployment `dpl_9wDqskeVdUNzkRkghVrKgi29MTgS`, and successful hosted CI run
+  `33334829583`.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
@@ -27,6 +28,7 @@ repository evidence overrides stale prose.
   they were baselined, Clerk reconciliation reached zero drift, and an
   authenticated user reached the isolated Workspace. No production rows were
   copied and Production was not deployed.
+- The authenticated Owner created the first Preview project successfully.
 
 ## Next primary outcome
 

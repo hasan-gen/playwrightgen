@@ -86,6 +86,12 @@ describe("Clerk synchronization mappings", () => {
     expect(
       normalizeDisplayName({ firstName: " Ada ", lastName: " Lovelace " }),
     ).toBe("Ada Lovelace");
+    expect(
+      normalizeDisplayName({ firstName: " محمدجان ", lastName: "�broken" }),
+    ).toBe("محمدجان");
+    expect(
+      normalizeDisplayName({ firstName: "�broken", username: " engineer " }),
+    ).toBe("engineer");
     expect(normalizeDisplayName({ username: " engineer " })).toBe("engineer");
     expect(normalizeDisplayName({})).toBeNull();
   });

@@ -188,8 +188,18 @@ export function normalizeDisplayName(input: {
   lastName?: string | null;
   username?: string | null;
 }): string | null {
+  const normalizePart = (value?: string | null) => {
+    const normalized = value?.normalize("NFKC").trim().replace(/\s+/gu, " ");
+    if (
+      !normalized ||
+      /[\u0000-\u001f\u007f-\u009f\ufffd]/u.test(normalized)
+    ) {
+      return null;
+    }
+    return normalized;
+  };
   const fullName = [input.firstName, input.lastName]
-    .map((part) => part?.trim())
+    .map(normalizePart)
     .filter((part): part is string => Boolean(part))
     .join(" ");
 
@@ -197,7 +207,7 @@ export function normalizeDisplayName(input: {
     return fullName.slice(0, 200);
   }
 
-  const username = input.username?.trim();
+  const username = normalizePart(input.username);
   return username ? username.slice(0, 200) : null;
 }
 
