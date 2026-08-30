@@ -5,12 +5,13 @@ gate, not production approval.
 
 ## Current repository state
 
-- No `.vercel` project link is committed or present in the repository.
+- Local Vercel project metadata may exist for CLI operations, but `.vercel`
+  remains ignored and uncommitted.
 - No `vercel.json` override is required for the current Next.js application.
 - The production build remains the local deployment gate.
-- GitHub repository import exists as a tenant-safe domain and UI foundation;
-  GitHub App installation setup and signed lifecycle callbacks are still
-  required before a real repository can be connected.
+- GitHub repository import and the signed installation/OAuth callback flow
+  exist. Preview credentials are configured; exact provider setup/callback
+  URLs and one live import proof remain.
 - Remote repository execution remains disabled by architecture decision.
 
 ## Environment inventory
@@ -20,7 +21,7 @@ credentials into Preview.
 
 | Scope | Required names | Preview rule |
 | --- | --- | --- |
-| Database | `DATABASE_URL`, `DIRECT_URL` for migrations | Dedicated Preview PostgreSQL database with backup/PITR policy reviewed. Runtime uses the pooled URL; migrations use the direct URL. |
+| Database | `DATABASE_URL`, `DIRECT_URL` for migrations | Dedicated schema-only Preview PostgreSQL branch. Runtime uses the pooled URL; migrations use the direct URL. Preview branch `br-hidden-mode-ax99b5h6` contains no copied Production rows. |
 | Clerk | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET` | Dedicated non-production instance/domain and endpoint. Redirect URLs must include the exact protected Preview origin. |
 | OpenAI | `OPENAI_API_KEY` and optional workflow model overrides | Separate project/key, budget, rate limits, and eval gate. Never expose the key client-side. |
 | GitHub App | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_SETUP_STATE_SECRET` | Dedicated development/Preview GitHub App until production review. App, OAuth, webhook, and setup-state secrets remain separate server-only values. |

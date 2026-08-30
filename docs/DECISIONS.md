@@ -350,3 +350,20 @@ tenant-bound GitHub integration and higher provider limits. Strict URL parsing,
 live visibility verification, composite organization/project boundaries,
 bounded parsing, no retained source bodies, and disabled execution prevent the
 public path from weakening private repository authorization or evidence trust.
+
+## 029 — Use a schema-only database branch for deployment Preview
+
+**Decision:** Vercel Preview uses a dedicated Neon branch created with parent
+schema only, never a data clone of Production. Before accepting the branch, an
+exact Prisma migrations-to-database diff must report no schema drift. Existing
+migrations may be baselined only after that proof, and future migrations use
+the direct connection with an isolated shadow database when development drift
+checks require one. Runtime traffic uses the pooled connection. Clerk identity
+and organization records are reconciled explicitly into Preview; domain rows
+are created through Preview workflows.
+
+**Reason:** A realistic Preview needs production-shaped constraints without
+copying customer or operational data into a less trusted environment. Schema
+comparison plus migration baselining preserves Prisma's migration history,
+while an isolated branch, shadow database, and explicit identity reconciliation
+prevent accidental writes to Production and make empty-state behavior honest.

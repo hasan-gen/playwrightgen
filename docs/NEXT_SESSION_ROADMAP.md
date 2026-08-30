@@ -8,7 +8,8 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current checkpoint commit: Vercel Preview build checkpoint `eb74ee9`.
+- Current deployment baseline: authenticated Vercel Preview deployment
+  `dpl_B5UVQS5DDtEXpCvo1RHYqhemVZBn`.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
@@ -21,16 +22,22 @@ repository evidence overrides stale prose.
   repository; the interactive browser account is `hmamut39`. The development
   App authorization created no installation, connection, or import record in
   PostgreSQL, so no tenant data was attached incorrectly.
+- Preview isolation is complete: Neon branch `br-hidden-mode-ax99b5h6` was
+  created schema-only, its schema matched the nine reviewed migrations before
+  they were baselined, Clerk reconciliation reached zero drift, and an
+  authenticated user reached the isolated Workspace. No production rows were
+  copied and Production was not deployed.
 
 ## Next primary outcome
 
-Provision a dedicated Neon Preview branch and complete the Preview-only
-environment without reusing production or the destructive test database. Then
-recover administrative access to the repository-owning `hasan-gen` account or
-make an explicit repository-transfer decision. Finish the development GitHub
-App callback, connect the public PlaywrightGen repository through the completed
-secure setup boundary, and prove an exact-commit import. Keep imported records
-preliminary and keep untrusted execution disabled.
+Redeploy the completed Preview-only GitHub App environment and configure its
+exact setup/callback URLs. Create one Preview project, finish the development
+GitHub App callback, connect the public PlaywrightGen repository through the
+completed secure setup boundary, and prove an exact-commit import. Repository
+owner recovery or deliberate transfer is required later for private repository,
+branch-protection, and pull-request reporting work, but it does not block the
+public exact-commit import. Keep imported records preliminary and untrusted
+execution disabled.
 
 ## Next working sequence
 
@@ -117,7 +124,6 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** from the Workspace Repositories page,
-start the signed GitHub setup and install the read-only App on the currently
-accessible GitHub account using **All repositories**. Then connect the public
-PlaywrightGen URL and prove one exact-commit import.
+**Exact first action next session:** verify the fresh Preview deployment, then
+set the GitHub App's post-install Setup URL and OAuth Callback URL to the stable
+Preview origin before starting the signed setup from Workspace Repositories.

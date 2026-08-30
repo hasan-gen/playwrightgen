@@ -46,6 +46,7 @@ function resolvePrismaCliDatabaseUrl(): string | undefined {
 }
 
 const prismaCliDatabaseUrl = resolvePrismaCliDatabaseUrl();
+const shadowDatabaseUrl = readOptionalEnvironmentVariable("SHADOW_DATABASE_URL");
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -55,6 +56,14 @@ export default defineConfig({
   datasource: prismaCliDatabaseUrl
     ? {
         url: prismaCliDatabaseUrl,
+        ...(shadowDatabaseUrl
+          ? {
+              shadowDatabaseUrl: assertPostgresUrl(
+                "SHADOW_DATABASE_URL",
+                shadowDatabaseUrl,
+              ),
+            }
+          : {}),
       }
     : undefined,
 });
