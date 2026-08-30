@@ -33,6 +33,11 @@ repository evidence overrides stale prose.
   `157602553` with metadata/contents read only and all-repository selection.
   The setup flow now supports securely verifying an existing installation
   without uninstalling it.
+- Preview verified and bound that installation, connected the cross-owner
+  public repository `hasan-gen/playwrightgen`, and pinned `main@e65879da`.
+  The parser correctly marked the snapshot incomplete: main contains three
+  support files but no Playwright configuration or spec files. The import UI
+  now accepts a branch, tag, or commit so `hasan_genai` can be proven next.
 
 ## Next primary outcome
 

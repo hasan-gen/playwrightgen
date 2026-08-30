@@ -366,7 +366,10 @@ export default async function ProjectRepositoriesPage({
                       {context.can("repository:import") &&
                       connection.status === "ACTIVE" &&
                       connection.installation.status === "ACTIVE" ? (
-                        <form action={importRepositoryAction}>
+                        <form
+                          action={importRepositoryAction}
+                          className="flex flex-col gap-2 sm:flex-row sm:items-end"
+                        >
                           <input type="hidden" name="orgSlug" value={orgSlug} />
                           <input type="hidden" name="projectId" value={projectId} />
                           <input
@@ -374,16 +377,21 @@ export default async function ProjectRepositoriesPage({
                             name="repositoryConnectionId"
                             value={connection.id}
                           />
-                          <input
-                            type="hidden"
-                            name="sourceRef"
-                            value={connection.defaultBranch}
-                          />
+                          <label className="text-left text-xs font-medium text-slate-600">
+                            Branch, tag, or commit
+                            <input
+                              required
+                              name="sourceRef"
+                              maxLength={255}
+                              defaultValue={connection.defaultBranch}
+                              className="mt-1 block w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 sm:w-48"
+                            />
+                          </label>
                           <button
                             type="submit"
                             className="rounded-full bg-cyan-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-cyan-700"
                           >
-                            Import latest snapshot
+                            Import snapshot
                           </button>
                         </form>
                       ) : null}
