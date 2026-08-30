@@ -328,6 +328,14 @@ authorization, signed state, PKCE, user-installation access, and App
 verification closes both boundaries without making GitHub identity a
 PlaywrightGen authorization authority.
 
+An Owner/Admin may also continue an already-installed App by supplying its
+numeric installation ID through the authenticated project setup page. The ID
+is treated only as an untrusted locator: PlaywrightGen signs it into the same
+tenant/project/user state, then requires the identical PKCE GitHub user-access
+check and App-authenticated installation verification before binding it. This
+avoids destructive reinstall instructions without granting authority from the
+installation ID itself.
+
 ## 028 — Permit verified public evidence without repository ownership
 
 **Decision:** A tenant-bound active GitHub App installation may verify and

@@ -476,17 +476,46 @@ export default async function ProjectRepositoriesPage({
               this project.
             </p>
             {context.can("organization:manage") && setupConfigured ? (
-              <Link
-                href={
-                  "/api/github/setup/start?orgSlug=" +
-                  encodeURIComponent(orgSlug) +
-                  "&projectId=" +
-                  encodeURIComponent(projectId)
-                }
-                className="mt-5 inline-flex rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-700"
-              >
-                Connect GitHub
-              </Link>
+              <div className="mt-5">
+                <Link
+                  href={
+                    "/api/github/setup/start?orgSlug=" +
+                    encodeURIComponent(orgSlug) +
+                    "&projectId=" +
+                    encodeURIComponent(projectId)
+                  }
+                  className="inline-flex rounded-full bg-cyan-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-cyan-700"
+                >
+                  Install or connect GitHub
+                </Link>
+                <details className="mx-auto mt-4 max-w-md rounded-2xl border border-slate-200 bg-white p-4 text-left">
+                  <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                    App already installed?
+                  </summary>
+                  <p className="mt-2 text-xs leading-5 text-slate-500">
+                    Enter the numeric installation ID from the GitHub App
+                    installation settings URL. PlaywrightGen will still verify
+                    your GitHub identity and installation access before binding it.
+                  </p>
+                  <form action="/api/github/setup/start" method="get" className="mt-3 flex gap-2">
+                    <input type="hidden" name="orgSlug" value={orgSlug} />
+                    <input type="hidden" name="projectId" value={projectId} />
+                    <input
+                      required
+                      inputMode="numeric"
+                      pattern="[0-9]+"
+                      maxLength={32}
+                      name="installationId"
+                      aria-label="GitHub App installation ID"
+                      placeholder="Installation ID"
+                      className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+                    />
+                    <button className="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold hover:bg-slate-50">
+                      Verify
+                    </button>
+                  </form>
+                </details>
+              </div>
             ) : (
               <p className="mt-5 text-xs font-medium text-amber-700">
                 {context.can("organization:manage")

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { validateGitHubSetupEnvironment } from "@/lib/env";
+import { createGitHubSetupDestination } from "@/lib/integrations/github/setup-destination";
 import { createGitHubSetupState } from "@/lib/integrations/github/setup-state";
 import {
   requireWorkspaceContext,
@@ -13,12 +14,15 @@ export const runtime = "nodejs";
 const querySchema = z.object({
   orgSlug: z.string().trim().min(1).max(255),
   projectId: z.string().uuid(),
+  installationId: z.string().regex(/^\d+$/).max(32).optional(),
 });
 
 export async function GET(request: NextRequest) {
   const parsed = querySchema.safeParse({
     orgSlug: request.nextUrl.searchParams.get("orgSlug"),
     projectId: request.nextUrl.searchParams.get("projectId"),
+    installationId:
+      request.nextUrl.searchParams.get("installationId") || undefined,
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -44,13 +48,14 @@ export async function GET(request: NextRequest) {
       },
       environment.GITHUB_SETUP_STATE_SECRET,
     );
-    const installationUrl = new URL(
-      "https://github.com/apps/" +
-        encodeURIComponent(environment.GITHUB_APP_SLUG) +
-        "/installations/new",
+    return NextResponse.redirect(
+      createGitHubSetupDestination({
+        appUrl: environment.NEXT_PUBLIC_APP_URL,
+        appSlug: environment.GITHUB_APP_SLUG,
+        state,
+        installationId: parsed.data.installationId,
+      }),
     );
-    installationUrl.searchParams.set("state", state);
-    return NextResponse.redirect(installationUrl);
   } catch (error) {
     const authorizationResponse =
       workspaceAuthorizationErrorResponse(error);

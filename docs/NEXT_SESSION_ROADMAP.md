@@ -29,6 +29,10 @@ repository evidence overrides stale prose.
   authenticated user reached the isolated Workspace. No production rows were
   copied and Production was not deployed.
 - The authenticated Owner created the first Preview project successfully.
+- The GitHub App is already installed on `hmamut39` as installation
+  `157602553` with metadata/contents read only and all-repository selection.
+  The setup flow now supports securely verifying an existing installation
+  without uninstalling it.
 
 ## Next primary outcome
 
