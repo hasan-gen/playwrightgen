@@ -64,7 +64,7 @@ and never silently overwrite approved domain records.
 - Failure Intelligence over failed attempt evidence: complete.
 - Versioned Playwright Browser and API automation artifacts: complete.
 - Project-aware coverage, change, regression, and delivery intelligence: complete.
-- Tenant-safe GitHub setup, repository import, and signed installation lifecycle: implementation complete; live provider proof pending.
+- Tenant-safe GitHub setup, repository import, and signed installation lifecycle: live Preview proof complete for an exact-ref public import; private-repository and controlled-execution proof remain.
 - Controlled automation execution and production hardening: pending.
 
 ## Product constraints

@@ -8,9 +8,9 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current deployment baseline: commit `48a3fdb`, authenticated Vercel Preview
-  deployment `dpl_9wDqskeVdUNzkRkghVrKgi29MTgS`, and successful hosted CI run
-  `33334829583`.
+- Current deployment baseline: commit `58814e3`, authenticated Vercel Preview
+  deployment `dpl_514c7AdqXsyeB65odPBjnhGD1Rug`, and successful hosted CI run
+  `33337224482` for full SHA `58814e3aba30dbc345eb85b00014c1c904a0dc4a`.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
@@ -37,18 +37,18 @@ repository evidence overrides stale prose.
   public repository `hasan-gen/playwrightgen`, and pinned `main@e65879da`.
   The parser correctly marked the snapshot incomplete: main contains three
   support files but no Playwright configuration or spec files. The import UI
-  now accepts a branch, tag, or commit so `hasan_genai` can be proven next.
+  now accepts a branch, tag, or commit. Importing `hasan_genai@58814e3a`
+  succeeded with one config, 24 spec files, 190 test declarations, and three
+  support files.
 
 ## Next primary outcome
 
-Redeploy the completed Preview-only GitHub App environment and configure its
-exact setup/callback URLs. Create one Preview project, finish the development
-GitHub App callback, connect the public PlaywrightGen repository through the
-completed secure setup boundary, and prove an exact-commit import. Repository
-owner recovery or deliberate transfer is required later for private repository,
-branch-protection, and pull-request reporting work, but it does not block the
-public exact-commit import. Keep imported records preliminary and untrusted
-execution disabled.
+Automate authenticated smoke and tenant-boundary checks against the isolated
+Preview, then configure and exercise isolated Clerk and GitHub webhooks. After
+those gates pass, implement organization-scoped Stripe subscriptions and
+entitlements. Repository owner recovery or deliberate transfer is required
+later for private-repository, branch-protection, and pull-request reporting
+work. Keep imported records preliminary and untrusted execution disabled.
 
 ## Next working sequence
 
@@ -70,9 +70,9 @@ execution disabled.
      through a tenant-bound active App installation; private repositories
      still require explicit installation selection.
    - Complete: connected repositories expose an actual import action.
-   - Ask for one GitHub installation action only after the callback is locally ready.
-   - Import the public PlaywrightGen repository at an exact commit and verify displayed
-     configuration, spec inventory, limitations, Activity, and tenant isolation.
+   - Complete: the public PlaywrightGen repository was imported at exact ref
+     `hasan_genai@58814e3a`; Preview displayed one config, 24 spec files, 190
+     test declarations, and three support files.
    - Keep imported records preliminary and remote execution unavailable.
 
 4. **Continue the usability and capability pass**
@@ -135,6 +135,7 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** verify the fresh Preview deployment, then
-set the GitHub App's post-install Setup URL and OAuth Callback URL to the stable
-Preview origin before starting the signed setup from Workspace Repositories.
+**Exact first action next session:** provision a dedicated Clerk `+clerk_test`
+principal in the isolated organization, configure the explicitly approved Vercel
+automation bypass, and execute the authenticated Preview suite before enabling
+isolated Clerk and GitHub webhooks.

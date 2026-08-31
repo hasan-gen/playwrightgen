@@ -11,7 +11,8 @@ versioned Requirements workflow, advisory AI Requirement Review, versioned Test
 Cases with Requirement traceability, immutable Test Runs, versioned Browser/API
 automation artifacts, and the source-linked Quality Command Center exist. The
 tenant-safe repository import foundation, signed GitHub installation lifecycle,
-and secure setup flow are implemented. Live provider proof, controlled runner
+and secure setup flow are implemented and proven on an isolated Preview with a
+real exact-ref public import. Authenticated Preview automation, controlled runner
 isolation, production billing/operations, and deployment validation remain.
 
 ## Gates
@@ -25,7 +26,7 @@ isolation, production billing/operations, and deployment validation remain.
 | Requirements | Workflow + advisory AI review complete | Add authenticated browser E2E, approved-content revision, provider evals, budget/rate limits, and preview evidence. |
 | Test Cases | Workflow + automation lifecycle complete | Add authenticated browser E2E, approved-content revision policy, and preview evidence. |
 | Automation | Reviewable artifact workflow complete | Add provider eval datasets, isolated execution sandbox, artifact storage/export, CI ingestion, rate/budget limits, authenticated browser E2E, and preview evidence. |
-| Repository import | Live read-only Preview proof | Composite tenant schema, immutable source inventory, signed setup state, PKCE GitHub user verification, strict App verification, live repository revalidation, signed/idempotent webhook handling, and fail-closed revocation exist. Preview bound installation `157602553`, connected public `hasan-gen/playwrightgen` across the owner boundary, and pinned an immutable `main@e65879da` snapshot; its explicit incomplete result correctly identified the branch's missing Playwright config/specs. Prove the active `hasan_genai` inventory, add automated authenticated browser E2E, configure an isolated Preview webhook, and recover/transfer repository ownership before private-repository, branch-protection, or PR-reporting claims. |
+| Repository import | Live read-only Preview proof complete | Composite tenant schema, immutable source inventory, signed setup state, PKCE GitHub user verification, strict App verification, live repository revalidation, signed/idempotent webhook handling, and fail-closed revocation exist. Preview bound installation `157602553`, connected public `hasan-gen/playwrightgen` across the owner boundary, and pinned immutable snapshots. `main@e65879da` correctly reported incomplete evidence because that branch lacked a Playwright config/specs; `hasan_genai@58814e3a` succeeded with one config, 24 spec files, 190 test declarations, and three support files. Add automated authenticated browser E2E, configure an isolated Preview webhook, and recover/transfer repository ownership before private-repository, branch-protection, or PR-reporting claims. |
 | Test Runs | Workflow complete | Add authenticated browser E2E, artifact upload/storage and retention, automated runner ingestion/authentication, and preview evidence. |
 | Failure Intelligence | Advisory workflow complete | Add representative eval datasets, prompt/model regression gates, budget/rate limits, monitoring, and authenticated browser E2E. |
 | AI workflows | Three project-aware workflows complete | Requirement Review, Failure Intelligence, and Automation Generation use structured outputs, local validation, safe failure state, prompt/schema/model metadata, and token visibility. Add evals, rate/budget controls, monitoring, and later project-aware workflows. |

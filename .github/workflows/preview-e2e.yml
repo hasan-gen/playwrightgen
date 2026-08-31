@@ -1,0 +1,57 @@
+name: Authenticated Preview E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Immutable or stable protected Preview origin
+        required: true
+        default: https://playwrightgen-git-hasangenai-hasan-gens-projects.vercel.app
+      organization_slug:
+        description: Isolated Preview organization slug
+        required: true
+        default: playwrightgen-test-workspace
+      project_id:
+        description: Isolated Preview project ID
+        required: true
+        default: 21875315-1a23-4acc-aa0c-b205aedec5a4
+
+permissions:
+  contents: read
+
+concurrency:
+  group: preview-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authenticated-preview:
+    name: Authenticated Preview
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PLAYWRIGHT_PREVIEW_BASE_URL: ${{ inputs.base_url }}
+      E2E_ORGANIZATION_SLUG: ${{ inputs.organization_slug }}
+      E2E_PROJECT_ID: ${{ inputs.project_id }}
+      E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+      CLERK_PUBLISHABLE_KEY: ${{ secrets.PREVIEW_CLERK_PUBLISHABLE_KEY }}
+      CLERK_SECRET_KEY: ${{ secrets.PREVIEW_CLERK_SECRET_KEY }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run authenticated Preview checks
+        run: npm run test:preview:authenticated

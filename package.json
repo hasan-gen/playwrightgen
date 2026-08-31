@@ -13,6 +13,7 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:authorization": "node scripts/run-browser-checks.mjs",
+    "test:preview:authenticated": "playwright test --config=playwright.preview.config.ts",
     "test:database": "vitest run tests/integration/database-schema.test.ts",
     "clerk:reconcile": "node --conditions=react-server --import tsx scripts/reconcile-clerk.ts",
     "prisma:generate": "prisma generate --config prisma.config.ts",
@@ -44,6 +45,7 @@
     "zod": "4.4.3"
   },
   "devDependencies": {
+    "@clerk/testing": "^2.2.31",
     "@playwright/test": "1.58.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

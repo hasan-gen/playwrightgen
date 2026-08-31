@@ -10,8 +10,9 @@ gate, not production approval.
 - No `vercel.json` override is required for the current Next.js application.
 - The production build remains the local deployment gate.
 - GitHub repository import and the signed installation/OAuth callback flow
-  exist. Preview credentials are configured; exact provider setup/callback
-  URLs and one live import proof remain.
+  are configured and proven against the stable Preview origin. The exact-ref
+  `hasan_genai@58814e3a` import succeeded with one config, 24 spec files, 190
+  test declarations, and three support files.
 - Remote repository execution remains disabled by architecture decision.
 
 ## Environment inventory
