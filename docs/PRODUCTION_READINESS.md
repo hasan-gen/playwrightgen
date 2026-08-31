@@ -13,8 +13,9 @@ automation artifacts, and the source-linked Quality Command Center exist. The
 tenant-safe repository import foundation, signed GitHub installation lifecycle,
 and secure setup flow are implemented and proven on an isolated Preview with a
 real exact-ref public import. The organization-scoped Stripe persistence and
-entitlement foundation is implemented locally but has not passed hosted
-migration or Stripe test-mode lifecycle E2E. Authenticated Preview automation,
+entitlement foundation passed a fresh hosted PostgreSQL migration and the full
+CI job, but has not passed the isolated Preview database migration or Stripe
+test-mode lifecycle E2E. Authenticated Preview automation,
 controlled runner isolation, production billing operations, and deployment
 validation remain.
 
@@ -33,12 +34,12 @@ validation remain.
 | Test Runs | Workflow complete | Add authenticated browser E2E, artifact upload/storage and retention, automated runner ingestion/authentication, and preview evidence. |
 | Failure Intelligence | Advisory workflow complete | Add representative eval datasets, prompt/model regression gates, budget/rate limits, monitoring, and authenticated browser E2E. |
 | AI workflows | Three project-aware workflows complete | Requirement Review, Failure Intelligence, and Automation Generation use structured outputs, local validation, safe failure state, prompt/schema/model metadata, and token visibility. Add evals, rate/budget controls, monitoring, and later project-aware workflows. |
-| Billing | Organization foundation implemented locally; checkout locked | Validate the new migration in hosted PostgreSQL CI and isolated Preview. Then configure a Preview-only Stripe test-mode endpoint, prove signed checkout/subscription create-update-cancel replay and stale-event behavior, add reconciliation and operational alerts, verify the customer portal and support/refund terms, and keep `STRIPE_CHECKOUT_ENABLED` absent until explicit launch approval. |
+| Billing | Organization foundation hosted-CI validated; checkout locked | Commit `92c68bf` and CI run `33447222445` prove the additive migration and billing lifecycle tests against fresh PostgreSQL. Apply the migration to isolated Preview with snapshot/rollback evidence, then configure a Preview-only Stripe test-mode endpoint, prove signed checkout/subscription create-update-cancel replay and stale-event behavior, add reconciliation and operational alerts, verify the customer portal and support/refund terms, and keep `STRIPE_CHECKOUT_ENABLED` absent until explicit launch approval. |
 | Database changes | Development/test/Preview current | Nine reviewed migrations are applied to development and test. The isolated Neon Preview branch was created schema-only; an exact migrations-to-database diff reported no drift before all nine migrations were baselined, and `prisma migrate status` reported current. Before production: validate backup/PITR and the rollback runbook against a disposable branch, run the authenticated Preview data-flow suite, then obtain production deploy approval. |
 | CI and quality | V1.8 secure setup gates pass; hosted CI green | 175 tests, Prisma validation, typecheck, full-project lint, a real Chromium public-surface check, and the production build pass. GitHub Actions run `33317894326` passed with its dedicated PostgreSQL service. Add authenticated Preview E2E, dependency review, and branch protection. |
 | Observability | Missing | Structured safe errors, monitoring, alerting, webhook failure visibility, and incident ownership. |
 | Security/privacy | In progress | Authorization review, upload/URL-fetch controls, secret audit, retention/privacy/legal review. |
-| Deployment | Isolated authenticated Preview works | Vercel project `hasan-gens-projects/playwrightgen` is linked to `hasan-gen/playwrightgen`; commit `48a3fdb` deployed as `dpl_9wDqskeVdUNzkRkghVrKgi29MTgS` against the schema-only Neon Preview branch, and hosted CI run `33334829583` passed. Vercel protection guards unauthenticated requests, while the user completed authenticated sign-in and Owner project creation. Preview has non-production Clerk, database, app URL, and GitHub App credentials. Configure the exact GitHub callback/setup URLs, prove one exact-commit import, add Preview webhook isolation, record rollback evidence, then request explicit production approval. |
+| Deployment | Isolated authenticated Preview works | Vercel project `hasan-gens-projects/playwrightgen` is linked to `hasan-gen/playwrightgen`; Vercel protection guards unauthenticated requests, while the user completed authenticated sign-in, Owner project creation, and an exact-ref GitHub import against the isolated Preview database. Commit `92c68bf` built as Ready Preview `dpl_Hxb1NgtN4aWvPaDNwZEXJCFncyK5`, and hosted CI run `33447222445` passed. The billing migration is not yet applied to the isolated Preview database, so that deployment is build evidence rather than billing data-flow evidence. Add isolated webhooks, authenticated E2E, migration/rollback evidence, then request explicit production approval. |
 
 ## Environment separation
 

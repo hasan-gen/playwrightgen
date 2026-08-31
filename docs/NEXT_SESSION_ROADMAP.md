@@ -14,6 +14,11 @@ repository evidence overrides stale prose.
   `58814e3aba30dbc345eb85b00014c1c904a0dc4a`. Commit `ea89393` adds the
   authenticated Preview release harness; live execution still requires a
   dedicated test principal and explicitly approved automation bypass.
+- Current billing build checkpoint: commit `92c68bf`, successful hosted CI run
+  `33447222445`, and Ready Vercel Preview deployment
+  `dpl_Hxb1NgtN4aWvPaDNwZEXJCFncyK5`. The isolated Preview database migration
+  and Stripe test-mode data-flow proof remain; the deployment being Ready does
+  not by itself prove those runtime paths.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
@@ -43,7 +48,7 @@ repository evidence overrides stale prose.
   now accepts a branch, tag, or commit. Importing `hasan_genai@58814e3a`
   succeeded with one config, 24 spec files, 190 test declarations, and three
   support files.
-- The organization-scoped Stripe foundation is implemented locally: additive
+- The organization-scoped Stripe foundation is committed and hosted-CI validated: additive
   Prisma migration, one customer binding per Organization, lifecycle
   subscriptions, materialized Team entitlements, signed/idempotent webhook
   handling, stale-event and cross-tenant rejection, a locked Checkout path,
