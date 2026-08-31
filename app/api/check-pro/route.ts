@@ -1,36 +1,47 @@
 import { NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
+import { z } from "zod";
 
-import { validateRedisEnvironment } from "@/lib/env";
+import {
+  requireWorkspaceContext,
+  workspaceAuthorizationErrorResponse,
+} from "@/lib/auth/workspace-context";
+import { getPrismaClient } from "@/lib/db/prisma";
 
-export async function POST(req: Request) {
-    try {
-        const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
-            validateRedisEnvironment();
-        const redis = new Redis({
-            url: UPSTASH_REDIS_REST_URL,
-            token: UPSTASH_REDIS_REST_TOKEN,
-        });
-        const { email } = await req.json();
+const requestSchema = z.object({
+  orgSlug: z.string().trim().min(1).max(100),
+});
 
-        if (!email || typeof email !== "string") {
-            return NextResponse.json(
-                { error: "A valid email is required." },
-                { status: 400 }
-            );
-        }
+// Compatibility route for legacy clients. Entitlement authority is now the
+// authenticated organization in PostgreSQL; an email address is never used.
+export async function POST(request: Request) {
+  try {
+    const input = requestSchema.parse(await request.json());
+    const context = await requireWorkspaceContext({ orgSlug: input.orgSlug });
+    const entitlement =
+      await getPrismaClient().organizationEntitlement.findUnique({
+        where: {
+          organizationId_key: {
+            organizationId: context.organization.id,
+            key: "workspace.team",
+          },
+        },
+        select: { enabled: true },
+      });
 
-        const normalizedEmail = email.trim().toLowerCase();
-
-        const isPro = await redis.sismember("playwrightgen:pro-users", normalizedEmail);
-
-        return NextResponse.json({ isPro });
-    } catch (error) {
-        console.error("Check Pro error:", error);
-
-        return NextResponse.json(
-            { error: "Failed to check Pro status." },
-            { status: 500 }
-        );
+    return NextResponse.json({ isPro: entitlement?.enabled === true });
+  } catch (error: unknown) {
+    const authorizationResponse = workspaceAuthorizationErrorResponse(error);
+    if (authorizationResponse) return authorizationResponse;
+    if (error instanceof z.ZodError || error instanceof SyntaxError) {
+      return NextResponse.json(
+        { status: "error", code: "invalid_request" },
+        { status: 400 },
+      );
     }
+    console.error("Organization entitlement lookup failed safely.");
+    return NextResponse.json(
+      { status: "error", code: "entitlement_lookup_failed" },
+      { status: 500 },
+    );
+  }
 }

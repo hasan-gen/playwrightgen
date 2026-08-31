@@ -8,9 +8,12 @@ repository evidence overrides stale prose.
 ## Current position
 
 - Current checkpoint: **V1.8 Repository, CI, and isolated execution — in progress**.
-- Current deployment baseline: commit `58814e3`, authenticated Vercel Preview
-  deployment `dpl_514c7AdqXsyeB65odPBjnhGD1Rug`, and successful hosted CI run
-  `33337224482` for full SHA `58814e3aba30dbc345eb85b00014c1c904a0dc4a`.
+- Current validated deployment baseline: commit `58814e3`, authenticated Vercel
+  Preview deployment `dpl_514c7AdqXsyeB65odPBjnhGD1Rug`, and successful
+  hosted CI run `33337224482` for full SHA
+  `58814e3aba30dbc345eb85b00014c1c904a0dc4a`. Commit `ea89393` adds the
+  authenticated Preview release harness; live execution still requires a
+  dedicated test principal and explicitly approved automation bypass.
 - Completed slice: least-privilege architecture, tenant-safe repository import
   foundation, read-only GitHub client, runner contract, Repository evidence UI,
   signed idempotent installation/repository-access lifecycle handling, signed
@@ -40,15 +43,23 @@ repository evidence overrides stale prose.
   now accepts a branch, tag, or commit. Importing `hasan_genai@58814e3a`
   succeeded with one config, 24 spec files, 190 test declarations, and three
   support files.
+- The organization-scoped Stripe foundation is implemented locally: additive
+  Prisma migration, one customer binding per Organization, lifecycle
+  subscriptions, materialized Team entitlements, signed/idempotent webhook
+  handling, stale-event and cross-tenant rejection, a locked Checkout path,
+  customer portal, authenticated Billing UI, and a test-mode runbook. Hosted
+  migration/lifecycle validation is the next evidence gate; paid checkout is
+  still disabled.
 
 ## Next primary outcome
 
-Automate authenticated smoke and tenant-boundary checks against the isolated
-Preview, then configure and exercise isolated Clerk and GitHub webhooks. After
-those gates pass, implement organization-scoped Stripe subscriptions and
-entitlements. Repository owner recovery or deliberate transfer is required
-later for private-repository, branch-protection, and pull-request reporting
-work. Keep imported records preliminary and untrusted execution disabled.
+Validate the organization-billing migration and lifecycle tests in hosted CI,
+then apply the additive migration to the isolated Preview branch and exercise a
+Stripe test-mode endpoint with Checkout locked by default. Continue the
+dedicated Clerk test-principal and isolated Clerk/GitHub webhook work without
+creating a Vercel automation bypass unless the user explicitly approves that
+security configuration. Keep imported records preliminary, untrusted execution
+disabled, and Production untouched.
 
 ## Next working sequence
 
@@ -135,7 +146,7 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** provision a dedicated Clerk `+clerk_test`
-principal in the isolated organization, configure the explicitly approved Vercel
-automation bypass, and execute the authenticated Preview suite before enabling
-isolated Clerk and GitHub webhooks.
+**Exact first action next session:** inspect the hosted CI result for the
+organization-billing checkpoint. If green, record the run and prepare a
+snapshot-backed migration of only the isolated Preview database; if red, fix the
+failing migration/test evidence before any environment change.

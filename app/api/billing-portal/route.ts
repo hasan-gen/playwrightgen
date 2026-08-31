@@ -9,26 +9,21 @@ import {
 import { getPrismaClient } from "@/lib/db/prisma";
 import {
   EnvironmentValidationError,
-  validateStripeClientEnvironment,
+  validateStripePortalEnvironment,
 } from "@/lib/env";
 
-const querySchema = z.object({
+const requestSchema = z.object({
   orgSlug: z.string().trim().min(1).max(100),
-  sessionId: z.string().trim().min(3).max(255),
 });
 
-export async function GET(request: Request) {
+export async function POST(request: Request) {
   try {
-    const url = new URL(request.url);
-    const input = querySchema.parse({
-      orgSlug: url.searchParams.get("orgSlug"),
-      sessionId: url.searchParams.get("session_id"),
-    });
+    const input = requestSchema.parse(await request.json());
     const context = await requireWorkspaceContext({
       orgSlug: input.orgSlug,
       permission: "organization:manage",
     });
-    const { STRIPE_SECRET_KEY } = validateStripeClientEnvironment();
+    const config = validateStripePortalEnvironment();
     const account = await getPrismaClient().organizationBillingAccount.findUnique({
       where: { organizationId: context.organization.id },
     });
@@ -39,26 +34,12 @@ export async function GET(request: Request) {
       );
     }
     const session = await new Stripe(
-      STRIPE_SECRET_KEY,
-    ).checkout.sessions.retrieve(input.sessionId);
-    const customerId =
-      typeof session.customer === "string"
-        ? session.customer
-        : session.customer?.id;
-    if (
-      session.client_reference_id !== context.organization.id ||
-      customerId !== account.stripeCustomerId
-    ) {
-      return NextResponse.json(
-        { status: "error", code: "checkout_session_not_found" },
-        { status: 404 },
-      );
-    }
-    return NextResponse.json({
-      status: "ok",
-      checkoutStatus: session.status,
-      paymentStatus: session.payment_status,
+      config.STRIPE_SECRET_KEY,
+    ).billingPortal.sessions.create({
+      customer: account.stripeCustomerId,
+      return_url: `${config.NEXT_PUBLIC_APP_URL}/workspace/${encodeURIComponent(context.organization.slug)}/billing`,
     });
+    return NextResponse.json({ status: "ok", url: session.url });
   } catch (error: unknown) {
     const authorizationResponse = workspaceAuthorizationErrorResponse(error);
     if (authorizationResponse) return authorizationResponse;
@@ -68,15 +49,15 @@ export async function GET(request: Request) {
         { status: 503 },
       );
     }
-    if (error instanceof z.ZodError) {
+    if (error instanceof z.ZodError || error instanceof SyntaxError) {
       return NextResponse.json(
         { status: "error", code: "invalid_request" },
         { status: 400 },
       );
     }
-    console.error("Stripe checkout lookup failed safely.");
+    console.error("Stripe billing portal failed safely.");
     return NextResponse.json(
-      { status: "error", code: "checkout_lookup_failed" },
+      { status: "error", code: "billing_portal_failed" },
       { status: 500 },
     );
   }

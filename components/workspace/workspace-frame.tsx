@@ -39,6 +39,12 @@ export function WorkspaceFrame({
           >
             Projects
           </Link>
+          <Link
+            href={`/workspace/${organizationSlug}/billing`}
+            className="mt-2 block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-slate-800 hover:text-white"
+          >
+            Billing
+          </Link>
         </nav>
         <div className="mt-5 flex items-center justify-between border-t border-slate-800 pt-5 lg:mt-auto lg:fixed lg:bottom-7 lg:w-60">
           <span className="truncate pr-3 text-sm text-slate-300">{organizationName}</span>

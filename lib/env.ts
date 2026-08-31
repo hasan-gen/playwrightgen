@@ -63,7 +63,14 @@ export const stripeClientEnvironmentSchema = z.object({
 
 export const stripeCheckoutEnvironmentSchema =
   stripeClientEnvironmentSchema.extend({
-    STRIPE_PRO_PRICE_ID: requiredValue,
+    STRIPE_TEAM_PRICE_ID: requiredValue,
+    STRIPE_CHECKOUT_ENABLED: z.literal("true"),
+    STRIPE_ENVIRONMENT: z.enum(["test", "live"]),
+    NEXT_PUBLIC_APP_URL: httpUrl,
+  });
+
+export const stripePortalEnvironmentSchema =
+  stripeClientEnvironmentSchema.extend({
     NEXT_PUBLIC_APP_URL: httpUrl,
   });
 
@@ -81,11 +88,11 @@ export const resendEnvironmentSchema = z.object({
 });
 
 export const stripeWebhookEnvironmentSchema =
-  stripeClientEnvironmentSchema
-    .extend({
-      STRIPE_WEBHOOK_SECRET: requiredValue,
-    })
-    .and(redisEnvironmentSchema);
+  stripeClientEnvironmentSchema.extend({
+    STRIPE_WEBHOOK_SECRET: requiredValue,
+    STRIPE_TEAM_PRICE_ID: requiredValue,
+    STRIPE_ENVIRONMENT: z.enum(["test", "live"]),
+  });
 
 export class EnvironmentValidationError extends Error {
   readonly variableNames: readonly string[];
@@ -233,6 +240,16 @@ export function validateStripeCheckoutEnvironment(
     stripeCheckoutEnvironmentSchema,
     source,
     "Stripe checkout",
+  );
+}
+
+export function validateStripePortalEnvironment(
+  source: EnvironmentSource = process.env,
+) {
+  return validateEnvironment(
+    stripePortalEnvironmentSchema,
+    source,
+    "Stripe customer portal",
   );
 }
 

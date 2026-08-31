@@ -7,6 +7,7 @@ import {
   validateResendEnvironment,
   validateStripeCheckoutEnvironment,
   validateStripeClientEnvironment,
+  validateStripePortalEnvironment,
   validateStripeWebhookEnvironment,
 } from "@/lib/env";
 
@@ -21,13 +22,17 @@ describe("runtime integration environment validation", () => {
     expect(
       validateStripeCheckoutEnvironment({
         STRIPE_SECRET_KEY: "sk_test_example",
-        STRIPE_PRO_PRICE_ID: "price_example",
+        STRIPE_TEAM_PRICE_ID: "price_example",
+        STRIPE_CHECKOUT_ENABLED: "true",
+        STRIPE_ENVIRONMENT: "test",
         NEXT_PUBLIC_APP_URL: "https://preview.playwrightgen.example",
         UNRELATED_SECRET: "must-not-be-returned",
       }),
     ).toEqual({
       STRIPE_SECRET_KEY: "sk_test_example",
-      STRIPE_PRO_PRICE_ID: "price_example",
+      STRIPE_TEAM_PRICE_ID: "price_example",
+      STRIPE_CHECKOUT_ENABLED: "true",
+      STRIPE_ENVIRONMENT: "test",
       NEXT_PUBLIC_APP_URL: "https://preview.playwrightgen.example",
     });
   });
@@ -36,13 +41,15 @@ describe("runtime integration environment validation", () => {
     expect(() =>
       validateStripeCheckoutEnvironment({
         STRIPE_SECRET_KEY: "sk_test_example",
-        STRIPE_PRO_PRICE_ID: "price_example",
+        STRIPE_TEAM_PRICE_ID: "price_example",
+        STRIPE_CHECKOUT_ENABLED: "true",
+        STRIPE_ENVIRONMENT: "test",
         NEXT_PUBLIC_APP_URL: "javascript:alert(1)",
       }),
     ).toThrowError(EnvironmentValidationError);
   });
 
-  it("requires complete Redis and Stripe webhook configuration", () => {
+  it("requires a signed Stripe webhook and the exact Team price", () => {
     expect(() =>
       validateStripeWebhookEnvironment({
         STRIPE_SECRET_KEY: "sk_test_example",
@@ -54,12 +61,25 @@ describe("runtime integration environment validation", () => {
       validateStripeWebhookEnvironment({
         STRIPE_SECRET_KEY: "sk_test_example",
         STRIPE_WEBHOOK_SECRET: "whsec_example",
-        UPSTASH_REDIS_REST_URL: "https://redis.example",
-        UPSTASH_REDIS_REST_TOKEN: "redis-token",
+        STRIPE_TEAM_PRICE_ID: "price_example",
+        STRIPE_ENVIRONMENT: "test",
       }),
     ).toMatchObject({
       STRIPE_WEBHOOK_SECRET: "whsec_example",
-      UPSTASH_REDIS_REST_URL: "https://redis.example",
+      STRIPE_TEAM_PRICE_ID: "price_example",
+      STRIPE_ENVIRONMENT: "test",
+    });
+  });
+
+  it("keeps the customer portal available when new checkout is disabled", () => {
+    expect(
+      validateStripePortalEnvironment({
+        STRIPE_SECRET_KEY: "sk_test_example",
+        NEXT_PUBLIC_APP_URL: "https://preview.playwrightgen.example",
+      }),
+    ).toEqual({
+      STRIPE_SECRET_KEY: "sk_test_example",
+      NEXT_PUBLIC_APP_URL: "https://preview.playwrightgen.example",
     });
   });
 

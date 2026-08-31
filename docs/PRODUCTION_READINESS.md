@@ -12,8 +12,11 @@ Cases with Requirement traceability, immutable Test Runs, versioned Browser/API
 automation artifacts, and the source-linked Quality Command Center exist. The
 tenant-safe repository import foundation, signed GitHub installation lifecycle,
 and secure setup flow are implemented and proven on an isolated Preview with a
-real exact-ref public import. Authenticated Preview automation, controlled runner
-isolation, production billing/operations, and deployment validation remain.
+real exact-ref public import. The organization-scoped Stripe persistence and
+entitlement foundation is implemented locally but has not passed hosted
+migration or Stripe test-mode lifecycle E2E. Authenticated Preview automation,
+controlled runner isolation, production billing operations, and deployment
+validation remain.
 
 ## Gates
 
@@ -30,7 +33,7 @@ isolation, production billing/operations, and deployment validation remain.
 | Test Runs | Workflow complete | Add authenticated browser E2E, artifact upload/storage and retention, automated runner ingestion/authentication, and preview evidence. |
 | Failure Intelligence | Advisory workflow complete | Add representative eval datasets, prompt/model regression gates, budget/rate limits, monitoring, and authenticated browser E2E. |
 | AI workflows | Three project-aware workflows complete | Requirement Review, Failure Intelligence, and Automation Generation use structured outputs, local validation, safe failure state, prompt/schema/model metadata, and token visibility. Add evals, rate/budget controls, monitoring, and later project-aware workflows. |
-| Billing | Legacy/incomplete | Organization ownership, Stripe lifecycle webhooks, entitlements, idempotency, and test-mode E2E. |
+| Billing | Organization foundation implemented locally; checkout locked | Validate the new migration in hosted PostgreSQL CI and isolated Preview. Then configure a Preview-only Stripe test-mode endpoint, prove signed checkout/subscription create-update-cancel replay and stale-event behavior, add reconciliation and operational alerts, verify the customer portal and support/refund terms, and keep `STRIPE_CHECKOUT_ENABLED` absent until explicit launch approval. |
 | Database changes | Development/test/Preview current | Nine reviewed migrations are applied to development and test. The isolated Neon Preview branch was created schema-only; an exact migrations-to-database diff reported no drift before all nine migrations were baselined, and `prisma migrate status` reported current. Before production: validate backup/PITR and the rollback runbook against a disposable branch, run the authenticated Preview data-flow suite, then obtain production deploy approval. |
 | CI and quality | V1.8 secure setup gates pass; hosted CI green | 175 tests, Prisma validation, typecheck, full-project lint, a real Chromium public-surface check, and the production build pass. GitHub Actions run `33317894326` passed with its dedicated PostgreSQL service. Add authenticated Preview E2E, dependency review, and branch protection. |
 | Observability | Missing | Structured safe errors, monitoring, alerting, webhook failure visibility, and incident ownership. |

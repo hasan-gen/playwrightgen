@@ -375,3 +375,21 @@ copying customer or operational data into a less trusted environment. Schema
 comparison plus migration baselining preserves Prisma's migration history,
 while an isolated branch, shadow database, and explicit identity reconciliation
 prevent accidental writes to Production and make empty-state behavior honest.
+
+## 030 â€” Make organization-scoped PostgreSQL entitlements billing authority
+
+**Decision:** One PlaywrightGen Organization owns at most one Stripe Customer.
+Stripe subscriptions and materialized feature entitlements are stored under the
+same `organizationId`; email is never a billing or authorization key. Checkout
+requires an authenticated Owner/Admin and an explicit environment kill switch.
+The customer portal remains available when new sales are paused. Signed Stripe
+lifecycle deliveries are recorded once by event ID and payload digest, reject
+cross-organization customer/subscription reuse, ignore unrecognized prices, and
+cannot overwrite a newer provider state with an older event. Test and live
+events are separated explicitly by environment configuration.
+
+**Reason:** Payment identity, workspace authorization, and feature access must
+share one durable tenant boundary. Stripe retries events and does not guarantee
+delivery order, while email can change or be supplied by an attacker. A signed,
+idempotent organization projection in PostgreSQL keeps access auditable and
+revocable without making Stripe or Redis the application's authorization store.

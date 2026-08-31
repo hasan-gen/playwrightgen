@@ -233,6 +233,32 @@ enum RepositoryImportFileKind {
   SUPPORT_FILE
 }
 
+enum BillingPlan {
+  FREE
+  TEAM
+}
+
+enum BillingSubscriptionStatus {
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+}
+
+enum BillingEntitlementSource {
+  SUBSCRIPTION
+  MANUAL_OVERRIDE
+}
+
+enum StripeWebhookDeliveryResult {
+  APPLIED
+  IGNORED
+}
+
 enum ActivityAction {
   ORGANIZATION_UPDATED
   MEMBERSHIP_ROLE_CHANGED
@@ -277,6 +303,8 @@ enum ActivityAction {
   REPOSITORY_CONNECTED
   REPOSITORY_ACCESS_CHANGED
   REPOSITORY_IMPORT_COMPLETED
+  BILLING_SUBSCRIPTION_UPDATED
+  BILLING_ENTITLEMENTS_UPDATED
 }
 
 enum ActivityTargetType {
@@ -298,12 +326,14 @@ enum ActivityTargetType {
   GITHUB_INSTALLATION
   REPOSITORY_CONNECTION
   REPOSITORY_IMPORT
+  BILLING_SUBSCRIPTION
 }
 
 enum ActivitySource {
   USER
   CLERK_WEBHOOK
   GITHUB_WEBHOOK
+  STRIPE_WEBHOOK
   SYSTEM
 }
 
@@ -386,8 +416,94 @@ model Organization {
   repositoryConnections   RepositoryConnection[]
   repositoryImports       RepositoryImport[]
   repositoryImportFiles   RepositoryImportFile[]
+  billingAccount          OrganizationBillingAccount?
+  billingSubscriptions    BillingSubscription[]
+  billingEntitlements     OrganizationEntitlement[]
+  stripeWebhookDeliveries StripeWebhookDelivery[]
 
   @@index([status])
+}
+
+model OrganizationBillingAccount {
+  id               String   @id @default(uuid()) @db.Uuid
+  organizationId   String   @unique @db.Uuid
+  stripeCustomerId String?  @unique @db.VarChar(255)
+  createdAt        DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @db.Timestamptz(3)
+
+  organization  Organization          @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  subscriptions BillingSubscription[]
+
+  @@index([stripeCustomerId])
+}
+
+model BillingSubscription {
+  id                   String                    @id @default(uuid()) @db.Uuid
+  organizationId       String                    @db.Uuid
+  billingAccountId     String                    @db.Uuid
+  stripeSubscriptionId String                    @unique @db.VarChar(255)
+  stripePriceId        String                    @db.VarChar(255)
+  plan                 BillingPlan
+  status               BillingSubscriptionStatus
+  quantity             Int                       @default(1)
+  cancelAtPeriodEnd    Boolean                   @default(false)
+  currentPeriodStart   DateTime?                 @db.Timestamptz(3)
+  currentPeriodEnd     DateTime?                 @db.Timestamptz(3)
+  trialEnd             DateTime?                 @db.Timestamptz(3)
+  providerUpdatedAt    DateTime                  @db.Timestamptz(3)
+  lastStripeEventId    String                    @db.VarChar(255)
+  createdAt            DateTime                  @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                  @updatedAt @db.Timestamptz(3)
+
+  organization      Organization               @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  billingAccount    OrganizationBillingAccount @relation(fields: [billingAccountId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  entitlements      OrganizationEntitlement[]
+  webhookDeliveries StripeWebhookDelivery[]
+
+  @@unique([organizationId, id])
+  @@index([organizationId, status, updatedAt])
+  @@index([billingAccountId, status])
+}
+
+model OrganizationEntitlement {
+  id                   String                   @id @default(uuid()) @db.Uuid
+  organizationId       String                   @db.Uuid
+  key                  String                   @db.VarChar(100)
+  enabled              Boolean                  @default(false)
+  limitValue           Int?
+  source               BillingEntitlementSource
+  sourceSubscriptionId String?                  @db.Uuid
+  effectiveFrom        DateTime                 @default(now()) @db.Timestamptz(3)
+  effectiveUntil       DateTime?                @db.Timestamptz(3)
+  createdAt            DateTime                 @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime                 @updatedAt @db.Timestamptz(3)
+
+  organization       Organization         @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  sourceSubscription BillingSubscription? @relation(fields: [organizationId, sourceSubscriptionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([organizationId, key])
+  @@index([organizationId, enabled, key])
+  @@index([sourceSubscriptionId])
+}
+
+model StripeWebhookDelivery {
+  id                    String                      @id @default(uuid()) @db.Uuid
+  stripeEventId         String                      @unique @db.VarChar(255)
+  payloadSha256         String                      @db.Char(64)
+  eventType             String                      @db.VarChar(100)
+  externalObjectId      String?                     @db.VarChar(255)
+  livemode              Boolean
+  organizationId        String?                     @db.Uuid
+  billingSubscriptionId String?                     @db.Uuid
+  result                StripeWebhookDeliveryResult
+  processedAt           DateTime                    @default(now()) @db.Timestamptz(3)
+
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  subscription BillingSubscription? @relation(fields: [organizationId, billingSubscriptionId], references: [organizationId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@index([organizationId, processedAt])
+  @@index([billingSubscriptionId, processedAt])
+  @@index([eventType, processedAt])
 }
 
 model Membership {

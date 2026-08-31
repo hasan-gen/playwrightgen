@@ -60,6 +60,10 @@ export async function cleanPhase1ATables(
     try {
       await client.$transaction([
         client.activity.deleteMany(),
+        client.stripeWebhookDelivery.deleteMany(),
+        client.organizationEntitlement.deleteMany(),
+        client.billingSubscription.deleteMany(),
+        client.organizationBillingAccount.deleteMany(),
         client.repositoryImportFile.deleteMany(),
         client.repositoryImport.deleteMany(),
         client.repositoryConnection.deleteMany(),
