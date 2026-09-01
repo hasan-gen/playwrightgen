@@ -19,6 +19,14 @@ test("public quality workflow surfaces remain reachable", async ({ page }) => {
 
   await open("/pricing");
   await expect(page.getByRole("heading", { name: /start free/i })).toBeVisible();
+
+  await open("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy notice" })).toBeVisible();
+  await expect(page.getByText(/paid checkout remains disabled/i)).toBeVisible();
+
+  await open("/terms");
+  await expect(page.getByRole("heading", { name: "Preview terms" })).toBeVisible();
+  await expect(page.getByText(/No paid purchase today/i)).toBeVisible();
 });
 
 test("GitHub setup sends signed-out users through first-party sign-in", async ({

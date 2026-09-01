@@ -460,3 +460,17 @@ into an unbounded copy of identity, repository, or billing payloads. A local
 request ID connects provider response evidence to deployment logs, while the
 database delivery record supplies the authorized provider identity and replay
 state.
+
+## 035 — Bound preview waitlist data and notification abuse
+
+**Decision:** The public team waitlist accepts a small validated JSON body,
+reserves one HMAC-client request per minute before storage or email work,
+deduplicates addresses in a versioned Redis sorted set, and removes entries
+older than 180 days during writes. Only a newly added address can trigger one
+plain-text notification. Logs contain a request ID and safe code but no email,
+provider error, raw address, or reversible client address.
+
+**Reason:** A public email form otherwise becomes an unbounded PII store and an
+email-spend/notification abuse path. A declared preview retention boundary,
+deduplication, pre-work throttling, and content-free logs minimize data and cost
+while the final consent, deletion, and launch communications policy is reviewed.
