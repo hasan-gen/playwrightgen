@@ -1,4 +1,5 @@
-import { Redis } from "@upstash/redis";
+import { randomUUID } from "node:crypto";
+
 import { NextResponse } from "next/server";
 
 import {
@@ -6,19 +7,23 @@ import {
   reviewCoverage,
   type CoverageReviewInput,
 } from "@/lib/ai/coverage-review";
+import { EnvironmentValidationError } from "@/lib/env";
+import {
+  PublicAiRateLimitError,
+  reservePublicAiRequest,
+} from "@/lib/operations/public-ai-guard";
+import { logOperationalEvent } from "@/lib/operations/safe-telemetry";
 
-const DAILY_FREE_LIMIT = 5;
 const lenses = new Set<CoverageReviewInput["lens"]>(["COVERAGE", "FLAKY", "ARCHITECTURE", "ASSERTIONS"]);
-
-function getClientIp(req: Request) {
-  return req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "anonymous";
-}
 
 async function imageDataUrl(file: File) {
   return `data:${file.type};base64,${Buffer.from(await file.arrayBuffer()).toString("base64")}`;
 }
 
 export async function POST(req: Request) {
+  const requestId = randomUUID();
+  const startedAt = Date.now();
+
   try {
     const formData = await req.formData();
     const lens = String(formData.get("lens") || "COVERAGE") as CoverageReviewInput["lens"];
@@ -33,29 +38,92 @@ export async function POST(req: Request) {
     if (pageUrl.length > 2_000 || requirement.length > 30_000 || existingTests.length > 250_000) return NextResponse.json({ error: "The submitted evidence is too large for one preliminary review." }, { status: 413 });
     if (screenshot && (!screenshot.type.startsWith("image/") || screenshot.size > 2_000_000)) return NextResponse.json({ error: "Use a PNG, JPEG, or WebP screenshot under 2MB." }, { status: 413 });
 
-    const redis = new Redis({ url: process.env.UPSTASH_REDIS_REST_URL!, token: process.env.UPSTASH_REDIS_REST_TOKEN! });
-    const key = `playwrightgen:coverage-review:${getClientIp(req)}:${new Date().toISOString().slice(0, 10)}`;
-    const current = (await redis.get<number>(key)) ?? 0;
-    if (current >= DAILY_FREE_LIMIT) return NextResponse.json({ error: "Free limit reached for today.", remaining: 0 }, { status: 429 });
-
-    const result = await reviewCoverage({
-      lens,
-      pageUrl,
-      requirement,
-      existingTests,
-      screenshotDataUrl: screenshot ? await imageDataUrl(screenshot) : "",
+    const quota = await reservePublicAiRequest({
+      request: req,
+      surface: "coverage-review",
+      requestId,
     });
 
-    const nextCount = await redis.incr(key);
-    if (nextCount === 1) await redis.expire(key, 60 * 60 * 24);
-    return NextResponse.json({ result, remaining: Math.max(0, DAILY_FREE_LIMIT - nextCount) });
+    const reviewed = await reviewCoverage(
+      {
+        lens,
+        pageUrl,
+        requirement,
+        existingTests,
+        screenshotDataUrl: screenshot ? await imageDataUrl(screenshot) : "",
+      },
+      { requestId },
+    );
+    const { provider, ...result } = reviewed;
+
+    logOperationalEvent("info", {
+      event: "public_ai.completed",
+      requestId,
+      status: "succeeded",
+      durationMs: Date.now() - startedAt,
+      surface: "coverage-review",
+      inputTokens: provider.inputTokens,
+      outputTokens: provider.outputTokens,
+      totalTokens: provider.totalTokens,
+      providerRequestId: provider.requestId,
+    });
+
+    return NextResponse.json(
+      { result, remaining: quota.remaining },
+      { headers: { "x-request-id": requestId } },
+    );
   } catch (error) {
-    const message = error instanceof CoverageReviewProviderError
-      ? error.code === "configuration_missing"
-        ? "AI review is not configured."
-        : "The model could not produce a reliable structured review. Refine the evidence and try again."
-      : "Coverage Review failed. Please try again.";
-    console.error("Coverage Review API error:", error instanceof Error ? error.message : "Unknown error");
-    return NextResponse.json({ error: message }, { status: 502 });
+    if (error instanceof PublicAiRateLimitError) {
+      logOperationalEvent("warn", {
+        event: "public_ai.rejected",
+        requestId,
+        status: "rejected",
+        code: error.code,
+        durationMs: Date.now() - startedAt,
+        surface: "coverage-review",
+      });
+      return NextResponse.json(
+        { error: "Too many requests. Try again later.", remaining: 0 },
+        {
+          status: 429,
+          headers: {
+            "retry-after": String(error.retryAfterSeconds),
+            "x-request-id": requestId,
+          },
+        },
+      );
+    }
+
+    const configurationFailure =
+      error instanceof EnvironmentValidationError ||
+      (error instanceof CoverageReviewProviderError &&
+        error.code === "configuration_missing");
+    const providerFailure = error instanceof CoverageReviewProviderError;
+    const code = configurationFailure
+      ? "configuration_unavailable"
+      : providerFailure
+        ? error.code
+        : "internal_error";
+    logOperationalEvent("error", {
+      event: "public_ai.failed",
+      requestId,
+      status: "failed",
+      code,
+      durationMs: Date.now() - startedAt,
+      surface: "coverage-review",
+    });
+    return NextResponse.json(
+      {
+        error: configurationFailure
+          ? "AI review is temporarily unavailable."
+          : providerFailure
+            ? "The model could not produce a reliable structured review. Refine the evidence and try again."
+            : "Coverage Review failed. Please try again.",
+      },
+      {
+        status: configurationFailure ? 503 : providerFailure ? 502 : 500,
+        headers: { "x-request-id": requestId },
+      },
+    );
   }
 }

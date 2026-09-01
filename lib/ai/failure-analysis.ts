@@ -82,6 +82,7 @@ export async function analyzeFailureEvidence(
   const response = await client.responses.parse({
     model,
     store: false,
+    max_output_tokens: 4_000,
     input: [
       {
         role: "system",

@@ -14,6 +14,10 @@ import {
   type WorkspaceContextDependencies,
 } from "@/lib/auth/workspace-context";
 import { getPrismaClient } from "@/lib/db/prisma";
+import {
+  OrganizationAiRateLimitError,
+  reserveOrganizationAiRequest,
+} from "@/lib/operations/organization-ai-guard";
 import { readTestCaseList } from "@/lib/services/test-cases";
 import { readEvidence, readStepResults } from "@/lib/services/test-runs";
 
@@ -27,9 +31,9 @@ type Dependencies = WorkspaceContextDependencies & {
 
 export class FailureIntelligenceDomainError extends Error {
   readonly code: string;
-  readonly status: 400 | 404 | 409 | 502;
+  readonly status: 400 | 404 | 409 | 429 | 502 | 503;
 
-  constructor(code: string, status: 400 | 404 | 409 | 502) {
+  constructor(code: string, status: 400 | 404 | 409 | 429 | 502 | 503) {
     super(code);
     this.name = "FailureIntelligenceDomainError";
     this.code = code;
@@ -135,6 +139,19 @@ export async function runFailureAnalysis(
   if (!attempt) throw new FailureIntelligenceDomainError("test_run_attempt_not_found", 404);
   if (attempt.result === "PASSED") {
     throw new FailureIntelligenceDomainError("failed_attempt_required", 409);
+  }
+  if (!dependencies?.analyzer) {
+    try {
+      await reserveOrganizationAiRequest({
+        organizationId: workspace.organization.id,
+        surface: "failure-analysis",
+      });
+    } catch (error) {
+      if (error instanceof OrganizationAiRateLimitError) {
+        throw new FailureIntelligenceDomainError(error.code, 429);
+      }
+      throw new FailureIntelligenceDomainError("ai_guard_unavailable", 503);
+    }
   }
   const configuredModel = process.env.OPENAI_FAILURE_ANALYSIS_MODEL?.trim() || "gpt-5-mini";
   const analysis = await client(dependencies).failureAnalysis.create({ data: {

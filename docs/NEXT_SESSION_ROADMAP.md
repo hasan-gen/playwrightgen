@@ -55,16 +55,21 @@ repository evidence overrides stale prose.
   customer portal, authenticated Billing UI, and a test-mode runbook. Hosted
   migration/lifecycle validation is the next evidence gate; paid checkout is
   still disabled.
+- The production AI safety foundation is implemented locally: atomic
+  pre-provider public and Organization quotas, HMAC public-client keys, bounded
+  provider output, safe request/token telemetry, and default quarantine of
+  superseded AI endpoints. Hosted CI and protected Preview proof remain before
+  the checkpoint can be closed.
 
 ## Next primary outcome
 
-Validate the organization-billing migration and lifecycle tests in hosted CI,
-then apply the additive migration to the isolated Preview branch and exercise a
-Stripe test-mode endpoint with Checkout locked by default. Continue the
-dedicated Clerk test-principal and isolated Clerk/GitHub webhook work without
-creating a Vercel automation bypass unless the user explicitly approves that
-security configuration. Keep imported records preliminary, untrusted execution
-disabled, and Production untouched.
+Commit and validate the AI safety foundation in hosted CI, then apply the
+already-validated additive billing migration to the isolated Preview branch and
+exercise a Stripe test-mode endpoint with Checkout locked by default. Continue
+the dedicated Clerk test-principal and isolated Clerk/GitHub webhook work
+without creating a Vercel automation bypass unless the user explicitly approves
+that security configuration. Keep imported records preliminary, untrusted
+execution disabled, and Production untouched.
 
 ## Next working sequence
 
@@ -151,7 +156,7 @@ At the end of every future work session:
 4. leave the working tree clean or clearly document intentional unfinished work;
 5. state the exact first action for the next session.
 
-**Exact first action next session:** inspect the hosted CI result for the
-organization-billing checkpoint. If green, record the run and prepare a
-snapshot-backed migration of only the isolated Preview database; if red, fix the
-failing migration/test evidence before any environment change.
+**Exact first action next session:** run full validation for the AI safety
+checkpoint, record the hosted CI and immutable Preview identifiers, then prepare
+a snapshot-backed migration of only the isolated Preview database. Do not
+enable Checkout or Production.

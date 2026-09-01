@@ -13,6 +13,10 @@ import {
   type WorkspaceContextDependencies,
 } from "@/lib/auth/workspace-context";
 import { getPrismaClient } from "@/lib/db/prisma";
+import {
+  OrganizationAiRateLimitError,
+  reserveOrganizationAiRequest,
+} from "@/lib/operations/organization-ai-guard";
 
 const PROMPT_VERSION = "requirement-review-v1";
 const SCHEMA_VERSION = "requirement-review-schema-v1";
@@ -29,9 +33,9 @@ type Dependencies = WorkspaceContextDependencies & {
 
 export class RequirementReviewDomainError extends Error {
   readonly code: string;
-  readonly status: 400 | 404 | 409 | 502;
+  readonly status: 400 | 404 | 409 | 429 | 502 | 503;
 
-  constructor(code: string, status: 400 | 404 | 409 | 502) {
+  constructor(code: string, status: 400 | 404 | 409 | 429 | 502 | 503) {
     super(code);
     this.name = "RequirementReviewDomainError";
     this.code = code;
@@ -130,6 +134,20 @@ export async function runRequirementReview(
   });
   if (!version) {
     throw new RequirementReviewDomainError("requirement_version_not_found", 404);
+  }
+
+  if (!dependencies?.reviewer) {
+    try {
+      await reserveOrganizationAiRequest({
+        organizationId: context.organization.id,
+        surface: "requirement-review",
+      });
+    } catch (error) {
+      if (error instanceof OrganizationAiRateLimitError) {
+        throw new RequirementReviewDomainError(error.code, 429);
+      }
+      throw new RequirementReviewDomainError("ai_guard_unavailable", 503);
+    }
   }
 
   const configuredModel =

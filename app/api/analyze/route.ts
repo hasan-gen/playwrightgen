@@ -2,6 +2,8 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { chromium } from "playwright-core";
 
+import { legacyAiRouteQuarantine } from "@/lib/operations/legacy-ai-route";
+
 type PageAnalysis = {
     title: string;
     url: string;
@@ -171,6 +173,9 @@ ${inputsText}
 }
 
 export async function POST(req: Request) {
+    const quarantine = legacyAiRouteQuarantine({ replacement: "/api/quick-generate" });
+    if (quarantine) return quarantine;
+
     try {
         const { url, styleMode } = await req.json();
 

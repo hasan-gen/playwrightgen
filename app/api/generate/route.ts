@@ -4,6 +4,7 @@ import * as cheerio from "cheerio";
 import { Redis } from "@upstash/redis";
 
 import { validateRedisEnvironment } from "@/lib/env";
+import { legacyAiRouteQuarantine } from "@/lib/operations/legacy-ai-route";
 
 const DAILY_FREE_LIMIT = 5;
 
@@ -504,6 +505,9 @@ function getDailyUsageKey(ip: string) {
 }
 
 export async function POST(req: Request) {
+  const quarantine = legacyAiRouteQuarantine({ replacement: "/api/quick-generate" });
+  if (quarantine) return quarantine;
+
   try {
     const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
       validateRedisEnvironment();

@@ -163,6 +163,7 @@ export async function generateAutomation(
   const response = await client.responses.parse({
     model,
     store: false,
+    max_output_tokens: 8_000,
     input: [
       {
         role: "system",

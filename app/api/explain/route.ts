@@ -1,7 +1,12 @@
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
 
+import { legacyAiRouteQuarantine } from "@/lib/operations/legacy-ai-route";
+
 export async function POST(req: Request) {
+    const quarantine = legacyAiRouteQuarantine({ replacement: "/api/coverage-review" });
+    if (quarantine) return quarantine;
+
     try {
         const { code } = await req.json();
 

@@ -16,6 +16,10 @@ import {
   type WorkspacePermission,
 } from "@/lib/auth/workspace-context";
 import { getPrismaClient } from "@/lib/db/prisma";
+import {
+  OrganizationAiRateLimitError,
+  reserveOrganizationAiRequest,
+} from "@/lib/operations/organization-ai-guard";
 import { readTestCaseList } from "@/lib/services/test-cases";
 
 const uuidSchema = z.string().uuid();
@@ -32,9 +36,9 @@ type Dependencies = WorkspaceContextDependencies & {
 
 export class AutomationArtifactDomainError extends Error {
   readonly code: string;
-  readonly status: 400 | 404 | 409 | 502;
+  readonly status: 400 | 404 | 409 | 429 | 502 | 503;
 
-  constructor(code: string, status: 400 | 404 | 409 | 502) {
+  constructor(code: string, status: 400 | 404 | 409 | 429 | 502 | 503) {
     super(code);
     this.name = "AutomationArtifactDomainError";
     this.code = code;
@@ -299,6 +303,20 @@ export async function generateAutomationArtifact(
   });
   if (!testCaseVersion) {
     throw new AutomationArtifactDomainError("test_case_version_not_found", 404);
+  }
+
+  if (!dependencies?.generator) {
+    try {
+      await reserveOrganizationAiRequest({
+        organizationId: workspace.organization.id,
+        surface: "automation-generation",
+      });
+    } catch (error) {
+      if (error instanceof OrganizationAiRateLimitError) {
+        throw new AutomationArtifactDomainError(error.code, 429);
+      }
+      throw new AutomationArtifactDomainError("ai_guard_unavailable", 503);
+    }
   }
 
   const engineLabel = engine === "PLAYWRIGHT_BROWSER" ? "Browser" : "API";

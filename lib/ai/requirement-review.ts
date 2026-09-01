@@ -104,6 +104,7 @@ export async function reviewRequirementVersion(
   const completion = await client.chat.completions.parse({
     model,
     temperature: 0.2,
+    max_completion_tokens: 4_000,
     messages: [
       {
         role: "system",

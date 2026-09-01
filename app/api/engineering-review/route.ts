@@ -1,13 +1,15 @@
+import { randomUUID } from "node:crypto";
+
 import OpenAI from "openai";
 import { NextResponse } from "next/server";
-import { Redis } from "@upstash/redis";
 
+import { EnvironmentValidationError, validateOpenAiEnvironment } from "@/lib/env";
 import {
-    validateOpenAiEnvironment,
-    validateRedisEnvironment,
-} from "@/lib/env";
+    PublicAiRateLimitError,
+    reservePublicAiRequest,
+} from "@/lib/operations/public-ai-guard";
+import { logOperationalEvent } from "@/lib/operations/safe-telemetry";
 
-const DAILY_FREE_LIMIT = 5;
 const MAX_SOURCE_LENGTH = 360_000;
 const MAX_FINDINGS_PER_SECTION = 4;
 
@@ -77,18 +79,6 @@ type AnalysisContext = {
     reviewMode: string;
     depth: string;
 };
-
-function getClientIp(req: Request) {
-    const forwarded = req.headers.get("x-forwarded-for");
-
-    return forwarded?.split(",")[0]?.trim() || "unknown";
-}
-
-function getDailyUsageKey(ip: string) {
-    const today = new Date().toISOString().slice(0, 10);
-
-    return `playwrightgen:release-intelligence:${ip}:${today}`;
-}
 
 function cleanJson(raw: string) {
     return raw.replace(/```json/gi, "").replace(/```/g, "").trim();
@@ -289,38 +279,49 @@ Every finding must have exactly this structure:
 
 overallScore is Evidence Confidence only, not safety or readiness. scores is always []. productionReadiness.status is exactly "Partially Ready" for compatibility only. productionReadiness.reason describes Evidence Quality and must not describe readiness, approval, blocking, or a release decision.`;
 
-async function requestInitialAnalysis(client: OpenAI, context: AnalysisContext) {
-    return client.chat.completions.create({
-        model: "gpt-4o",
-        temperature: 0.15,
-        response_format: { type: "json_object" },
-        messages: [
-            { role: "system", content: systemPrompt },
-            {
-                role: "user",
-                content: `Analyze the submitted software change. Treat every "Not provided" value as unavailable evidence. Use explicit application, role, downstream-consumer, feature-flag, and rollout names in relevant findings so the analysis remains traceable to the submission. Return only the required JSON contract.\n\n${buildSubmittedEvidence(
-                    context
-                )}`,
-            },
-        ],
-    });
+async function requestInitialAnalysis(
+    client: OpenAI,
+    context: AnalysisContext,
+    requestId: string
+) {
+    return client.chat.completions.create(
+        {
+            model: "gpt-4o",
+            temperature: 0.15,
+            max_completion_tokens: 5_000,
+            response_format: { type: "json_object" },
+            messages: [
+                { role: "system", content: systemPrompt },
+                {
+                    role: "user",
+                    content: `Analyze the submitted software change. Treat every "Not provided" value as unavailable evidence. Use explicit application, role, downstream-consumer, feature-flag, and rollout names in relevant findings so the analysis remains traceable to the submission. Return only the required JSON contract.\n\n${buildSubmittedEvidence(
+                        context
+                    )}`,
+                },
+            ],
+        },
+        { headers: { "X-Client-Request-Id": requestId } }
+    );
 }
 
 async function requestControlledRepair(
     client: OpenAI,
     context: AnalysisContext,
     currentResponse: string,
-    failures: string[]
+    failures: string[],
+    requestId: string
 ) {
-    return client.chat.completions.create({
-        model: "gpt-4o",
-        temperature: 0,
-        response_format: { type: "json_object" },
-        messages: [
-            { role: "system", content: systemPrompt },
-            {
-                role: "user",
-                content: `Repair the current response once. Correct only the listed validation failures while preserving grounded, distinct findings. Return only the corrected JSON contract. Do not explain the repair.
+    return client.chat.completions.create(
+        {
+            model: "gpt-4o",
+            temperature: 0,
+            max_completion_tokens: 5_000,
+            response_format: { type: "json_object" },
+            messages: [
+                { role: "system", content: systemPrompt },
+                {
+                    role: "user",
+                    content: `Repair the current response once. Correct only the listed validation failures while preserving grounded, distinct findings. Return only the corrected JSON contract. Do not explain the repair.
 
 ORIGINAL SUBMITTED EVIDENCE
 ${buildSubmittedEvidence(context)}
@@ -330,9 +331,11 @@ ${currentResponse}
 
 EXACT VALIDATION FAILURES
 ${failures.map((failure, index) => `${index + 1}. ${failure}`).join("\n")}`,
-            },
-        ],
-    });
+                },
+            ],
+        },
+        { headers: { "X-Client-Request-Id": requestId } }
+    );
 }
 
 function parseModelResponse(raw: string) {
@@ -850,15 +853,12 @@ function buildContext(body: Record<string, unknown>): AnalysisContext {
 }
 
 export async function POST(req: Request) {
+    const requestId = randomUUID();
+    const startedAt = Date.now();
+
     try {
         const { OPENAI_API_KEY } = validateOpenAiEnvironment();
-        const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =
-            validateRedisEnvironment();
         const client = new OpenAI({ apiKey: OPENAI_API_KEY });
-        const redis = new Redis({
-            url: UPSTASH_REDIS_REST_URL,
-            token: UPSTASH_REDIS_REST_TOKEN,
-        });
 
         const requestBody = await req.json();
         const body =
@@ -895,22 +895,18 @@ export async function POST(req: Request) {
             );
         }
 
-        const ip = getClientIp(req);
-        const usageKey = getDailyUsageKey(ip);
-        const currentCount = (await redis.get<number>(usageKey)) ?? 0;
+        const quota = await reservePublicAiRequest({
+            request: req,
+            surface: "release-review",
+            requestId,
+        });
 
-        if (currentCount >= DAILY_FREE_LIMIT) {
-            return NextResponse.json(
-                {
-                    error:
-                        "Free limit reached (5 change-impact analyses per day). Upgrade to Pro for additional analyses.",
-                    remaining: 0,
-                },
-                { status: 429 }
-            );
-        }
-
-        const initialCompletion = await requestInitialAnalysis(client, context);
+        const initialCompletion = await requestInitialAnalysis(
+            client,
+            context,
+            requestId
+        );
+        const completions = [initialCompletion];
         const initialRaw = initialCompletion.choices[0]?.message?.content ?? "";
         let candidate = parseModelResponse(initialRaw);
         let failures = candidate.failure
@@ -924,8 +920,10 @@ export async function POST(req: Request) {
                 candidate.parsed
                     ? JSON.stringify(candidate.parsed)
                     : initialRaw || "No parseable response was returned.",
-                failures
+                failures,
+                requestId
             );
+            completions.push(repairCompletion);
             const repairRaw = repairCompletion.choices[0]?.message?.content ?? "";
             candidate = parseModelResponse(repairRaw);
             failures = candidate.failure
@@ -934,32 +932,105 @@ export async function POST(req: Request) {
         }
 
         if (failures.length > 0 || !candidate.parsed) {
+            logOperationalEvent("warn", {
+                event: "public_ai.failed",
+                requestId,
+                status: "failed",
+                code: "invalid_output",
+                durationMs: Date.now() - startedAt,
+                surface: "release-review",
+            });
             return NextResponse.json(
                 {
                     error:
                         "AI Change Intelligence could not produce a reliable report from this submission. Refine the change details or evidence and try again.",
-                    remaining: Math.max(0, DAILY_FREE_LIMIT - currentCount),
+                    remaining: quota.remaining,
                 },
-                { status: 502 }
+                { status: 502, headers: { "x-request-id": requestId } }
             );
         }
 
-        const newCount = await redis.incr(usageKey);
-        if (newCount === 1) await redis.expire(usageKey, 60 * 60 * 24);
-
-        return NextResponse.json({
-            result: normalizeValidatedResult(candidate.parsed, context),
-            remaining: Math.max(0, DAILY_FREE_LIMIT - newCount),
-        });
-    } catch (error) {
-        console.error(
-            "AI Change Intelligence API error:",
-            error instanceof Error ? error.message : "Unknown error"
+        const tokenUsage = completions.reduce(
+            (total, completion) => ({
+                inputTokens:
+                    total.inputTokens + (completion.usage?.prompt_tokens ?? 0),
+                outputTokens:
+                    total.outputTokens + (completion.usage?.completion_tokens ?? 0),
+                totalTokens:
+                    total.totalTokens + (completion.usage?.total_tokens ?? 0),
+            }),
+            { inputTokens: 0, outputTokens: 0, totalTokens: 0 }
         );
+        logOperationalEvent("info", {
+            event: "public_ai.completed",
+            requestId,
+            status: "succeeded",
+            durationMs: Date.now() - startedAt,
+            surface: "release-review",
+            inputTokens: tokenUsage.inputTokens,
+            outputTokens: tokenUsage.outputTokens,
+            totalTokens: tokenUsage.totalTokens,
+            providerRequestId:
+                completions.at(-1)?._request_id ?? null,
+        });
 
         return NextResponse.json(
-            { error: "Failed to run AI Change Intelligence. Please try again." },
-            { status: 500 }
+            {
+                result: normalizeValidatedResult(candidate.parsed, context),
+                remaining: quota.remaining,
+            },
+            { headers: { "x-request-id": requestId } }
+        );
+    } catch (error) {
+        if (error instanceof PublicAiRateLimitError) {
+            logOperationalEvent("warn", {
+                event: "public_ai.rejected",
+                requestId,
+                status: "rejected",
+                code: error.code,
+                durationMs: Date.now() - startedAt,
+                surface: "release-review",
+            });
+            return NextResponse.json(
+                { error: "Too many requests. Try again later.", remaining: 0 },
+                {
+                    status: 429,
+                    headers: {
+                        "retry-after": String(error.retryAfterSeconds),
+                        "x-request-id": requestId,
+                    },
+                }
+            );
+        }
+
+        const configurationFailure = error instanceof EnvironmentValidationError;
+        const invalidRequest = error instanceof SyntaxError;
+        const code = configurationFailure
+            ? "configuration_unavailable"
+            : invalidRequest
+              ? "invalid_request"
+              : "provider_error";
+        logOperationalEvent(configurationFailure ? "error" : "warn", {
+            event: "public_ai.failed",
+            requestId,
+            status: "failed",
+            code,
+            durationMs: Date.now() - startedAt,
+            surface: "release-review",
+        });
+
+        return NextResponse.json(
+            {
+                error: configurationFailure
+                    ? "AI Change Intelligence is temporarily unavailable."
+                    : invalidRequest
+                      ? "Submit a valid JSON request."
+                      : "Failed to run AI Change Intelligence. Please try again.",
+            },
+            {
+                status: configurationFailure ? 503 : invalidRequest ? 400 : 502,
+                headers: { "x-request-id": requestId },
+            }
         );
     }
 }

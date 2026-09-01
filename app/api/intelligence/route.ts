@@ -6,6 +6,7 @@ import {
     validateOpenAiEnvironment,
     validateRedisEnvironment,
 } from "@/lib/env";
+import { legacyAiRouteQuarantine } from "@/lib/operations/legacy-ai-route";
 
 const DAILY_FREE_LIMIT = 5;
 
@@ -30,6 +31,9 @@ function cleanJson(raw: string) {
 }
 
 export async function POST(req: Request) {
+    const quarantine = legacyAiRouteQuarantine({ replacement: "/api/coverage-review" });
+    if (quarantine) return quarantine;
+
     try {
         const { OPENAI_API_KEY } = validateOpenAiEnvironment();
         const { UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN } =

@@ -393,3 +393,24 @@ share one durable tenant boundary. Stripe retries events and does not guarantee
 delivery order, while email can change or be supplied by an attacker. A signed,
 idempotent organization projection in PostgreSQL keeps access auditable and
 revocable without making Stripe or Redis the application's authorization store.
+
+## 031 — Reserve bounded AI capacity before provider work
+
+**Decision:** Every active public AI surface atomically reserves both burst and
+daily Redis capacity before converting attachments or calling OpenAI. The
+public key contains an HMAC fingerprint rather than a raw client address.
+Authenticated Workspace AI shares an Organization-scoped capacity boundary,
+while PostgreSQL remains the future authority for plan-specific entitlement
+selection. Provider requests use bounded output-token settings and request IDs;
+public operational events use a strict allowlist and never include prompts,
+uploads, raw exceptions, or PII. Legacy AI endpoints remain addressable during
+migration but return `410 Gone` unless a deliberate server-only override is
+configured.
+
+**Reason:** A read-then-increment limiter can be bypassed by concurrent requests
+and counts only successful calls after the cost is incurred. Atomic preflight
+reservation bounds both abuse and spend. Tenant-scoped budgets prevent one
+Workspace from consuming another's capacity, request IDs enable provider
+support without exposing content, and quarantining unused legacy endpoints
+closes unbounded generation and server-side URL-fetch paths without deleting
+their migration history.
