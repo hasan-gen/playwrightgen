@@ -25,7 +25,7 @@ validation remain.
 | --- | --- | --- |
 | Authentication | Foundation complete | Production Clerk instance/domain, sign-in/out and recovery smoke tests. |
 | Clerk synchronization | Development verified | Production endpoint and secret configured separately; production delivery and reconciliation runbook tested. |
-| Tenant authorization | Foundation complete | Apply `requireWorkspaceContext` to every Checkpoint 6+ API/Action and retain cross-tenant negative tests as the domain expands. |
+| Tenant authorization | Foundation complete; route inventory checked | Tenant-sensitive routes resolve PostgreSQL authority through `requireWorkspaceContext`, and cross-tenant negative tests cover the domain. CI now discovers every API route, requires an explicit authenticated/signed/bounded/quarantined classification, and verifies the declared boundary marker remains present. Continue the same requirement for every new route and Server Action. |
 | Projects | Foundation UI + manual Preview create proof | Authenticated Owner project creation succeeded against the isolated Preview database. Add automated browser E2E for roles, archive/restore, validation failures, and tenant isolation. |
 | Requirements | Workflow + advisory AI review complete | Add authenticated browser E2E, approved-content revision, provider evals, budget/rate limits, and preview evidence. |
 | Test Cases | Workflow + automation lifecycle complete | Add authenticated browser E2E, approved-content revision policy, and preview evidence. |

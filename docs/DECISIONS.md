@@ -474,3 +474,17 @@ provider error, raw address, or reversible client address.
 email-spend/notification abuse path. A declared preview retention boundary,
 deduplication, pre-work throttling, and content-free logs minimize data and cost
 while the final consent, deletion, and launch communications policy is reviewed.
+
+## 036 — Make API security boundaries an exhaustive checked inventory
+
+**Decision:** Every App Router API route is classified as tenant-authenticated,
+signed webhook, bounded public, or legacy-quarantined. A unit gate discovers
+route files from the repository, requires the inventory to be exhaustive, and
+requires each route to retain a boundary-specific implementation marker. New
+routes fail CI until their boundary and behavior tests are explicit.
+
+**Reason:** Authorization review becomes stale when it is only a document or a
+one-time grep. Exhaustive discovery prevents a newly added endpoint from being
+silently omitted, while boundary markers and existing negative behavior tests
+make accidental removal of tenant auth, signature verification, pre-work
+limits, or quarantine visible before deployment.
