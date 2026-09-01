@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 
-import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import {
   EnvironmentValidationError,
   validateStripeWebhookEnvironment,
 } from "@/lib/env";
+import { createWebhookResponder } from "@/lib/operations/webhook-telemetry";
 import {
   dispatchStripeWebhook,
   type NormalizedStripeWebhook,
@@ -16,10 +16,6 @@ import {
 export const runtime = "nodejs";
 
 const MAX_WEBHOOK_BYTES = 1_000_000;
-
-function errorResponse(code: string, status: number) {
-  return NextResponse.json({ status: "error", code }, { status });
-}
 
 function unixDate(value: number | null | undefined): Date | null {
   return typeof value === "number" ? new Date(value * 1_000) : null;
@@ -107,6 +103,9 @@ async function normalizeEvent(
 }
 
 export async function POST(request: Request) {
+  const responder = createWebhookResponder("stripe-webhook");
+  const errorResponse = (code: string, status: number) =>
+    responder.json({ status: "error", code }, { status, code });
   let config;
   try {
     config = validateStripeWebhookEnvironment();
@@ -157,12 +156,14 @@ export async function POST(request: Request) {
       webhook,
       teamPriceId: config.STRIPE_TEAM_PRICE_ID,
     });
-    return NextResponse.json({ status: "ok", result: result.status });
+    return responder.json(
+      { status: "ok", result: result.status },
+      { code: result.status },
+    );
   } catch (error: unknown) {
     if (error instanceof StripeWebhookConflictError) {
       return errorResponse(error.code, 409);
     }
-    console.error("Stripe webhook synchronization failed safely.");
     return errorResponse("synchronization_failed", 500);
   }
 }

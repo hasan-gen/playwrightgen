@@ -1,10 +1,11 @@
 import { verifyWebhook } from "@clerk/nextjs/webhooks";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import {
   EnvironmentValidationError,
   validateClerkWebhookEnvironment,
 } from "@/lib/env";
+import { createWebhookResponder } from "@/lib/operations/webhook-telemetry";
 import {
   ClerkSyncConflictError,
   dispatchClerkWebhook,
@@ -21,13 +22,6 @@ const defaultDependencies: WebhookRouteDependencies = {
   dispatch: dispatchClerkWebhook,
 };
 
-function errorResponse(code: string, status: number) {
-  return NextResponse.json(
-    { status: "error", code },
-    { status },
-  );
-}
-
 function readEnvelopeTimestamp(envelope: unknown): unknown {
   if (
     typeof envelope === "object" &&
@@ -43,6 +37,9 @@ export async function handleClerkWebhookRequest(
   request: NextRequest,
   dependencies: WebhookRouteDependencies = defaultDependencies,
 ) {
+  const responder = createWebhookResponder("clerk-webhook");
+  const errorResponse = (code: string, status: number) =>
+    responder.json({ status: "error", code }, { status, code });
   let signingSecret: string;
 
   try {
@@ -83,10 +80,10 @@ export async function handleClerkWebhookRequest(
       eventTimestamp,
     });
 
-    return NextResponse.json({
-      status: "ok",
-      result: result.status,
-    });
+    return responder.json(
+      { status: "ok", result: result.status },
+      { code: result.status },
+    );
   } catch (error: unknown) {
     if (
       error instanceof ClerkWebhookPayloadError ||

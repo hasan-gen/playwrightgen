@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import {
   EnvironmentValidationError,
@@ -12,6 +12,7 @@ import {
   dispatchGitHubWebhook,
   GitHubSyncConflictError,
 } from "@/lib/services/github-sync";
+import { createWebhookResponder } from "@/lib/operations/webhook-telemetry";
 import { GitHubWebhookPayloadError } from "@/lib/validation/github-webhook";
 
 export const runtime = "nodejs";
@@ -30,14 +31,13 @@ const defaultDependencies: GitHubWebhookRouteDependencies = {
   dispatch: dispatchGitHubWebhook,
 };
 
-function errorResponse(code: string, status: number) {
-  return NextResponse.json({ status: "error", code }, { status });
-}
-
 export async function handleGitHubWebhookRequest(
   request: NextRequest,
   dependencies: GitHubWebhookRouteDependencies = defaultDependencies,
 ) {
+  const responder = createWebhookResponder("github-webhook");
+  const errorResponse = (code: string, status: number) =>
+    responder.json({ status: "error", code }, { status, code });
   let webhookSecret: string;
   try {
     webhookSecret = validateGitHubWebhookEnvironment().GITHUB_WEBHOOK_SECRET;
@@ -95,7 +95,10 @@ export async function handleGitHubWebhookRequest(
       payloadSha256: dependencies.hashPayload(rawBody),
       payload,
     });
-    return NextResponse.json({ status: "ok", result: result.status });
+    return responder.json(
+      { status: "ok", result: result.status },
+      { code: result.status },
+    );
   } catch (error: unknown) {
     if (error instanceof GitHubWebhookPayloadError) {
       return errorResponse("invalid_payload", 400);

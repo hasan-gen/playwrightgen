@@ -445,3 +445,18 @@ advisory safe, while an automatic forced fix can silently introduce a breaking
 major downgrade. Explicit remediation plus the complete validation matrix
 closes known vulnerabilities without trading them for unreviewed runtime or
 schema risk.
+
+## 034 — Keep webhook telemetry content-free and correlatable
+
+**Decision:** Signed Clerk, GitHub, and Stripe endpoints emit only an allowlisted
+operational event containing a generated request ID, provider surface, safe
+outcome/code, and duration. The same request ID is returned in the response.
+Raw bodies, signatures, delivery identifiers, provider errors, and domain/PII
+fields are never copied into logs; durable idempotency evidence remains in
+tenant-scoped PostgreSQL records.
+
+**Reason:** Webhook failures must be diagnosable without turning the log system
+into an unbounded copy of identity, repository, or billing payloads. A local
+request ID connects provider response evidence to deployment logs, while the
+database delivery record supplies the authorized provider identity and replay
+state.
