@@ -414,3 +414,34 @@ Workspace from consuming another's capacity, request IDs enable provider
 support without exposing content, and quarantining unused legacy endpoints
 closes unbounded generation and server-side URL-fetch paths without deleting
 their migration history.
+
+## 032 — Verify database identity before deployment migrations
+
+**Decision:** Preview and Production migrations require explicit
+`EXPECTED_NEON_PROJECT_ID` and `EXPECTED_NEON_BRANCH_ID` values. The migration
+wrapper connects through the configured direct URL, reads Neon identity from
+PostgreSQL itself, and exits before Prisma when either identity differs. The
+redacted inspection command may report host, database, Neon identity, latest
+migration, and aggregate record counts, but never credentials or row content.
+
+**Reason:** Environment labels and connection-variable names do not prove which
+database will be changed. Branch-scoped Vercel configuration can drift, and a
+valid Neon URL can still target the wrong branch. Provider-reported identity
+turns a documented intention into a fail-closed technical boundary and keeps
+backup, migration, and rollback evidence tied to the exact database target.
+
+## 033 — Treat dependency advisories as a release gate
+
+**Decision:** Production and development dependency audits must be reviewed
+before a release candidate. Security upgrades are applied deliberately, with
+framework, ORM, and webhook-library versions pinned together where required;
+`npm audit fix --force` is prohibited as an unattended release action. Any
+transitive override must be explicit and must pass Prisma validation, unit and
+integration tests, typecheck, lint, browser checks, production build, and
+hosted fresh-database CI.
+
+**Reason:** A successful application test suite does not make a framework
+advisory safe, while an automatic forced fix can silently introduce a breaking
+major downgrade. Explicit remediation plus the complete validation matrix
+closes known vulnerabilities without trading them for unreviewed runtime or
+schema risk.

@@ -22,7 +22,7 @@ credentials into Preview.
 
 | Scope | Required names | Preview rule |
 | --- | --- | --- |
-| Database | `DATABASE_URL`, `DIRECT_URL` for migrations | Dedicated schema-only Preview PostgreSQL branch. Runtime uses the pooled URL; migrations use the direct URL. Preview branch `br-hidden-mode-ax99b5h6` contains no copied Production rows. |
+| Database | `DATABASE_URL`, `DIRECT_URL`, `EXPECTED_NEON_PROJECT_ID`, `EXPECTED_NEON_BRANCH_ID` | Dedicated schema-only Preview PostgreSQL branch. Runtime uses the pooled URL; migrations use the direct URL. The expected IDs must match the identity reported by PostgreSQL before migrations run. Branch `br-hidden-mode-ax99b5h6` was accepted previously; current configuration drift must be resolved before another Preview migration. |
 | Clerk | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `CLERK_WEBHOOK_SIGNING_SECRET` | Dedicated non-production instance/domain and endpoint. Redirect URLs must include the exact protected Preview origin. |
 | OpenAI | `OPENAI_API_KEY` and optional workflow model overrides | Separate project/key, budget, rate limits, and eval gate. Never expose the key client-side. |
 | GitHub App | `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_SLUG`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_SETUP_STATE_SECRET` | Dedicated development/Preview GitHub App until production review. App, OAuth, webhook, and setup-state secrets remain separate server-only values. |
@@ -41,8 +41,11 @@ so Preview must be redeployed after any correction.
    preview commit.
 2. Link the repository to a Vercel project without committing `.vercel` state.
 3. Configure the isolated Preview environment inventory above.
-4. Apply reviewed migrations to the Preview database with
-   `prisma migrate deploy`; never use `db push`.
+4. Inspect the redacted target with `npm run db:inspect-target`, verify backup or
+   recoverable-branch evidence, and apply reviewed migrations only with
+   `npm run db:migrate:verified`. The command compares PostgreSQL's own Neon
+   project and branch identity with the explicit expected IDs before Prisma can
+   execute. Never use `db push`.
 5. Deploy a commit-specific Preview and enable Vercel Authentication/Standard
    Protection while internal validation is in progress.
 6. Smoke-test public pages, Clerk sign-in/sign-out/recovery, organization

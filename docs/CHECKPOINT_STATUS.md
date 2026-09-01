@@ -28,6 +28,16 @@ starting the next checkpoint and update it at the end of every work session.
 | Production billing foundation | In progress | Commit `92c68bf` models Stripe state per PostgreSQL Organization rather than email: one customer binding per organization, organization-scoped subscriptions, materialized entitlements, signed and digest-idempotent lifecycle deliveries, stale-event rejection, cross-tenant conflict checks, a checkout launch kill switch, test/live isolation, customer portal access, and an authenticated Billing surface. Hosted CI run `33447222445` applied all migrations to fresh PostgreSQL and passed the complete validation job. Vercel built Ready Preview `dpl_Hxb1NgtN4aWvPaDNwZEXJCFncyK5`; this is build evidence only because the isolated Preview database migration and Stripe test-mode lifecycle E2E remain. Checkout stays disabled until those, reconciliation, and support/legal gates pass. |
 | Production AI safety foundation | In progress | Active public AI routes now reserve atomic burst/daily Redis quota before provider work, HMAC client addresses instead of storing raw IPs, propagate request IDs, emit allowlisted structured telemetry, and impose finite output-token ceilings. Authenticated Workspace AI also reserves one Organization-scoped budget before provider work. Superseded public AI routes remain present but are quarantined with `410` by default, preventing their legacy unbounded provider and URL-fetch paths from executing. Unit, typecheck, and lint evidence pass; full hosted CI, protected Preview behavior, monitoring alerts, evals, and plan-specific entitlement limits remain. |
 
+### 2026-09-01 release-audit correction
+
+The schema-only Preview branch `br-hidden-mode-ax99b5h6` was valid at the
+recorded import checkpoint, but a new read-only audit proves current
+branch-scoped Vercel Preview variables resolve to Neon project/branch
+`restless-frost-04247280/br-restless-dawn-axyqbc68`. That target lacks both the
+pending billing migration and the earlier repository-import row. No migration
+was run. Restore the accepted target or independently validate the replacement
+before accepting new Preview data-flow evidence.
+
 ## Checkpoint 4 delivered behavior
 
 - Verifies Clerk webhook signatures before parsing provider data.

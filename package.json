@@ -20,18 +20,21 @@
     "prisma:format": "prisma format --config prisma.config.ts",
     "prisma:validate": "prisma validate --config prisma.config.ts",
     "prisma:migrate:dev": "prisma migrate dev --config prisma.config.ts",
-    "prisma:migrate:deploy": "prisma migrate deploy --config prisma.config.ts"
+    "prisma:migrate:deploy": "prisma migrate deploy --config prisma.config.ts",
+    "db:inspect-target": "node scripts/inspect-database-target.mjs",
+    "db:verify-target": "node scripts/migrate-verified.mjs --verify-only",
+    "db:migrate:verified": "node scripts/migrate-verified.mjs"
   },
   "dependencies": {
     "@clerk/backend": "3.16.1",
     "@clerk/nextjs": "7.7.1",
-    "@prisma/adapter-pg": "7.9.1",
-    "@prisma/client": "7.9.1",
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
     "@upstash/redis": "^1.36.4",
     "cheerio": "^1.2.0",
     "dotenv": "17.4.2",
     "jszip": "^3.10.1",
-    "next": "16.1.6",
+    "next": "16.3.4",
     "openai": "^6.27.0",
     "pg": "8.23.0",
     "playwright": "^1.58.2",
@@ -39,7 +42,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-syntax-highlighter": "^16.1.1",
-    "resend": "^6.9.3",
+    "resend": "6.25.0",
     "server-only": "0.0.1",
     "stripe": "^20.4.1",
     "zod": "4.4.3"
@@ -55,11 +58,16 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vitest/coverage-v8": "4.1.10",
     "eslint": "^9",
-    "eslint-config-next": "16.1.6",
-    "prisma": "7.9.1",
+    "eslint-config-next": "16.3.4",
+    "prisma": "7.10.0",
     "tailwindcss": "^4",
     "tsx": "4.23.11",
     "typescript": "^5",
     "vitest": "4.1.10"
+  },
+  "overrides": {
+    "deepmerge-ts": "8.0.2",
+    "mysql2": "3.24.2",
+    "undici": "7.29.0"
   }
 }

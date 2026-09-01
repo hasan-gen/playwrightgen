@@ -31,11 +31,14 @@ repository evidence overrides stale prose.
   repository; the interactive browser account is `hmamut39`. The development
   App authorization created no installation, connection, or import record in
   PostgreSQL, so no tenant data was attached incorrectly.
-- Preview isolation is complete: Neon branch `br-hidden-mode-ax99b5h6` was
+- Preview isolation was proven on Neon branch `br-hidden-mode-ax99b5h6`: it was
   created schema-only, its schema matched the nine reviewed migrations before
   they were baselined, Clerk reconciliation reached zero drift, and an
-  authenticated user reached the isolated Workspace. No production rows were
-  copied and Production was not deployed.
+  authenticated user reached the isolated Workspace. A 2026-09-01 audit found
+  current branch-scoped Preview variables instead resolve to
+  `restless-frost-04247280/br-restless-dawn-axyqbc68`, where prior import
+  evidence and the billing migration are absent. Do not migrate until the
+  accepted target is restored or the replacement is independently validated.
 - The authenticated Owner created the first Preview project successfully.
 - The GitHub App is already installed on `hmamut39` as installation
   `157602553` with metadata/contents read only and all-repository selection.
@@ -55,16 +58,17 @@ repository evidence overrides stale prose.
   customer portal, authenticated Billing UI, and a test-mode runbook. Hosted
   migration/lifecycle validation is the next evidence gate; paid checkout is
   still disabled.
-- The production AI safety foundation is implemented locally: atomic
+- The production AI safety foundation is committed as `ee4569a`, passed hosted
+  CI run `33567562584`, and is deployed only to protected Preview: atomic
   pre-provider public and Organization quotas, HMAC public-client keys, bounded
   provider output, safe request/token telemetry, and default quarantine of
-  superseded AI endpoints. Hosted CI and protected Preview proof remain before
-  the checkpoint can be closed.
+  superseded AI endpoints. Live route proof still requires separately approved
+  Preview automation/webhook bypass controls.
 
 ## Next primary outcome
 
-Commit and validate the AI safety foundation in hosted CI, then apply the
-already-validated additive billing migration to the isolated Preview branch and
+Resolve and re-prove the current Preview database target, then apply the
+already-validated additive billing migration through the verified target guard and
 exercise a Stripe test-mode endpoint with Checkout locked by default. Continue
 the dedicated Clerk test-principal and isolated Clerk/GitHub webhook work
 without creating a Vercel automation bypass unless the user explicitly approves
